@@ -1,7 +1,7 @@
 import axios from "axios";
 
-export const BASE_URL = "http://localhost:2020/api/v1";
-// export const BASE_URL = "https://school-management-system-zwgw.onrender.com/api/v1";
+// export const BASE_URL = "http://localhost:2020/api/v1";
+export const BASE_URL = "https://school-management-system-zwgw.onrender.com/api/v1";
 
 const api = axios.create({
   baseURL: BASE_URL,
