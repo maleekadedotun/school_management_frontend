@@ -13,6 +13,7 @@ interface Teacher {
   applicationStatus?: "pending" | "approved" | "rejected";
   isSuspended?: boolean;
   isWithdrawn?: boolean;
+  isWithDrawn?: boolean;
   dateEmployed?: string;
 }
 

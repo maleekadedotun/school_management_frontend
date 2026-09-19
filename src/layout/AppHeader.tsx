@@ -5,15 +5,13 @@ import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
 // import { cn } from "@/utils";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 const AppHeader: React.FC = () => {
   const { t } = useTranslation("header");
   const inputRef = useRef<HTMLInputElement>(null);
-  const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
-
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
   const handleToggle = () => {
@@ -22,10 +20,6 @@ const AppHeader: React.FC = () => {
     } else {
       toggleMobileSidebar();
     }
-  };
-
-  const toggleApplicationMenu = () => {
-    setApplicationMenuOpen(!isApplicationMenuOpen);
   };
 
   useEffect(() => {

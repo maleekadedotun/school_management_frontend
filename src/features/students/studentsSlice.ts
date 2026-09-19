@@ -1,11 +1,22 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
 
-interface Student {
+export interface Student {
   _id: string;
   name: string;
   email: string;
-  role: string;
+  role?: string;
+  StudentId?: string;
+  studentId?: string;
+  currentClassLevel?: string;
+  classLevels?: string;
+  program?: { name: string } | string;
+  isSuspended?: boolean;
+  isWithDrawn?: boolean;
+  isGraduated?: boolean;
+  dateAdmitted?: string;
+  academicYear?: { name: string } | string;
+  prefectName?: string;
 }
 
 // interface AuthState {

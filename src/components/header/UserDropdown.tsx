@@ -7,7 +7,6 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import { getLanguage, languages, type Locale } from "@/i18n/languages";
 import { cn } from "@/utils";
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 
@@ -26,7 +25,6 @@ export default function UserDropdown() {
   const activeUser = admin || teacher || student || currentStudent;
   const userRole = activeUser?.role || localStorage.getItem("userRole") || "admin";
 
-  const { t } = useTranslation();
   const { language: locale, setLanguage } = useLanguage();
   const currentLang = getLanguage(locale as Locale);
   const CurrentFlagIcon = currentLang.FlagIcon;

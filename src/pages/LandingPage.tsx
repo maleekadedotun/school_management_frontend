@@ -1,7 +1,6 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function LandingPage() {
-  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-[#0a0f1e] text-slate-100 font-sans relative overflow-x-hidden selection:bg-indigo-500 selection:text-white">

@@ -20,7 +20,6 @@ import {
   HiOutlineBookOpen,
   HiOutlineClipboardDocumentCheck,
   HiOutlineCalendar,
-  HiOutlineSparkles,
   HiOutlineBuildingLibrary,
   HiOutlineChartBar,
   HiOutlineCheckCircle,

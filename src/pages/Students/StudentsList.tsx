@@ -1,20 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
-import { fetchAllStudents, registerStudent, updateStudentAdmin, suspendStudent, unsuspendStudent, withdrawStudent, unwithdrawStudent } from "../../features/students/studentsSlice";
-
-interface Student {
-  _id: string;
-  name: string;
-  email: string;
-  StudentId?: string;
-  currentClassLevel?: string;
-  program?: { name: string } | string;
-  isSuspended?: boolean;
-  isWithDrawn?: boolean;
-  isGraduated?: boolean;
-  dateAdmitted?: string;
-  academicYear?: { name: string } | string;
-}
+import { fetchAllStudents, registerStudent, updateStudentAdmin, suspendStudent, unsuspendStudent, withdrawStudent, unwithdrawStudent, type Student } from "../../features/students/studentsSlice";
 
 export default function StudentsList() {
   const dispatch = useAppDispatch();

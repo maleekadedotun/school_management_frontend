@@ -21,8 +21,8 @@ export default defineConfig({
     }),
   ],
   build: {
-    rolldownOptions: {
-      onwarn(warning, warn) {
+    rollupOptions: {
+      onwarn(warning: any, warn: any) {
         // Skip eval warnings from react-jvectormap
         if (
           warning.code === "EVAL" &&
