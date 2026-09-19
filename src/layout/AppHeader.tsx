@@ -4,9 +4,9 @@ import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
-import { cn } from "@/utils";
+// import { cn } from "@/utils";
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "node_modules/react-i18next";
+import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 const AppHeader: React.FC = () => {
