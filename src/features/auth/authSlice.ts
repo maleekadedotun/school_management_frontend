@@ -81,7 +81,14 @@ const authSlice = createSlice({
         state.token = action.payload.token;
         state.admin = action.payload.admin;
         state.error = null;
+        // Purge conflicting sessions to prevent cross-role hijacking
+        localStorage.removeItem("teacher");
+        localStorage.removeItem("teacherToken");
+        localStorage.removeItem("student");
+        localStorage.removeItem("studentToken");
+
         localStorage.setItem("token", action.payload.token);
+        localStorage.setItem("adminToken", action.payload.token);
         localStorage.setItem("admin", JSON.stringify(action.payload.admin));
         localStorage.setItem("userRole", action.payload.admin?.role || "admin");
       })

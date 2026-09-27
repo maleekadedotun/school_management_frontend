@@ -295,7 +295,7 @@ export default function Dashboard() {
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-bold text-dark flex items-center gap-2">
                 <HiOutlineUsers className="text-indigo-400" />
                 Student Enrollment
               </h2>
@@ -314,7 +314,7 @@ export default function Dashboard() {
         <div className="lg:col-span-2 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-bold text-dark flex items-center gap-2">
                 <HiOutlineChartBar className="text-emerald-400" />
                 Academic & Exam Analytics
               </h2>
@@ -335,7 +335,7 @@ export default function Dashboard() {
         {/* Recent Registered Students */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <h2 className="text-base font-bold text-dark flex items-center gap-2">
               <HiOutlineAcademicCap className="text-indigo-400" />
               Recent Registered Students
             </h2>
@@ -361,7 +361,7 @@ export default function Dashboard() {
                       {s.name?.[0]?.toUpperCase() || "S"}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-white text-sm font-semibold truncate">{s.name}</p>
+                      <p className="text-dark text-sm font-semibold truncate">{s.name}</p>
                       <p className="text-slate-400 text-xs truncate">{s.StudentId || s.email}</p>
                     </div>
                   </div>
@@ -382,7 +382,7 @@ export default function Dashboard() {
         {/* Recent Faculty / Teachers */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-xl space-y-5">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <h2 className="text-base font-bold text-dark flex items-center gap-2">
               <HiOutlineUserGroup className="text-violet-400" />
               Faculty Members & Staff
             </h2>
@@ -408,7 +408,7 @@ export default function Dashboard() {
                         {t.name?.[0]?.toUpperCase() || "T"}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-white text-sm font-semibold truncate">{t.name}</p>
+                        <p className="text-dark text-sm font-semibold truncate">{t.name}</p>
                         <p className="text-slate-400 text-xs truncate">{t.subject || t.email}</p>
                       </div>
                     </div>
@@ -448,7 +448,7 @@ export default function Dashboard() {
 
       {/* Academic Modules Quick Launch Grid */}
       <div className="space-y-4">
-        <h2 className="text-base font-bold text-white flex items-center gap-2">
+        <h2 className="text-base font-bold text-dark flex items-center gap-2">
           <HiOutlineBuildingLibrary className="text-indigo-400 text-lg" />
           Academic Infrastructure & Modules
         </h2>
@@ -465,12 +465,12 @@ export default function Dashboard() {
             <Link
               key={item.label}
               to={item.link}
-              className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-indigo-500/50 rounded-2xl p-4 transition-all duration-200 group flex flex-col items-center text-center space-y-2 shadow-lg"
+              className="bg-white/5 hover:bg-black border border-white/10 hover:border-indigo-500/50 rounded-2xl p-4 transition-all duration-200 group flex flex-col items-center text-center space-y-2 shadow-lg"
             >
               <div className="p-3 bg-white/5 rounded-xl group-hover:scale-110 transition-transform">
                 {item.icon}
               </div>
-              <p className="text-slate-300 text-xs font-medium leading-tight group-hover:text-white transition-colors">
+              <p className="text-dark-300 text-xs font-medium leading-tight group-hover:text-white transition-colors">
                 {item.label}
               </p>
               <p className="text-lg font-bold text-white">{item.count}</p>

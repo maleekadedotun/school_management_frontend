@@ -11,6 +11,10 @@ import TeacherDashboard from "./pages/Dashboard/TeacherDashboard";
 import StudentDashboard from "./pages/Dashboard/StudentDashboard";
 import StudentsList from "./pages/Students/StudentsList";
 import TeachersList from "./pages/Teachers/TeachersList";
+import TeacherProfile from "./pages/Teachers/TeacherProfile";
+import TeacherExamsManagement from "./pages/Teachers/TeacherExamsManagement";
+import TeacherQuestionsList from "./pages/Teachers/TeacherQuestionsList";
+import TeacherStudentResults from "./pages/Teachers/TeacherStudentResults";
 import AcademicYearsList from "./pages/Academic/AcademicYearsList";
 import AcademicTermsList from "./pages/Academic/AcademicTermsList";
 import ClassLevelsList from "./pages/Academic/ClassLevelsList";
@@ -18,6 +22,9 @@ import YearGroupsList from "./pages/Academic/YearGroupsList";
 import ProgramsList from "./pages/Academic/ProgramsList";
 import SubjectsList from "./pages/Academic/SubjectsList";
 import ExamsList from "./pages/Exams/ExamsList";
+import StudentResultsList from "./pages/Exams/StudentResultsList";
+import TeacherExamsList from "./pages/Exams/TeacherExamsList";
+import QuestionsList from "./pages/Exams/QuestionsList";
 import UserProfiles from "./pages/UserProfiles";
 import NotFound from "./pages/OtherPage/NotFound";
 
@@ -34,6 +41,29 @@ export default function App() {
           <Route path="/teacher/login" element={<TeacherLogin />} />
           <Route path="/student/login" element={<StudentLogin />} />
 
+          {/* Shared Routes for Admin & Teacher */}
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["admin", "teacher"]}>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/students" element={<StudentsList />} />
+          </Route>
+
+          {/* Shared Routes for Admin, Teacher, and Student */}
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["admin", "teacher", "student"]}>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/exams" element={<ExamsList />} />
+            <Route path="/profile" element={<UserProfiles />} />
+          </Route>
+
           {/* Admin Protected Dashboard Routes */}
           <Route
             element={
@@ -43,7 +73,6 @@ export default function App() {
             }
           >
             <Route path="/admin/dashboard" element={<Dashboard />} />
-            <Route path="/students" element={<StudentsList />} />
             <Route path="/teachers" element={<TeachersList />} />
             <Route path="/academic/years" element={<AcademicYearsList />} />
             <Route path="/academic/terms" element={<AcademicTermsList />} />
@@ -51,8 +80,9 @@ export default function App() {
             <Route path="/academic/year-groups" element={<YearGroupsList />} />
             <Route path="/academic/programs" element={<ProgramsList />} />
             <Route path="/academic/subjects" element={<SubjectsList />} />
-            <Route path="/exams" element={<ExamsList />} />
-            <Route path="/profile" element={<UserProfiles />} />
+            <Route path="/admin/results" element={<StudentResultsList />} />
+            <Route path="/admin/teacher-exams" element={<TeacherExamsList />} />
+            <Route path="/admin/questions" element={<QuestionsList />} />
           </Route>
 
           {/* Teacher Protected Dashboard Routes */}
@@ -64,10 +94,11 @@ export default function App() {
             }
           >
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-            <Route path="/students" element={<StudentsList />} />
-            <Route path="/academic/subjects" element={<SubjectsList />} />
-            <Route path="/exams" element={<ExamsList />} />
-            <Route path="/profile" element={<UserProfiles />} />
+            <Route path="/teacher/profile" element={<TeacherProfile />} />
+            <Route path="/teacher/exams" element={<TeacherExamsManagement />} />
+            <Route path="/teacher/questions" element={<TeacherQuestionsList />} />
+            <Route path="/teacher/results" element={<TeacherStudentResults />} />
+            <Route path="/teacher/students" element={<StudentsList />} />
           </Route>
 
           {/* Student Protected Dashboard Routes */}
@@ -79,10 +110,7 @@ export default function App() {
             }
           >
             <Route path="/student/dashboard" element={<StudentDashboard />} />
-            <Route path="/academic/subjects" element={<SubjectsList />} />
             <Route path="/academic/programs" element={<ProgramsList />} />
-            <Route path="/exams" element={<ExamsList />} />
-            <Route path="/profile" element={<UserProfiles />} />
           </Route>
 
           {/* Fallback */}

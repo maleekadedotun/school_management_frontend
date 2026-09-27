@@ -63,10 +63,10 @@ export default function ClassLevelsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
             <span>🏫</span> Class Levels
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-dark-400 text-sm mt-1">
             Manage grade levels, year tiers, and class level assignments
           </p>
         </div>
@@ -98,8 +98,8 @@ export default function ClassLevelsList() {
         ) : classLevels.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <span className="text-4xl">🏫</span>
-            <h3 className="mt-3 text-white font-semibold text-lg">No Class Levels Found</h3>
-            <p className="mt-1 text-slate-400 text-sm">
+            <h3 className="mt-3 text-dark font-semibold text-lg">No Class Levels Found</h3>
+            <p className="mt-1 text-dark-400 text-sm">
               Click the button above to create your first class level.
             </p>
           </div>
@@ -107,7 +107,7 @@ export default function ClassLevelsList() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/10 bg-white/5 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <tr className="border-b border-white/10 bg-white/5 text-dark-400 text-xs font-semibold uppercase tracking-wider">
                   <th className="px-6 py-4">Level Name</th>
                   <th className="px-6 py-4">Description</th>
                   <th className="px-6 py-4">Students Enrolled</th>
@@ -116,11 +116,11 @@ export default function ClassLevelsList() {
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm text-slate-300">
+              <tbody className="divide-y divide-white/5 text-sm text-dark-300">
                 {classLevels.map((item) => (
                   <tr key={item._id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-semibold text-dark">{item.name}</td>
-                    <td className="px-6 py-4 text-slate-300">{item.description || "—"}</td>
+                    <td className="px-6 py-4">{item.description || "—"}</td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         {Array.isArray(item.students) ? item.students.length : 0} Students
@@ -131,7 +131,7 @@ export default function ClassLevelsList() {
                         {Array.isArray(item.subjects) ? item.subjects.length : 0} Subjects
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400">
+                    <td className="px-6 py-4 text-dark  -400">
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-6 py-4 text-right">

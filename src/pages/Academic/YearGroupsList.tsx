@@ -70,10 +70,10 @@ export default function YearGroupsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
             <span>🎓</span> Year Groups
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-dark-400 text-sm mt-1">
             Manage graduation cohorts and year groups linked to academic sessions
           </p>
         </div>
@@ -105,8 +105,8 @@ export default function YearGroupsList() {
         ) : yearGroups.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <span className="text-4xl">🎓</span>
-            <h3 className="mt-3 text-white font-semibold text-lg">No Year Groups Found</h3>
-            <p className="mt-1 text-slate-400 text-sm">
+            <h3 className="mt-3 text-dark font-semibold text-lg">No Year Groups Found</h3>
+            <p className="mt-1 text-dark-400 text-sm">
               Click the button above to create your first year group.
             </p>
           </div>
@@ -114,14 +114,14 @@ export default function YearGroupsList() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/10 bg-white/5 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <tr className="border-b border-white/10 bg-white/5 text-dark-400 text-xs font-semibold uppercase tracking-wider">
                   <th className="px-6 py-4">Group Name</th>
                   <th className="px-6 py-4">Academic Session</th>
                   <th className="px-6 py-4">Created Date</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm text-slate-300">
+              <tbody className="divide-y divide-white/5 text-sm text-dark-300">
                 {yearGroups.map((item) => (
                   <tr key={item._id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-semibold text-dark">{item.name}</td>
@@ -131,7 +131,7 @@ export default function YearGroupsList() {
                           (typeof item.academicYear === "string" ? item.academicYear : "—")}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400">
+                    <td className="px-6 py-4 text-dark-400">
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-6 py-4 text-right">

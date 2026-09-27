@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchExams, createExam, deleteExam, publishExamResult } from "../../features/exams/examsSlice";
 
@@ -41,20 +42,49 @@ export default function ExamsList() {
     <div className="p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Exams</h1>
+          <h1 className="text-2xl font-bold text-dark">Exams</h1>
           <p className="text-slate-400 text-sm mt-1">
             {exams.length} total · {exams.filter(e => e.examStatus === "live").length} live · {exams.filter(e => e.examStatus === "pending").length} pending
           </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-semibold text-sm transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Create Exam
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/admin/teacher-exams"
+            className="px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-semibold text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            Teacher Exams
+          </Link>
+          <Link
+            to="/admin/questions"
+            className="px-4 py-2.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 border border-violet-500/30 text-violet-300 font-semibold text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Question Bank
+          </Link>
+          <Link
+            to="/admin/results"
+            className="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-300 font-semibold text-sm transition-all flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Student Results
+          </Link>
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-semibold text-sm transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Create Exam
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -91,7 +121,7 @@ export default function ExamsList() {
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-48 bg-white/10 rounded-2xl animate-pulse" />)
         ) : filtered.length === 0 ? (
-          <div className="col-span-full text-center text-slate-500 text-sm py-16 bg-white/5 border border-white/10 rounded-2xl">
+          <div className="col-span-full text-center text-dark-500 text-sm py-16 bg-white/5 border border-white/10 rounded-2xl">
             No exams found. Click "+ Create Exam" to create one.
           </div>
         ) : (
@@ -105,7 +135,7 @@ export default function ExamsList() {
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-400 text-xs border border-white/10">{exam.examType || "Quiz"}</span>
                   </div>
-                  <h3 className="text-white font-semibold text-base truncate">{exam.name}</h3>
+                  <h3 className="text-dark font-semibold text-base truncate">{exam.name}</h3>
                   <p className="text-slate-400 text-xs mt-1 line-clamp-2">{exam.description || "No description provided"}</p>
                 </div>
               </div>
@@ -119,7 +149,7 @@ export default function ExamsList() {
                 ].map((d) => (
                   <div key={d.label} className="bg-white/5 border border-white/5 rounded-lg px-3 py-2">
                     <p className="text-slate-500 text-xs">{d.label}</p>
-                    <p className="text-white text-sm font-medium">{d.value}</p>
+                    <p className="text-dark text-sm font-medium">{d.value}</p>
                   </div>
                 ))}
               </div>
@@ -127,7 +157,7 @@ export default function ExamsList() {
               <div className="flex items-center gap-2 pt-2 border-t border-white/10">
                 <button
                   onClick={() => dispatch(publishExamResult(exam._id))}
-                  className="flex-1 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-300 text-xs font-medium transition-all"
+                  className="flex-1 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-dark-300 text-xs font-medium transition-all"
                 >
                   Publish Results
                 </button>

@@ -65,10 +65,10 @@ export default function AcademicTermsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
             <span>📆</span> Academic Terms
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-dark-400 text-sm mt-1">
             Manage academic terms, semester durations, and term descriptions
           </p>
         </div>
@@ -100,8 +100,8 @@ export default function AcademicTermsList() {
         ) : academicTerms.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <span className="text-4xl">📆</span>
-            <h3 className="mt-3 text-white font-semibold text-lg">No Academic Terms Found</h3>
-            <p className="mt-1 text-slate-400 text-sm">
+            <h3 className="mt-3 text-dark font-semibold text-lg">No Academic Terms Found</h3>
+            <p className="mt-1 text-dark-400 text-sm">
               Click the button above to create your first academic term.
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function AcademicTermsList() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/10 bg-white/5 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <tr className="border-b border-white/10 bg-white/5 text-dark-400 text-xs font-semibold uppercase tracking-wider">
                   <th className="px-6 py-4">Term Name</th>
                   <th className="px-6 py-4">Description</th>
                   <th className="px-6 py-4">Duration</th>
@@ -117,17 +117,17 @@ export default function AcademicTermsList() {
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm text-slate-300">
+              <tbody className="divide-y divide-white/5 text-sm text-dark-300">
                 {academicTerms.map((item) => (
                   <tr key={item._id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-semibold text-dark">{item.name}</td>
-                    <td className="px-6 py-4 text-slate-300">{item.description || "—"}</td>
+                    <td className="px-6 py-4 text-dark-300">{item.description || "—"}</td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-500/10 text-violet-400 border border-violet-500/20">
                         {item.duration || "3 months"}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-slate-400">
+                    <td className="px-6 py-4 text-dark-400">
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-6 py-4 text-right">

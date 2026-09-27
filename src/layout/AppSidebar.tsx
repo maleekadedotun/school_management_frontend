@@ -83,9 +83,24 @@ const adminNavGroups: NavGroup[] = [
     title: "Exams & Evaluation",
     items: [
       {
-        name: "Exams & Results",
+        name: "Manage Exams",
         icon: <TaskIcon />,
         path: "/exams",
+      },
+      {
+        name: "Teacher Exams",
+        icon: <ListIcon />,
+        path: "/admin/teacher-exams",
+      },
+      {
+        name: "Question Bank",
+        icon: <TableIcon />,
+        path: "/admin/questions",
+      },
+      {
+        name: "Student Results",
+        icon: <PageIcon />,
+        path: "/admin/results",
       },
     ],
   },
@@ -119,12 +134,7 @@ const teacherNavGroups: NavGroup[] = [
       {
         name: "Students List",
         icon: <UserCircleIcon />,
-        path: "/students",
-      },
-      {
-        name: "Subjects & Programs",
-        icon: <TableIcon />,
-        path: "/academic/subjects",
+        path: "/teacher/students",
       },
     ],
   },
@@ -132,9 +142,19 @@ const teacherNavGroups: NavGroup[] = [
     title: "Exams & Assessment",
     items: [
       {
-        name: "Exam Management",
+        name: "My Exams",
         icon: <TaskIcon />,
-        path: "/exams",
+        path: "/teacher/exams",
+      },
+      {
+        name: "Question Bank",
+        icon: <PageIcon />,
+        path: "/teacher/questions",
+      },
+      {
+        name: "Class Results",
+        icon: <TableIcon />,
+        path: "/teacher/results",
       },
     ],
   },
@@ -144,7 +164,7 @@ const teacherNavGroups: NavGroup[] = [
       {
         name: "My Profile",
         icon: <UserCircleIcon />,
-        path: "/profile",
+        path: "/teacher/profile",
       },
     ],
   },
@@ -272,7 +292,10 @@ const AppSidebar: React.FC = () => {
   }, [location.pathname]);
 
   const isActive = useCallback(
-    (path: string) => location.pathname === path,
+    (path: string) =>
+      location.pathname === path ||
+      (path === "/students" && location.pathname === "/teacher/students") ||
+      (path === "/teacher/students" && location.pathname === "/students"),
     [location.pathname]
   );
 

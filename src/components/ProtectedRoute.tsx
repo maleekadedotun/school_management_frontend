@@ -111,22 +111,77 @@ const ProtectedRoute = ({
   const teacherToken = teacherState.token || localStorage.getItem("teacherToken");
   const studentToken = studentState.token || localStorage.getItem("studentToken");
 
+  const storedUserRole = localStorage.getItem("userRole");
+
+  // Determine available sessions
+  const hasTeacherSession = Boolean(teacherToken && teacherObj);
+  const hasAdminSession = Boolean(adminToken && adminObj);
+  const hasStudentSession = Boolean(studentToken && studentObj);
+
   let token: string | null = null;
   let user: User | null = null;
   let userRole = "";
 
-  if (adminToken && adminObj) {
-    token = adminToken;
-    user = adminObj;
-    userRole = adminObj.role || localStorage.getItem("userRole") || "admin";
-  } else if (teacherToken && teacherObj) {
-    token = teacherToken;
-    user = teacherObj;
-    userRole = teacherObj.role || localStorage.getItem("teacherRole") || "teacher";
-  } else if (studentToken && studentObj) {
-    token = studentToken;
-    user = studentObj;
-    userRole = studentObj.role || localStorage.getItem("studentRole") || "student";
+  // 1. Check if route is specifically scoped to a single role
+  if (allowedRoles.length === 1 && allowedRoles[0] === "teacher") {
+    if (hasTeacherSession || storedUserRole === "teacher") {
+      token = teacherToken || localStorage.getItem("token");
+      user = teacherObj || { role: "teacher" };
+      userRole = "teacher";
+    }
+  } else if (allowedRoles.length === 1 && allowedRoles[0] === "admin") {
+    if (hasAdminSession || storedUserRole === "admin") {
+      token = adminToken || localStorage.getItem("token");
+      user = adminObj || { role: "admin" };
+      userRole = "admin";
+    }
+  } else if (allowedRoles.length === 1 && allowedRoles[0] === "student") {
+    if (hasStudentSession || storedUserRole === "student") {
+      token = studentToken || localStorage.getItem("token");
+      user = studentObj || { role: "student" };
+      userRole = "student";
+    }
+  }
+
+  // 2. If not yet resolved (e.g. shared route or multiple allowedRoles), prioritize storedUserRole
+  if (!token || !user) {
+    if (storedUserRole === "teacher" && (hasTeacherSession || teacherToken)) {
+      token = teacherToken || localStorage.getItem("token");
+      user = teacherObj || { role: "teacher" };
+      userRole = "teacher";
+    } else if (storedUserRole === "student" && (hasStudentSession || studentToken)) {
+      token = studentToken || localStorage.getItem("token");
+      user = studentObj || { role: "student" };
+      userRole = "student";
+    } else if (storedUserRole === "admin" && (hasAdminSession || adminToken)) {
+      token = adminToken || localStorage.getItem("token");
+      user = adminObj || { role: "admin" };
+      userRole = "admin";
+    } else if (hasTeacherSession && allowedRoles.includes("teacher")) {
+      token = teacherToken;
+      user = teacherObj;
+      userRole = "teacher";
+    } else if (hasAdminSession && allowedRoles.includes("admin")) {
+      token = adminToken;
+      user = adminObj;
+      userRole = "admin";
+    } else if (hasStudentSession && allowedRoles.includes("student")) {
+      token = studentToken;
+      user = studentObj;
+      userRole = "student";
+    } else if (hasTeacherSession) {
+      token = teacherToken;
+      user = teacherObj;
+      userRole = "teacher";
+    } else if (hasAdminSession) {
+      token = adminToken;
+      user = adminObj;
+      userRole = "admin";
+    } else if (hasStudentSession) {
+      token = studentToken;
+      user = studentObj;
+      userRole = "student";
+    }
   }
 
   /*

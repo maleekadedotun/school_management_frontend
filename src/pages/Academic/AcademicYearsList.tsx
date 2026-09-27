@@ -74,10 +74,10 @@ export default function AcademicYearsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
             <span>📅</span> Academic Years
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-dark-400 text-sm mt-1">
             Manage session dates, start/end terms, and active academic year cycles
           </p>
         </div>
@@ -109,8 +109,8 @@ export default function AcademicYearsList() {
         ) : academicYears.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <span className="text-4xl">📅</span>
-            <h3 className="mt-3 text-white font-semibold text-lg">No Academic Years Found</h3>
-            <p className="mt-1 text-slate-400 text-sm">
+            <h3 className="mt-3 text-dark font-semibold text-lg">No Academic Years Found</h3>
+            <p className="mt-1 text-dark-400 text-sm">
               Click the button above to create your first academic year.
             </p>
           </div>
@@ -118,7 +118,7 @@ export default function AcademicYearsList() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/10 bg-white/5 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <tr className="border-b border-white/10 bg-white/5 text-dark-400 text-xs font-semibold uppercase tracking-wider">
                   <th className="px-6 py-4 ">Name</th>
                   <th className="px-6 py-4">From Date</th>
                   <th className="px-6 py-4">To Date</th>
@@ -127,14 +127,14 @@ export default function AcademicYearsList() {
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm text-slate-300">
+              <tbody className="divide-y divide-white/5 text-sm text-dark-300">
                 {academicYears.map((item) => (
                   <tr key={item._id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-semibold text-dark">{item.name}</td>
                     <td className="px-6 py-4">
                       {item.fromYear ? new Date(item.fromYear).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-indigo-300">
                       {item.toYear ? new Date(item.toYear).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-6 py-4">
@@ -143,12 +143,12 @@ export default function AcademicYearsList() {
                           Current Session
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-dark-400 border border-slate-500/20">
                           Inactive / Past
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-slate-400">
+                    <td className="px-6 py-4 text-dark-400">
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-6 py-4 text-right">

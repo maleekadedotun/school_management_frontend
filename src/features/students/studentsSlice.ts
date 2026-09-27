@@ -17,6 +17,8 @@ export interface Student {
   dateAdmitted?: string;
   academicYear?: { name: string } | string;
   prefectName?: string;
+  subject?: string;
+  assignedTeacher?: { _id: string; name: string; email?: string; subject?: string; classLevel?: string } | string;
 }
 
 // interface AuthState {
@@ -34,6 +36,8 @@ interface AuthState {
   student: Student | null;
   token: string | null;
   students: Student[];
+  teacherClassStudents: Student[];
+  teacherClassLevel: string | null;
   currentStudent: Student | null;
   total: number;
   loading: boolean;
@@ -57,6 +61,8 @@ const initialState: AuthState = {
       : null,
 
   students: [],
+  teacherClassStudents: [],
+  teacherClassLevel: null,
   currentStudent: null,
   total: 0,
 
@@ -78,6 +84,15 @@ export const fetchAllStudents = createAsyncThunk("students/fetchAll", async (_, 
     return data;
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || "Failed to fetch students");
+  }
+});
+
+export const fetchTeacherClassStudents = createAsyncThunk("students/fetchTeacherClassStudents", async (_, { rejectWithValue }) => {
+  try {
+    const { data } = await api.get("/students/teacher/class-students");
+    return data;
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || "Failed to fetch class students");
   }
 });
 
@@ -239,6 +254,16 @@ const studentsSlice = createSlice({
         state.total = state.students.length;
       })
       .addCase(fetchAllStudents.rejected, (state, action) => { state.loading = false; state.error = action.payload as string; })
+      .addCase(fetchTeacherClassStudents.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchTeacherClassStudents.fulfilled, (state, action) => {
+        state.loading = false;
+        state.teacherClassStudents = action.payload.data || [];
+        state.teacherClassLevel = action.payload.teacherClassLevel || null;
+      })
+      .addCase(fetchTeacherClassStudents.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
       .addCase(fetchStudent.fulfilled, (state, action) => { state.currentStudent = action.payload.data || action.payload.student; })
       .addCase(registerStudent.fulfilled, (state, action) => {
         const student = action.payload.data || action.payload.student;
@@ -281,6 +306,12 @@ const studentsSlice = createSlice({
         state.student = action.payload.student;
         state.currentStudent = action.payload.student;
         state.error = null;
+        // Purge conflicting sessions to prevent cross-role hijacking
+        localStorage.removeItem("admin");
+        localStorage.removeItem("adminToken");
+        localStorage.removeItem("teacher");
+        localStorage.removeItem("teacherToken");
+
         localStorage.setItem("studentToken", action.payload.token);
         localStorage.setItem("token", action.payload.token);
         localStorage.setItem("student", JSON.stringify(action.payload.student));

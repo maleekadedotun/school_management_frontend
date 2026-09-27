@@ -10,6 +10,9 @@ import programsReducer from "../features/programs/programsSlice";
 import subjectsReducer from "../features/subjects/subjectsSlice";
 import yearGroupsReducer from "../features/yearGroups/yearGroupsSlice";
 import examsReducer from "../features/exams/examsSlice";
+import examResultsReducer from "../features/examResults/examResultsSlice";
+import questionsReducer from "../features/questions/questionsSlice";
+
 export const store = configureStore({
   reducer: {
     auth: authReducer,
@@ -23,6 +26,8 @@ export const store = configureStore({
     subjects: subjectsReducer,
     yearGroups: yearGroupsReducer,
     exams: examsReducer,
+    examResults: examResultsReducer,
+    questions: questionsReducer,
   },
 });
 

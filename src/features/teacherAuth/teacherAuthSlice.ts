@@ -54,6 +54,18 @@ export const fetchTeacherProfile = createAsyncThunk(
   }
 );
 
+export const updateTeacherProfile = createAsyncThunk(
+  'teacherAuth/updateProfile',
+  async (payload: { name?: string; email?: string; password?: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put('/teachers/update', payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to update profile');
+    }
+  }
+);
+
 const teacherAuthSlice = createSlice({
   name: 'teacherAuth',
   initialState,
@@ -81,11 +93,18 @@ const teacherAuthSlice = createSlice({
         state.token = action.payload.token;
         state.teacher = action.payload.teacher;
         state.error = null;
+        // Purge conflicting sessions to prevent cross-role hijacking
+        localStorage.removeItem('admin');
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('student');
+        localStorage.removeItem('studentToken');
+
         localStorage.setItem('teacherToken', action.payload.token);
         localStorage.setItem('token', action.payload.token);
         localStorage.setItem('teacher', JSON.stringify(action.payload.teacher));
         localStorage.setItem('userRole', action.payload.teacher?.role || 'teacher');
-        toast.success('Teacher logged in');
+        localStorage.setItem('teacherRole', 'teacher');
+        toast.success('Teacher logged in successfully');
       })
       .addCase(teacherLogin.rejected, (state, action) => {
         state.loading = false;
@@ -95,6 +114,13 @@ const teacherAuthSlice = createSlice({
       .addCase(fetchTeacherProfile.fulfilled, (state, action) => {
         state.teacher = action.payload.data || action.payload;
         if (state.teacher) {
+          localStorage.setItem('teacher', JSON.stringify(state.teacher));
+        }
+      })
+      .addCase(updateTeacherProfile.fulfilled, (state, action) => {
+        const updated = action.payload.data || action.payload;
+        if (updated && updated._id) {
+          state.teacher = { ...state.teacher, ...updated } as Teacher;
           localStorage.setItem('teacher', JSON.stringify(state.teacher));
         }
       });

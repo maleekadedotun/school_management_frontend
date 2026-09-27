@@ -84,10 +84,10 @@ export default function UserDropdown() {
         </div>
 
         <div className="hidden sm:block text-left">
-          <p className="text-sm font-semibold text-gray-800 dark:text-white leading-tight">
+          <p className="text-sm font-semibold text-violet-400 dark:text-white leading-tight">
             {activeUser?.name || "User"}
           </p>
-          <p className="text-[11px] text-gray-500 dark:text-slate-400 font-medium capitalize">
+          <p className="text-[11px] text-white dark:text-slate-400 font-medium capitalize">
             {userRole}
           </p>
         </div>
