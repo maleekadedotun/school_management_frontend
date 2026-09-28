@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { teacherLogin, clearError } from "../../features/teacherAuth/teacherAuthSlice";
 
@@ -95,9 +95,17 @@ export default function TeacherLogin() {
 
             {/* Password */}
             <div>
-              <label htmlFor="teacher-password" className="block text-sm font-medium text-slate-300 mb-2">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="teacher-password" className="block text-sm font-medium text-slate-300">
+                  Password
+                </label>
+                <Link
+                  to="/teacher/forgot-password"
+                  className="text-xs text-emerald-400 hover:text-emerald-300 transition font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 type="password"
                 id="teacher-password"

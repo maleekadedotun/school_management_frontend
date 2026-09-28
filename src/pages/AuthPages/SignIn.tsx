@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { loginAdmin, clearError } from "../../features/auth/authSlice";
 
@@ -80,7 +80,15 @@ export default function SignIn() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-300">Password</label>
+                <Link
+                  to="/admin/forgot-password"
+                  className="text-xs text-indigo-400 hover:text-indigo-300 transition font-medium"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 type="password"
                 id="signin-password"

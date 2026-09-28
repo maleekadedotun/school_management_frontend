@@ -55,6 +55,38 @@ export const getAdminProfile = createAsyncThunk(
   }
 );
 
+export const adminForgotPassword = createAsyncThunk(
+  "auth/forgotPassword",
+  async (payload: { email: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post("/admin/forgot-password", payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to initiate password reset"
+      );
+    }
+  }
+);
+
+export const adminResetPassword = createAsyncThunk(
+  "auth/resetPassword",
+  async (
+    payload: { password: string; token?: string; email?: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const url = payload.token ? `/admin/reset-password/${payload.token}` : "/admin/reset-password";
+      const { data } = await api.post(url, payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to reset password"
+      );
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: "auth",
   initialState,

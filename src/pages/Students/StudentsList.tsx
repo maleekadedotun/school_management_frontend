@@ -37,7 +37,7 @@ export default function StudentsList() {
   const [studentResultsLoading, setStudentResultsLoading] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ name: "", email: "", password: "", classLevels: "Level 100", subject: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", classLevels: "Level 100", subject: "", program: "" });
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
@@ -241,7 +241,7 @@ export default function StudentsList() {
     await dispatch(registerStudent({ ...form, classLevels: [form.classLevels] }));
     setSubmitting(false);
     setShowModal(false);
-    setForm({ name: "", email: "", password: "", classLevels: "Level 100", subject: "" });
+    setForm({ name: "", email: "", password: "", classLevels: "Level 100", subject: "", program: "" });
   };
 
   const openEditModal = (s: Student) => {
@@ -1094,6 +1094,33 @@ export default function StudentsList() {
                   />
                 </div>
               ))}
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1.5">Program</label>
+                <select
+                  id="student-program"
+                  value={form.program}
+                  onChange={(e) => {
+                    const newProg = e.target.value;
+                    const { programSubjects } = getSubjectGroups(newProg);
+                    const defaultSub = programSubjects.length > 0 ? programSubjects[0].name : form.subject;
+                    setForm({ ...form, program: newProg, subject: defaultSub });
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl bg-[#0f1629] border border-white/10 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                >
+                  <option value="">Select Program (Optional)...</option>
+                  {programs.map((p: any) => (
+                    <option key={p._id || p.name} value={p._id || p.name}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                {form.program && (
+                  <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
+                    <span>✨ Student will automatically do all subjects under this program.</span>
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-300 mb-1.5">Class Level</label>
@@ -1117,7 +1144,7 @@ export default function StudentsList() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Subject</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Primary Subject</label>
                   <select
                     id="student-subject"
                     value={form.subject}
@@ -1125,14 +1152,49 @@ export default function StudentsList() {
                     className="w-full px-3 py-2.5 rounded-xl bg-[#0f1629] border border-white/10 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
                   >
                     <option value="">Select Subject...</option>
-                    {subjects.map((s: any) => {
-                      const sName = s.name || s;
+                    {(() => {
+                      const { programSubjects, otherSubjects } = getSubjectGroups(form.program);
+                      if (!form.program || otherSubjects.length === 0) {
+                        return subjects.map((s: any) => {
+                          const sName = s.name || s;
+                          const progTag = s.program?.name ? ` (${s.program.name})` : "";
+                          return (
+                            <option key={s._id || sName} value={sName}>
+                              {sName}{progTag}
+                            </option>
+                          );
+                        });
+                      }
                       return (
-                        <option key={s._id || sName} value={sName}>
-                          {sName}
-                        </option>
+                        <>
+                          {programSubjects.length > 0 && (
+                            <optgroup label="Subjects in Selected Program (Enrolled automatically)">
+                              {programSubjects.map((s: any) => {
+                                const sName = s.name || s;
+                                return (
+                                  <option key={s._id || sName} value={sName}>
+                                    ⭐ {sName}
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                          )}
+                          {otherSubjects.length > 0 && (
+                            <optgroup label="Other Subjects">
+                              {otherSubjects.map((s: any) => {
+                                const sName = s.name || s;
+                                const progTag = s.program?.name ? ` (${s.program.name})` : "";
+                                return (
+                                  <option key={s._id || sName} value={sName}>
+                                    {sName}{progTag}
+                                  </option>
+                                );
+                              })}
+                            </optgroup>
+                          )}
+                        </>
                       );
-                    })}
+                    })()}
                   </select>
                 </div>
               </div>

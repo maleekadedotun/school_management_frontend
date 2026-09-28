@@ -261,8 +261,14 @@ export default function StudentResultsList() {
     document.body.removeChild(link);
   };
 
-  const handleTogglePublish = (id: string, currentStatus: boolean) => {
-    dispatch(togglePublishResult({ id, publish: !currentStatus }));
+  const unpublishedTotal = useMemo(() => results.filter((r) => !r.isPublished).length, [results]);
+  const publishedTotal = useMemo(() => results.filter((r) => r.isPublished).length, [results]);
+
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    await dispatch(togglePublishResult({ id, publish: !currentStatus }));
+    if (selectedResult && selectedResult._id === id) {
+      setSelectedResult((prev) => (prev ? { ...prev, isPublished: !currentStatus } : null));
+    }
   };
 
   const isAllPageSelected =
@@ -282,7 +288,7 @@ export default function StudentResultsList() {
             <div>
               <h1 className="text-2xl font-extrabold text-white tracking-tight">Student Exam Results</h1>
               <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
-                Admin overview of student performance across departments, programs, and date ranges.
+                Admin review & publication dashboard for academic evaluation and student score visibility.
               </p>
             </div>
           </div>
@@ -310,32 +316,110 @@ export default function StudentResultsList() {
         </div>
       </div>
 
+      {/* 5-Step Evaluation & Publishing Pipeline Ribbon */}
+      <div className="bg-gradient-to-r from-slate-900/90 via-indigo-950/70 to-slate-900/90 border border-indigo-500/20 rounded-2xl p-4 sm:p-5 shadow-xl backdrop-blur-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/5 mb-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 rounded-full bg-indigo-400 animate-ping" />
+            <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide uppercase">
+              Evaluation & Publication Workflow
+            </h3>
+          </div>
+          <span className="text-[11px] text-slate-400">
+            Admin review gate ensures verification before marks unlock on student accounts
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 text-xs">
+          {/* Step 1 */}
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/5 text-slate-300">
+            <span className="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-300 flex items-center justify-center font-bold text-[11px] shrink-0">1</span>
+            <div className="truncate">
+              <p className="font-semibold text-white truncate">Student Completes Exam</p>
+              <p className="text-[10px] text-slate-400 truncate">Scores recorded</p>
+            </div>
+          </div>
+
+          {/* Step 2 */}
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-200">
+            <span className="w-6 h-6 rounded-lg bg-violet-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 shadow-sm">2</span>
+            <div className="truncate">
+              <p className="font-semibold text-violet-200 truncate">Teacher Publishes</p>
+              <p className="text-[10px] text-violet-300 truncate">Required for Admin view</p>
+            </div>
+          </div>
+
+          {/* Step 3 (Active) */}
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-200 ring-1 ring-indigo-400/40">
+            <span className="w-6 h-6 rounded-lg bg-indigo-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 shadow-sm">3</span>
+            <div className="truncate">
+              <p className="font-bold text-white truncate">Admin Reviews Result</p>
+              <p className="text-[10px] text-indigo-300 truncate">Active Portal</p>
+            </div>
+          </div>
+
+          {/* Step 4 (Action) */}
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-200">
+            <span className="w-6 h-6 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-[11px] shrink-0 shadow-sm">4</span>
+            <div className="truncate">
+              <p className="font-bold text-emerald-200 truncate">Admin Publishes</p>
+              <p className="text-[10px] text-emerald-400 truncate">adminToggleExamResult</p>
+            </div>
+          </div>
+
+          {/* Step 5 */}
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white/5 border border-white/5 text-slate-300">
+            <span className="w-6 h-6 rounded-lg bg-blue-500/20 text-blue-300 flex items-center justify-center font-bold text-[11px] shrink-0">5</span>
+            <div className="truncate">
+              <p className="font-semibold text-white truncate">Student Sees Result</p>
+              <p className="text-[10px] text-slate-400 truncate">Live on dashboard</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white/5 border border-white/10 hover:border-indigo-500/30 p-4 sm:p-5 rounded-2xl transition-all shadow-lg">
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Total Results</p>
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Total Records</p>
           <div className="flex items-baseline justify-between mt-2">
             <span className="text-2xl sm:text-3xl font-bold text-white">{stats.total}</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">Filtered</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-medium">All</span>
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 hover:border-emerald-500/30 p-4 sm:p-5 rounded-2xl transition-all shadow-lg">
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Passed Students</p>
+        <div className="bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/50 p-4 sm:p-5 rounded-2xl transition-all shadow-lg cursor-pointer" onClick={() => setPublishFilter("unpublished")}>
+          <p className="text-amber-300 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            Pending Review
+          </p>
           <div className="flex items-baseline justify-between mt-2">
-            <span className="text-2xl sm:text-3xl font-bold text-emerald-400">{stats.passed}</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
-              {stats.passRate}% Rate
+            <span className="text-2xl sm:text-3xl font-bold text-amber-300">{unpublishedTotal}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/30 font-semibold">
+              Draft
             </span>
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 hover:border-rose-500/30 p-4 sm:p-5 rounded-2xl transition-all shadow-lg">
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Failed Students</p>
+        <div className="bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/50 p-4 sm:p-5 rounded-2xl transition-all shadow-lg cursor-pointer" onClick={() => setPublishFilter("published")}>
+          <p className="text-emerald-300 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            Published (Live)
+          </p>
           <div className="flex items-baseline justify-between mt-2">
-            <span className="text-2xl sm:text-3xl font-bold text-rose-400">{stats.failed}</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">
-              {100 - stats.passRate}% Rate
+            <span className="text-2xl sm:text-3xl font-bold text-emerald-300">{publishedTotal}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 font-semibold">
+              Visible
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 hover:border-emerald-500/30 p-4 sm:p-5 rounded-2xl transition-all shadow-lg">
+          <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Pass Rate</p>
+          <div className="flex items-baseline justify-between mt-2">
+            <span className="text-2xl sm:text-3xl font-bold text-emerald-400">{stats.passRate}%</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+              {stats.passed} Passed
             </span>
           </div>
         </div>
@@ -344,7 +428,7 @@ export default function StudentResultsList() {
           <p className="text-slate-400 text-xs font-medium uppercase tracking-wider">Average Score</p>
           <div className="flex items-baseline justify-between mt-2">
             <span className="text-2xl sm:text-3xl font-bold text-amber-400">{stats.avgScore}%</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">Overall</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">Mean</span>
           </div>
         </div>
       </div>
@@ -481,9 +565,9 @@ export default function StudentResultsList() {
               onChange={(e) => setPublishFilter(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-[#0a0f1e] border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-indigo-500 transition-all"
             >
-              <option value="all">All (Published & Draft)</option>
-              <option value="published">✅ Published</option>
-              <option value="unpublished">🔒 Unpublished (Draft)</option>
+              <option value="all">All Records ({results.length})</option>
+              <option value="unpublished">⏳ Pending Review ({unpublishedTotal})</option>
+              <option value="published">✅ Published Live ({publishedTotal})</option>
             </select>
           </div>
 
@@ -516,6 +600,46 @@ export default function StudentResultsList() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Quick Publication Filter Chips */}
+        <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-white/10">
+          <span className="text-xs text-slate-400 font-medium">Quick Review Filter:</span>
+          <button
+            type="button"
+            onClick={() => setPublishFilter("all")}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border ${
+              publishFilter === "all"
+                ? "bg-indigo-600 text-white border-indigo-500 shadow-md"
+                : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"
+            }`}
+          >
+            All Records ({results.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setPublishFilter("unpublished")}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border flex items-center gap-1.5 ${
+              publishFilter === "unpublished"
+                ? "bg-amber-600 text-white border-amber-500 shadow-md"
+                : "bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            ⏳ Needs Admin Review ({unpublishedTotal})
+          </button>
+          <button
+            type="button"
+            onClick={() => setPublishFilter("published")}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border flex items-center gap-1.5 ${
+              publishFilter === "published"
+                ? "bg-emerald-600 text-white border-emerald-500 shadow-md"
+                : "bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            ✅ Published Live ({publishedTotal})
+          </button>
         </div>
       </div>
 
@@ -708,19 +832,27 @@ export default function StudentResultsList() {
                           <button
                             onClick={() => handleTogglePublish(item._id, item.isPublished)}
                             disabled={publishingId === item._id}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border flex items-center justify-center gap-1.5 mx-auto ${
+                            title={
                               item.isPublished
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
-                                : "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20"
+                                ? "Click to unpublish (hide result from student)"
+                                : "Click to review and publish to student"
+                            }
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border flex items-center justify-center gap-1.5 mx-auto ${
+                              item.isPublished
+                                ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-500/30"
+                                : "bg-amber-500/15 text-amber-300 border-amber-500/40 hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/40"
                             }`}
                           >
-                            <span className={`w-2 h-2 rounded-full ${item.isPublished ? "bg-emerald-400" : "bg-amber-400"}`} />
+                            <span className={`w-2 h-2 rounded-full ${item.isPublished ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`} />
                             {publishingId === item._id
                               ? "Updating..."
                               : item.isPublished
-                              ? "Published"
-                              : "Draft"}
+                              ? "Published Live"
+                              : "🚀 Approve & Publish"}
                           </button>
+                          <span className="text-[10px] text-emerald-400/90 font-medium block mt-1">
+                            ✓ Teacher Verified
+                          </span>
                         </td>
 
                         {/* Actions */}
@@ -786,13 +918,14 @@ export default function StudentResultsList() {
                       <button
                         onClick={() => handleTogglePublish(item._id, item.isPublished)}
                         disabled={publishingId === item._id}
-                        className={`px-2.5 py-1 rounded-full border ${
+                        className={`px-2.5 py-1 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${
                           item.isPublished
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                            : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                            ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
+                            : "bg-amber-500/15 text-amber-300 border-amber-500/40"
                         }`}
                       >
-                        {item.isPublished ? "Published" : "Draft"}
+                        <span className={`w-1.5 h-1.5 rounded-full ${item.isPublished ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`} />
+                        {publishingId === item._id ? "Updating..." : item.isPublished ? "Published" : "Publish"}
                       </button>
                       <button
                         onClick={() => setSelectedResult(item)}
@@ -938,24 +1071,66 @@ export default function StudentResultsList() {
               </div>
             )}
 
-            {/* Modal Actions Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-white/10">
+            {/* Teacher Verification Prerequisite Check */}
+            <div className="p-3.5 rounded-xl bg-violet-500/10 border border-violet-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5">
+                <span className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-xs shrink-0">
+                  ✓
+                </span>
+                <div>
+                  <p className="font-semibold text-white">Tier 1: Respective Teacher Verified</p>
+                  <p className="text-[11px] text-slate-400">
+                    {selectedResult.teacherPublishedAt
+                      ? `Approved & forwarded to Administration on ${new Date(selectedResult.teacherPublishedAt).toLocaleDateString()}`
+                      : "Verified and forwarded to administration by respective instructor."}
+                  </p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 w-fit">
+                Teacher Verified
+              </span>
+            </div>
+
+            {/* Administrative Review & Publication Controls */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className={`w-3 h-3 rounded-full ${selectedResult.isPublished ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`} />
+                <div>
+                  <p className="text-xs font-bold text-white">
+                    {selectedResult.isPublished ? "Status: Published (Visible to Student)" : "Status: Draft / Unpublished (Hidden from Student)"}
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    {selectedResult.isPublished
+                      ? "This student can see their official grade and breakdown on their portal."
+                      : "Only administrators and teachers can see this result until approved."}
+                  </p>
+                </div>
+              </div>
+
               <button
                 onClick={() => handleTogglePublish(selectedResult._id, selectedResult.isPublished)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                disabled={publishingId === selectedResult._id}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 shadow-md shrink-0 ${
                   selectedResult.isPublished
                     ? "bg-amber-500/20 text-amber-300 border-amber-500/30 hover:bg-amber-500/30"
-                    : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/30"
+                    : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white border-emerald-400"
                 }`}
               >
-                {selectedResult.isPublished ? "Unpublish Result" : "Publish Result"}
+                {publishingId === selectedResult._id
+                  ? "Updating..."
+                  : selectedResult.isPublished
+                  ? "🔒 Unpublish Result"
+                  : "🚀 Approve & Publish Result"}
               </button>
+            </div>
 
+            {/* Modal Actions Footer */}
+            <div className="flex items-center justify-end pt-3 border-t border-white/10">
               <button
                 onClick={() => setSelectedResult(null)}
                 className="px-5 py-2 rounded-xl bg-white/10 text-white text-xs font-semibold hover:bg-white/20 transition-all"
               >
-                Close
+                Close Report
               </button>
             </div>
           </div>

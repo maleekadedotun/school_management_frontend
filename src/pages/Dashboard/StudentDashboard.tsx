@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   fetchStudentProfile,
@@ -40,8 +41,15 @@ import {
   HiOutlineArrowTrendingUp,
 } from "react-icons/hi2";
 
-export default function StudentDashboard() {
+export interface StudentDashboardProps {
+  initialTab?: "overview" | "exams" | "results" | "profile";
+}
+
+export default function StudentDashboard({ initialTab }: StudentDashboardProps = {}) {
   const dispatch = useAppDispatch();
+  const [searchParams] = useSearchParams();
+  const queryTab = searchParams.get("tab") as "overview" | "exams" | "results" | "profile" | null;
+
   const {
     student,
     profile,
@@ -54,6 +62,8 @@ export default function StudentDashboard() {
     examSubmitting,
     examSubmitSuccess,
     examSubmitError,
+    hasPendingReview,
+    pendingReviewCount,
   } = useAppSelector((state) => state.students);
 
   const { items: exams, loading: examsLoading } = useAppSelector(
@@ -69,7 +79,24 @@ export default function StudentDashboard() {
   // Tabs: 'overview' | 'exams' | 'results' | 'profile'
   const [activeTab, setActiveTab] = useState<
     "overview" | "exams" | "results" | "profile"
-  >("overview");
+  >(
+    initialTab ||
+      (queryTab && ["overview", "exams", "results", "profile"].includes(queryTab)
+        ? queryTab
+        : "overview")
+  );
+
+  // Synchronize tab if initialTab or query param changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    } else if (
+      queryTab &&
+      ["overview", "exams", "results", "profile"].includes(queryTab)
+    ) {
+      setActiveTab(queryTab);
+    }
+  }, [initialTab, queryTab]);
 
   // Exam Search & Filter
   const [examSearch, setExamSearch] = useState("");
@@ -159,9 +186,114 @@ export default function StudentDashboard() {
     });
   };
 
-  // Filter available exams
+  // Helper to normalize class levels (e.g. "Level 200", "200 Level", "200L" -> "200")
+  const normalizeClass = (val: any) => {
+    if (!val) return "";
+    const str = (val?.name || val?.title || val?._id || val).toString().trim().toLowerCase();
+    const num = str.match(/\d+/)?.[0];
+    return num || str;
+  };
+
+  // Filter available exams: strictly enforces:
+  // 1. Exam class level matches activeStudent.currentClassLevel
+  // 2. Exam subject matches subject(s) student is offering
+  // 3. Exam createdBy matches student's assigned teacher (or teacher of that offering subject)
   const filteredExams = useMemo(() => {
+    if (!activeStudent) return exams;
+
+    const studentClassNorm = normalizeClass(activeStudent.currentClassLevel);
+
+    // Primary assigned teacher
+    const assignedTeacherObj = typeof activeStudent.assignedTeacher === "object" ? (activeStudent.assignedTeacher as any) : null;
+    const primaryTeacherId = assignedTeacherObj?._id
+      ? assignedTeacherObj._id.toString()
+      : (typeof activeStudent.assignedTeacher === "string" ? activeStudent.assignedTeacher : null);
+    const primaryTeacherName = (assignedTeacherObj?.name || "").trim().toLowerCase();
+
+    // Subjects student is offering in their class
+    const offeredSubjects: { id: string | null; nameNorm: string; teacherIds: string[]; teacherNames: string[] }[] = [];
+
+    // 1. Primary subject
+    if (activeStudent.subject) {
+      const subjectObj = typeof activeStudent.subject === "object" ? (activeStudent.subject as any) : null;
+      const subName = (subjectObj?.name || activeStudent.subject).toString().trim().toLowerCase();
+      const subId = subjectObj?._id ? subjectObj._id.toString() : null;
+      offeredSubjects.push({
+        id: subId,
+        nameNorm: subName,
+        teacherIds: primaryTeacherId ? [primaryTeacherId] : [],
+        teacherNames: primaryTeacherName ? [primaryTeacherName] : [],
+      });
+    }
+
+    // 2. Enrolled subjects for this class
+    if (activeStudent.enrolledSubjects && Array.isArray(activeStudent.enrolledSubjects)) {
+      for (const enr of activeStudent.enrolledSubjects) {
+        const enrClassNorm = normalizeClass(enr.classLevel);
+        if (!enrClassNorm || !studentClassNorm || enrClassNorm === studentClassNorm) {
+          const sObj = enr.subject;
+          if (!sObj) continue;
+          const sId = sObj._id ? sObj._id.toString() : (typeof sObj === "string" && sObj.match(/^[0-9a-fA-F]{24}$/) ? sObj : null);
+          const sName = (sObj.name || sObj).toString().trim().toLowerCase();
+
+          const sTeacherId = sObj.teacher?._id ? sObj.teacher._id.toString() : (typeof sObj.teacher === "string" ? sObj.teacher : null);
+          const sTeacherName = (sObj.teacher?.name || "").trim().toLowerCase();
+
+          const teacherIds: string[] = [];
+          const teacherNames: string[] = [];
+          if (sTeacherId) teacherIds.push(sTeacherId);
+          if (sTeacherName) teacherNames.push(sTeacherName);
+          if (primaryTeacherId && !teacherIds.includes(primaryTeacherId)) teacherIds.push(primaryTeacherId);
+          if (primaryTeacherName && !teacherNames.includes(primaryTeacherName)) teacherNames.push(primaryTeacherName);
+
+          offeredSubjects.push({
+            id: sId,
+            nameNorm: sName,
+            teacherIds,
+            teacherNames,
+          });
+        }
+      }
+    }
+
     return exams.filter((e) => {
+      // 1. Class Level Check
+      const examClassNorm = normalizeClass(e.classLevel);
+      if (studentClassNorm && examClassNorm && studentClassNorm !== examClassNorm) {
+        return false;
+      }
+
+      // 2. Subject Offering Check
+      const examSubId = e.subject?._id ? e.subject._id.toString() : (typeof e.subject === "string" ? e.subject : "");
+      const examSubName = (e.subject?.name || e.subject || "").toString().trim().toLowerCase();
+
+      const matchedOffered = offeredSubjects.find((os) => {
+        const idMatch = os.id && examSubId && os.id === examSubId;
+        const nameMatch = os.nameNorm && examSubName && (os.nameNorm === examSubName || examSubName.includes(os.nameNorm) || os.nameNorm.includes(examSubName));
+        return idMatch || nameMatch;
+      });
+
+      if (!matchedOffered && offeredSubjects.length > 0) {
+        return false;
+      }
+
+      // 3. Assigned Teacher Check
+      const examCreatorId = e.createdBy?._id ? e.createdBy._id.toString() : (typeof e.createdBy === "string" ? e.createdBy : "");
+      const examCreatorName = (e.createdBy?.name || "").trim().toLowerCase();
+
+      if (matchedOffered) {
+        const isAssigned =
+          (examCreatorId && matchedOffered.teacherIds.includes(examCreatorId)) ||
+          (examCreatorName && matchedOffered.teacherNames.some((tn) => tn && (tn === examCreatorName || examCreatorName.includes(tn) || tn.includes(examCreatorName)))) ||
+          (primaryTeacherId && examCreatorId && examCreatorId === primaryTeacherId) ||
+          (primaryTeacherName && examCreatorName && (examCreatorName === primaryTeacherName || examCreatorName.includes(primaryTeacherName) || primaryTeacherName.includes(examCreatorName)));
+
+        if (!isAssigned && (matchedOffered.teacherIds.length > 0 || primaryTeacherId || primaryTeacherName)) {
+          return false;
+        }
+      }
+
+      // 4. UI Search Query & Exam Type filter
       const matchSearch =
         e.name?.toLowerCase().includes(examSearch.toLowerCase()) ||
         e.description?.toLowerCase().includes(examSearch.toLowerCase()) ||
@@ -171,9 +303,10 @@ export default function StudentDashboard() {
       const matchType =
         examTypeFilter === "all" ||
         e.examType?.toLowerCase() === examTypeFilter.toLowerCase();
+
       return matchSearch && matchType;
     });
-  }, [exams, examSearch, examTypeFilter]);
+  }, [exams, activeStudent, examSearch, examTypeFilter]);
 
   // Filter exam results
   const filteredResults = useMemo(() => {
@@ -817,6 +950,27 @@ export default function StudentDashboard() {
                       </div>
                     )}
                 </div>
+              ) : hasPendingReview ? (
+                <div className="py-10 text-center space-y-3 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mx-auto border border-amber-500/30 animate-pulse">
+                    ⏳
+                  </div>
+                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 dark:text-amber-300 border border-amber-500/30">
+                    Awaiting Administrative Review
+                  </span>
+                  <h4 className="font-bold text-gray-900 dark:text-white text-base">
+                    Exam Submission Under Review
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                    Your exam has been submitted and is saved as unpublished. As soon as the school administration reviews and publishes your result, your full score and question breakdown will unlock here.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab("results")}
+                    className="mt-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    Check Results Status <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               ) : (
                 <div className="py-12 text-center space-y-3">
                   <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
@@ -942,11 +1096,15 @@ export default function StudentDashboard() {
                       : activeStudent?.program || "General Studies"}
                   </span>
                 </div>
-                <div className="flex justify-between pt-3">
-                  <span className="text-slate-500 dark:text-slate-400">Enrolled Subject</span>
-                  <span className="font-bold text-gray-900 dark:text-white">
-                    {activeStudent?.subject || "Core Sciences & Arts"}
-                  </span>
+                <div className="flex justify-between items-center pt-3">
+                  <span className="text-slate-500 dark:text-slate-400">Enrolled Subjects</span>
+                  <Link
+                    to="/student/subjects"
+                    className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 text-sm"
+                  >
+                    <span>{activeStudent?.subject || "View Enrolled (100L - Final)"}</span>
+                    <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
                 <div className="flex justify-between pt-3">
                   <span className="text-slate-500 dark:text-slate-400">Date Admitted</span>
@@ -1060,6 +1218,37 @@ export default function StudentDashboard() {
             </div>
           </div>
 
+          {/* Student Offering & Assigned Teacher Indicator */}
+          <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex flex-wrap items-center justify-between gap-4 text-xs">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Class:</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 font-bold text-indigo-700 dark:text-indigo-300">
+                  {activeStudent?.currentClassLevel || "Level 100"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Subject:</span>
+                <span className="font-bold">
+                  {typeof activeStudent?.subject === "object" ? (activeStudent?.subject as any)?.name : activeStudent?.subject || "Curriculum Courses"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Assigned Teacher:</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                  <HiOutlineShieldCheck className="w-3.5 h-3.5" />
+                  {(typeof activeStudent?.assignedTeacher === "object" ? (activeStudent?.assignedTeacher as any)?.name : null) || "Assigned Instructor"}
+                </span>
+              </div>
+            </div>
+
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+              🔒 Showing exams set by your assigned teacher for your class
+            </span>
+          </div>
+
           {/* Exams Grid */}
           {examsLoading ? (
             <div className="py-16 text-center text-sm text-slate-400">
@@ -1071,10 +1260,10 @@ export default function StudentDashboard() {
                 📚
               </div>
               <h4 className="font-bold text-gray-900 dark:text-white text-base">
-                No Exams Match Your Search
+                No Exams Available For Your Class & Assigned Teacher
               </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Try searching for a different keyword or reset filters.
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                Only examinations set by your assigned teacher ({(typeof activeStudent?.assignedTeacher === "object" ? (activeStudent?.assignedTeacher as any)?.name : null) || "your instructor"}) for your enrolled subject in {activeStudent?.currentClassLevel || "your class"} are displayed. No tests match at this time.
               </p>
             </div>
           ) : (
@@ -1117,6 +1306,19 @@ export default function StudentDashboard() {
                           <span>Subject:</span>
                           <strong className="text-gray-900 dark:text-white">
                             {exam.subject?.name || (typeof exam.subject === "string" ? exam.subject : "Academic Subject")}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Class Level:</span>
+                          <strong className="text-gray-900 dark:text-white">
+                            {exam.classLevel?.name || (typeof exam.classLevel === "string" ? exam.classLevel : "Class Level")}
+                          </strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Assigned Teacher:</span>
+                          <strong className="text-gray-900 dark:text-white flex items-center gap-1">
+                            <HiOutlineShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            {exam.createdBy?.name || "Teacher"}
                           </strong>
                         </div>
                         <div className="flex justify-between">
@@ -1168,6 +1370,26 @@ export default function StudentDashboard() {
       {/* === TAB 3: EXAM RESULTS ARCHIVE === */}
       {activeTab === "results" && (
         <div className="space-y-6">
+          {/* Pending Review Status Banner */}
+          {hasPendingReview && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5 text-amber-200">
+              <span className="text-2xl mt-0.5">⏳</span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-sm text-amber-300">
+                    Exam Submission Pending Administrative Review
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Draft / Unpublished
+                  </span>
+                </div>
+                <p className="text-xs text-amber-200/90 leading-relaxed">
+                  You have {pendingReviewCount > 0 ? pendingReviewCount : 1} exam result(s) awaiting review and publication by the school administrator. In accordance with the academic workflow, your official grade and score breakdown will be displayed below as soon as it is published.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Results Filter */}
           <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm">
             <div className="relative w-full sm:w-80">
@@ -1221,16 +1443,20 @@ export default function StudentDashboard() {
                     className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-sm hover:shadow-md transition-all"
                   >
                     <div className="flex items-start sm:items-center gap-4">
-                      {/* Grade Pill */}
+                      {/* Status Badge */}
                       <div
-                        className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0 border font-black shadow-sm ${
+                        className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0 border font-bold shadow-sm ${
                           isPassed
                             ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
                             : "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800"
                         }`}
                       >
-                        <span className="text-xl">{result.grade}%</span>
-                        <span className="text-[9px] font-bold uppercase">
+                        {isPassed ? (
+                          <HiOutlineCheckBadge className="w-7 h-7" />
+                        ) : (
+                          <HiOutlineXCircle className="w-7 h-7" />
+                        )}
+                        <span className="text-[10px] font-black uppercase tracking-wider mt-0.5">
                           {isPassed ? "Pass" : "Fail"}
                         </span>
                       </div>
@@ -1249,9 +1475,15 @@ export default function StudentDashboard() {
                           <strong className="text-slate-700 dark:text-slate-300">
                             {examObj.subject?.name || "Academic Course"}
                           </strong>{" "}
-                          • Score:{" "}
-                          <strong className="text-slate-700 dark:text-slate-300">
-                            {result.score} pts
+                          • Status:{" "}
+                          <strong
+                            className={
+                              isPassed
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-rose-600 dark:text-rose-400"
+                            }
+                          >
+                            {result.status || (isPassed ? "Passed" : "Failed")}
                           </strong>{" "}
                           • Remarks:{" "}
                           <strong className="text-indigo-600 dark:text-indigo-400">
@@ -1324,11 +1556,15 @@ export default function StudentDashboard() {
                     : activeStudent?.program || "General Education"}
                 </span>
               </div>
-              <div className="flex justify-between pt-3">
-                <span className="text-slate-500 dark:text-slate-400">Enrolled Subject:</span>
-                <span className="font-bold text-gray-900 dark:text-white">
-                  {activeStudent?.subject || "Core Syllabus"}
-                </span>
+              <div className="flex justify-between items-center pt-3">
+                <span className="text-slate-500 dark:text-slate-400">Enrolled Subjects:</span>
+                <Link
+                  to="/student/subjects"
+                  className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 text-sm"
+                >
+                  <span>{activeStudent?.subject || "View Enrolled (100L - Final)"}</span>
+                  <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
               <div className="flex justify-between pt-3">
                 <span className="text-slate-500 dark:text-slate-400">Enrollment Date:</span>
@@ -1521,18 +1757,24 @@ export default function StudentDashboard() {
                   <h3 className="text-2xl font-extrabold text-white">
                     Exam Submitted Successfully!
                   </h3>
-                  <p className="text-sm text-slate-300 max-w-md mx-auto">
-                    Your answers were submitted directly through your student controller. Your scores and level advancement have been updated live!
-                  </p>
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 max-w-lg mx-auto text-left space-y-1.5">
+                    <div className="flex items-center gap-2 font-bold text-amber-300">
+                      <span>⏳</span>
+                      <span>Result Saved as Unpublished</span>
+                    </div>
+                    <p className="text-slate-300 leading-relaxed">
+                      Your answers have been securely recorded. In accordance with the institution's evaluation workflow, all examination results are saved as unpublished for administrative review before final scores are released to students.
+                    </p>
+                  </div>
                   <button
                     onClick={() => {
                       setSelectedExam(null);
                       dispatch(resetExamSubmitState());
                       setActiveTab("results");
                     }}
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer"
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer inline-flex items-center gap-2"
                   >
-                    View My Result Report
+                    Go to Results Archive <HiOutlineArrowRight className="w-4 h-4" />
                   </button>
                 </div>
               ) : (
@@ -1690,7 +1932,7 @@ export default function StudentDashboard() {
                   {selectedResultDetail.exam?.name || "Exam Breakdown"}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Grade: {selectedResultDetail.grade}% • Remarks:{" "}
+                  Status: {selectedResultDetail.status} • Remarks:{" "}
                   {selectedResultDetail.remarks}
                 </p>
               </div>

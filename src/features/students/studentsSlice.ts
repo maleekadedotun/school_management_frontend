@@ -19,8 +19,32 @@ export interface Student {
   academicYear?: { _id?: string; name: string } | string;
   prefectName?: string;
   subject?: string;
+  enrolledSubjects?: any[];
   assignedTeacher?: { _id: string; name: string; email?: string; subject?: string; classLevel?: string } | string;
   examsResults?: any[];
+}
+
+export interface EnrolledSubjectItem {
+  _id: string;
+  subjectId?: string;
+  name: string;
+  description?: string;
+  duration?: string;
+  teacher?: { _id?: string; name?: string; email?: string } | null;
+  academicTerms?: { _id?: string; name?: string } | null;
+  program?: { _id?: string; name?: string } | null;
+  classLevel: string;
+  dateEnrolled?: string;
+}
+
+export interface ClassEnrolledGroup {
+  classLevel: string;
+  shortCode: string;
+  isCurrent: boolean;
+  isCompleted: boolean;
+  isFinal: boolean;
+  count: number;
+  subjects: EnrolledSubjectItem[];
 }
 
 const storedStudent = localStorage.getItem("student");
@@ -46,6 +70,15 @@ interface AuthState {
   profileUpdating: boolean;
   profileUpdateSuccess: boolean;
   profileUpdateError: string | null;
+  enrolledSubjectsByClass: ClassEnrolledGroup[];
+  allEnrolledSubjects: EnrolledSubjectItem[];
+  enrolledLoading: boolean;
+  enrolledError: string | null;
+  enrollSubmitting: boolean;
+  enrollSuccess: boolean;
+  enrollError: string | null;
+  hasPendingReview: boolean;
+  pendingReviewCount: number;
 }
 
 const initialState: AuthState = {
@@ -81,6 +114,15 @@ const initialState: AuthState = {
   profileUpdating: false,
   profileUpdateSuccess: false,
   profileUpdateError: null,
+  enrolledSubjectsByClass: [],
+  allEnrolledSubjects: [],
+  enrolledLoading: false,
+  enrolledError: null,
+  enrollSubmitting: false,
+  enrollSuccess: false,
+  enrollError: null,
+  hasPendingReview: false,
+  pendingReviewCount: 0,
 };
 
 // const initialStudent = localStorage.getItem("student");
@@ -276,6 +318,38 @@ export const updateStudentProfile = createAsyncThunk(
   }
 );
 
+export const studentForgotPassword = createAsyncThunk(
+  "students/forgotPassword",
+  async (payload: { email?: string; studentId?: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post("/students/forgot-password", payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to initiate password reset"
+      );
+    }
+  }
+);
+
+export const studentResetPassword = createAsyncThunk(
+  "students/resetPassword",
+  async (
+    payload: { password: string; token?: string; email?: string; studentId?: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const url = payload.token ? `/students/reset-password/${payload.token}` : "/students/reset-password";
+      const { data } = await api.post(url, payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to reset password"
+      );
+    }
+  }
+);
+
 export const writeStudentExam = createAsyncThunk(
   "students/writeExam",
   async ({ examId, answers }: { examId: string; answers: string[] }, { dispatch, rejectWithValue }) => {
@@ -290,6 +364,53 @@ export const writeStudentExam = createAsyncThunk(
   }
 );
 
+// Fetch enrolled subjects grouped from 100L to Final
+export const fetchStudentEnrolledSubjects = createAsyncThunk(
+  "students/fetchEnrolledSubjects",
+  async (studentId: string | void, { rejectWithValue }) => {
+    try {
+      const url = studentId ? `/students/enrolled-subjects?studentId=${studentId}` : "/students/enrolled-subjects";
+      const { data } = await api.get(url);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to fetch enrolled subjects");
+    }
+  }
+);
+
+// Enroll in a subject
+export const studentEnrollSubject = createAsyncThunk(
+  "students/enrollSubject",
+  async (payload: { subjectId: string; classLevel?: string }, { dispatch, rejectWithValue }) => {
+    try {
+      const { data } = await api.post("/students/enroll-subject", payload);
+      dispatch(fetchStudentEnrolledSubjects());
+      dispatch(fetchStudentProfile());
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Enrollment failed");
+    }
+  }
+);
+
+// Unenroll from a subject
+export const studentUnenrollSubject = createAsyncThunk(
+  "students/unenrollSubject",
+  async ({ subjectId, classLevel }: { subjectId: string; classLevel?: string }, { dispatch, rejectWithValue }) => {
+    try {
+      const url = classLevel
+        ? `/students/unenroll-subject/${subjectId}?classLevel=${encodeURIComponent(classLevel)}`
+        : `/students/unenroll-subject/${subjectId}`;
+      const { data } = await api.delete(url);
+      dispatch(fetchStudentEnrolledSubjects());
+      dispatch(fetchStudentProfile());
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Unenroll failed");
+    }
+  }
+);
+
 const studentsSlice = createSlice({
   name: "students",
   initialState,
@@ -300,6 +421,8 @@ const studentsSlice = createSlice({
       state.currentStudent = null;
       state.currentExamResult = null;
       state.studentExamResults = [];
+      state.hasPendingReview = false;
+      state.pendingReviewCount = 0;
       state.token = null;
       localStorage.removeItem("studentToken");
       localStorage.removeItem("token");
@@ -320,6 +443,11 @@ const studentsSlice = createSlice({
       state.profileUpdating = false;
       state.profileUpdateSuccess = false;
       state.profileUpdateError = null;
+    },
+    resetEnrollState: (state) => {
+      state.enrollSubmitting = false;
+      state.enrollSuccess = false;
+      state.enrollError = null;
     },
   },
   extraReducers: (builder) => {
@@ -384,8 +512,10 @@ const studentsSlice = createSlice({
         state.profileLoading = false;
         const p = action.payload.data?.studentProfile || action.payload.studentProfile || action.payload.data || {};
         state.profile = p;
-        state.currentExamResult = action.payload.data?.currentExamResult || null;
+        state.currentExamResult = action.payload.data?.currentExamResult || action.payload.currentExamResult || null;
         state.studentExamResults = action.payload.data?.examResults || p.examsResults || [];
+        state.hasPendingReview = !!(action.payload.hasPendingReview ?? action.payload.data?.hasPendingReview);
+        state.pendingReviewCount = action.payload.pendingReviewCount ?? action.payload.data?.pendingReviewCount ?? 0;
         state.student = { ...state.student, ...p };
         state.currentStudent = { ...state.currentStudent, ...p };
         localStorage.setItem("student", JSON.stringify(state.student));
@@ -427,7 +557,10 @@ const studentsSlice = createSlice({
       .addCase(writeStudentExam.fulfilled, (state, action) => {
         state.examSubmitting = false;
         state.examSubmitSuccess = true;
-        if (action.payload.data) {
+        state.hasPendingReview = true;
+        state.pendingReviewCount = (state.pendingReviewCount || 0) + 1;
+        // Result is saved as unpublished; only expose if published
+        if (action.payload.data?.isPublished) {
           state.currentExamResult = action.payload.data;
           state.studentExamResults.unshift(action.payload.data);
         }
@@ -461,8 +594,55 @@ const studentsSlice = createSlice({
         state.loading = false;
         state.error = action.payload as string;
       });
+
+    // Enrolled Subjects from 100L to Final
+    builder
+      .addCase(fetchStudentEnrolledSubjects.pending, (state) => {
+        state.enrolledLoading = true;
+        state.enrolledError = null;
+      })
+      .addCase(fetchStudentEnrolledSubjects.fulfilled, (state, action) => {
+        state.enrolledLoading = false;
+        const d = action.payload?.data || {};
+        state.enrolledSubjectsByClass = d.arrangedByClass || [];
+        state.allEnrolledSubjects = d.allEnrolled || [];
+      })
+      .addCase(fetchStudentEnrolledSubjects.rejected, (state, action) => {
+        state.enrolledLoading = false;
+        state.enrolledError = action.payload as string;
+      });
+
+    // Enroll Subject
+    builder
+      .addCase(studentEnrollSubject.pending, (state) => {
+        state.enrollSubmitting = true;
+        state.enrollSuccess = false;
+        state.enrollError = null;
+      })
+      .addCase(studentEnrollSubject.fulfilled, (state) => {
+        state.enrollSubmitting = false;
+        state.enrollSuccess = true;
+      })
+      .addCase(studentEnrollSubject.rejected, (state, action) => {
+        state.enrollSubmitting = false;
+        state.enrollError = action.payload as string;
+      });
+
+    // Unenroll Subject
+    builder
+      .addCase(studentUnenrollSubject.pending, (state) => {
+        state.enrollSubmitting = true;
+        state.enrollError = null;
+      })
+      .addCase(studentUnenrollSubject.fulfilled, (state) => {
+        state.enrollSubmitting = false;
+      })
+      .addCase(studentUnenrollSubject.rejected, (state, action) => {
+        state.enrollSubmitting = false;
+        state.enrollError = action.payload as string;
+      });
   },
 });
 
-export const { logout, clearError, resetExamSubmitState, resetProfileUpdateState } = studentsSlice.actions;
+export const { logout, clearError, resetExamSubmitState, resetProfileUpdateState, resetEnrollState } = studentsSlice.actions;
 export default studentsSlice.reducer;

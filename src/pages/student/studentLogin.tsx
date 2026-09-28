@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 // import {
 //   studentLogin,
@@ -171,12 +171,20 @@ export default function StudentLogin() {
 
             {/* Password */}
             <div>
-              <label
-                htmlFor="student-password"
-                className="block text-sm font-medium text-slate-300 mb-2"
-              >
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label
+                  htmlFor="student-password"
+                  className="block text-sm font-medium text-slate-300"
+                >
+                  Password
+                </label>
+                <Link
+                  to="/student/forgot-password"
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
 
               <input
                 type="password"
@@ -234,16 +242,25 @@ export default function StudentLogin() {
           </form>
 
           {/* Student registration */}
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
             <p className="text-sm text-slate-400">
               Don't have an account?{" "}
               <button
                 type="button"
                 onClick={() => navigate("/student/register")}
-                className="text-indigo-400 hover:text-indigo-300 font-medium transition"
+                className="text-indigo-400 hover:text-indigo-300 font-medium transition cursor-pointer"
               >
                 Register
               </button>
+            </p>
+            <p className="text-xs text-slate-400">
+              Trouble logging in?{" "}
+              <Link
+                to="/student/forgot-password"
+                className="text-indigo-400 hover:text-indigo-300 font-medium transition"
+              >
+                Reset student password
+              </Link>
             </p>
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
 
 export interface ExamResultItem {
@@ -25,7 +25,12 @@ export interface ExamResultItem {
   classLevel?: { _id: string; name: string };
   academicTerm?: { _id: string; name: string };
   academicYear?: { _id: string; name: string };
+  isTeacherPublished?: boolean;
+  teacherPublishedAt?: string;
+  teacherPublishedBy?: any;
   isPublished: boolean;
+  adminPublishedAt?: string;
+  adminPublishedBy?: any;
   answeredQuestions?: any[];
   student?: {
     _id?: string;
@@ -47,8 +52,10 @@ interface ExamResultsState {
   teacherTotalStudents: number;
   loading: boolean;
   teacherLoading: boolean;
+  enteringResult: boolean;
   error: string | null;
   publishingId: string | null;
+  teacherPublishingId: string | null;
 }
 
 const initialState: ExamResultsState = {
@@ -58,8 +65,10 @@ const initialState: ExamResultsState = {
   teacherTotalStudents: 0,
   loading: false,
   teacherLoading: false,
+  enteringResult: false,
   error: null,
   publishingId: null,
+  teacherPublishingId: null,
 };
 
 export const fetchAdminResults = createAsyncThunk(
@@ -86,6 +95,29 @@ export const fetchTeacherClassResults = createAsyncThunk(
   }
 );
 
+export const teacherEnterResult = createAsyncThunk(
+  "examResults/teacherEnterResult",
+  async (
+    payload: {
+      studentId: string;
+      examId: string;
+      score: number;
+      passMark?: number;
+      remarks?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const { data } = await api.post("/exam-results/teacher/enter-result", payload);
+      return data.data as ExamResultItem;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to submit student result"
+      );
+    }
+  }
+);
+
 export const togglePublishResult = createAsyncThunk(
   "examResults/togglePublishResult",
   async ({ id, publish }: { id: string; publish?: boolean }, { rejectWithValue }) => {
@@ -94,6 +126,18 @@ export const togglePublishResult = createAsyncThunk(
       return { id, updatedData: data.data };
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || "Failed to update publish state");
+    }
+  }
+);
+
+export const teacherTogglePublishResult = createAsyncThunk(
+  "examResults/teacherTogglePublishResult",
+  async ({ id, publish }: { id: string; publish?: boolean }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/exam-results/${id}/teacher-toggle-publish`, { publish });
+      return { id, updatedData: data.data };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to update teacher publish state");
     }
   }
 );
@@ -134,6 +178,63 @@ const examResultsSlice = createSlice({
         state.teacherLoading = false;
         state.error = action.payload as string;
       })
+      .addCase(teacherEnterResult.pending, (state) => {
+        state.enteringResult = true;
+        state.error = null;
+      })
+      .addCase(teacherEnterResult.fulfilled, (state, action) => {
+        state.enteringResult = false;
+        const newResult = action.payload;
+        if (newResult && newResult._id) {
+          // Update or prepend in teacherResults
+          const idx = state.teacherResults.findIndex((r) => r._id === newResult._id);
+          if (idx !== -1) {
+            state.teacherResults[idx] = newResult;
+          } else {
+            state.teacherResults.unshift(newResult);
+          }
+          // Only add to admin list if teacher published it
+          if (newResult.isTeacherPublished) {
+            const adminIdx = state.results.findIndex((r) => r._id === newResult._id);
+            if (adminIdx !== -1) {
+              state.results[adminIdx] = newResult;
+            } else if (state.results.length > 0) {
+              state.results.unshift(newResult);
+            }
+          }
+        }
+      })
+      .addCase(teacherEnterResult.rejected, (state, action) => {
+        state.enteringResult = false;
+        state.error = action.payload as string;
+      })
+      .addCase(teacherTogglePublishResult.pending, (state, action) => {
+        state.teacherPublishingId = action.meta.arg.id;
+      })
+      .addCase(teacherTogglePublishResult.fulfilled, (state, action) => {
+        state.teacherPublishingId = null;
+        const { id, updatedData } = action.payload;
+        if (updatedData) {
+          state.teacherResults = state.teacherResults.map((r) =>
+            r._id === id ? { ...r, ...updatedData } : r
+          );
+          // If teacher published to admin, ensure admin list has it; if unpublished, remove from admin view
+          if (updatedData.isTeacherPublished) {
+            const adminIdx = state.results.findIndex((r) => r._id === id);
+            if (adminIdx !== -1) {
+              state.results[adminIdx] = { ...state.results[adminIdx], ...updatedData };
+            } else if (state.results.length > 0) {
+              state.results.unshift(updatedData);
+            }
+          } else {
+            state.results = state.results.filter((r) => r._id !== id);
+          }
+        }
+      })
+      .addCase(teacherTogglePublishResult.rejected, (state, action) => {
+        state.teacherPublishingId = null;
+        state.error = action.payload as string;
+      })
       .addCase(togglePublishResult.pending, (state, action) => {
         state.publishingId = action.meta.arg.id;
       })
@@ -142,7 +243,10 @@ const examResultsSlice = createSlice({
         const { id, updatedData } = action.payload;
         if (updatedData) {
           state.results = state.results.map((r) =>
-            r._id === id ? { ...r, isPublished: updatedData.isPublished } : r
+            r._id === id ? { ...r, ...updatedData, isPublished: updatedData.isPublished } : r
+          );
+          state.teacherResults = state.teacherResults.map((r) =>
+            r._id === id ? { ...r, ...updatedData, isPublished: updatedData.isPublished } : r
           );
         }
       })

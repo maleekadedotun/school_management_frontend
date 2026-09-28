@@ -66,6 +66,38 @@ export const updateTeacherProfile = createAsyncThunk(
   }
 );
 
+export const teacherForgotPassword = createAsyncThunk(
+  'teacherAuth/forgotPassword',
+  async (payload: { email?: string; teacherId?: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post('/teachers/forgot-password', payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || 'Failed to initiate password reset'
+      );
+    }
+  }
+);
+
+export const teacherResetPassword = createAsyncThunk(
+  'teacherAuth/resetPassword',
+  async (
+    payload: { password: string; token?: string; email?: string; teacherId?: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const url = payload.token ? `/teachers/reset-password/${payload.token}` : '/teachers/reset-password';
+      const { data } = await api.post(url, payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || 'Failed to reset password'
+      );
+    }
+  }
+);
+
 const teacherAuthSlice = createSlice({
   name: 'teacherAuth',
   initialState,

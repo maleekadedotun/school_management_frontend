@@ -204,9 +204,162 @@ export default function StudentWriteExam() {
     }
   };
 
-  // Filtered available exams list
+  // Helper to normalize class levels (e.g. "Level 200", "200 Level", "200L" -> "200")
+  const normalizeClass = (val: any) => {
+    if (!val) return "";
+    const str = (val?.name || val?.title || val?._id || val).toString().trim().toLowerCase();
+    const num = str.match(/\d+/)?.[0];
+    return num || str;
+  };
+
+  // Filtered available exams list: strictly enforces:
+  // 1. Exam class level matches activeStudent.currentClassLevel
+  // 2. Exam subject matches subject(s) student is offering OR under their assigned program
+  // 3. Exam createdBy matches student's assigned teacher, program teacher, or administration
   const filteredExams = useMemo(() => {
+    if (!activeStudent) return exams;
+
+    const studentClassNorm = normalizeClass(activeStudent.currentClassLevel);
+
+    // Student program identifiers
+    const studentProgObj = typeof activeStudent.program === "object" ? (activeStudent.program as any) : null;
+    const studentProgId = studentProgObj?._id
+      ? studentProgObj._id.toString()
+      : (typeof activeStudent.program === "string" ? activeStudent.program : null);
+    const studentProgName = (studentProgObj?.name || (typeof activeStudent.program === "string" ? activeStudent.program : "")).trim().toLowerCase();
+
+    // Primary assigned teacher
+    const assignedTeacherObj = typeof activeStudent.assignedTeacher === "object" ? (activeStudent.assignedTeacher as any) : null;
+    const primaryTeacherId = assignedTeacherObj?._id
+      ? assignedTeacherObj._id.toString()
+      : (typeof activeStudent.assignedTeacher === "string" ? activeStudent.assignedTeacher : null);
+    const primaryTeacherName = (assignedTeacherObj?.name || "").trim().toLowerCase();
+
+    // Subjects student is offering in their class or under their program
+    const offeredSubjects: { id: string | null; nameNorm: string; teacherIds: string[]; teacherNames: string[] }[] = [];
+
+    // 1. Primary subject
+    if (activeStudent.subject) {
+      const subjectObj = typeof activeStudent.subject === "object" ? (activeStudent.subject as any) : null;
+      const subName = (subjectObj?.name || activeStudent.subject).toString().trim().toLowerCase();
+      const subId = subjectObj?._id ? subjectObj._id.toString() : null;
+      offeredSubjects.push({
+        id: subId,
+        nameNorm: subName,
+        teacherIds: primaryTeacherId ? [primaryTeacherId] : [],
+        teacherNames: primaryTeacherName ? [primaryTeacherName] : [],
+      });
+    }
+
+    // 2. Enrolled subjects for this class or program
+    if (activeStudent.enrolledSubjects && Array.isArray(activeStudent.enrolledSubjects)) {
+      for (const enr of activeStudent.enrolledSubjects) {
+        const enrClassNorm = normalizeClass(enr.classLevel);
+        if (!enrClassNorm || !studentClassNorm || enrClassNorm === studentClassNorm) {
+          const sObj = enr.subject;
+          if (!sObj) continue;
+          const sId = sObj._id ? sObj._id.toString() : (typeof sObj === "string" && sObj.match(/^[0-9a-fA-F]{24}$/) ? sObj : null);
+          const sName = (sObj.name || sObj).toString().trim().toLowerCase();
+
+          const sTeacherId = sObj.teacher?._id ? sObj.teacher._id.toString() : (typeof sObj.teacher === "string" ? sObj.teacher : null);
+          const sTeacherName = (sObj.teacher?.name || "").trim().toLowerCase();
+
+          const teacherIds: string[] = [];
+          const teacherNames: string[] = [];
+          if (sTeacherId) teacherIds.push(sTeacherId);
+          if (sTeacherName) teacherNames.push(sTeacherName);
+          if (primaryTeacherId && !teacherIds.includes(primaryTeacherId)) teacherIds.push(primaryTeacherId);
+          if (primaryTeacherName && !teacherNames.includes(primaryTeacherName)) teacherNames.push(primaryTeacherName);
+
+          offeredSubjects.push({
+            id: sId,
+            nameNorm: sName,
+            teacherIds,
+            teacherNames,
+          });
+        }
+      }
+    }
+
+    // 3. Program subjects if populated on activeStudent.program
+    if (activeStudent.program && Array.isArray((activeStudent.program as any).subjects)) {
+      for (const pSub of (activeStudent.program as any).subjects) {
+        if (!pSub) continue;
+        const pId = pSub._id ? pSub._id.toString() : (typeof pSub === "string" && pSub.match(/^[0-9a-fA-F]{24}$/) ? pSub : null);
+        const pName = (pSub.name || pSub).toString().trim().toLowerCase();
+        const pTeacherId = pSub.teacher?._id ? pSub.teacher._id.toString() : (typeof pSub.teacher === "string" ? pSub.teacher : null);
+        const pTeacherName = (pSub.teacher?.name || "").trim().toLowerCase();
+
+        const teacherIds: string[] = [];
+        const teacherNames: string[] = [];
+        if (pTeacherId) teacherIds.push(pTeacherId);
+        if (pTeacherName) teacherNames.push(pTeacherName);
+        if (primaryTeacherId && !teacherIds.includes(primaryTeacherId)) teacherIds.push(primaryTeacherId);
+        if (primaryTeacherName && !teacherNames.includes(primaryTeacherName)) teacherNames.push(primaryTeacherName);
+
+        offeredSubjects.push({
+          id: pId,
+          nameNorm: pName,
+          teacherIds,
+          teacherNames,
+        });
+      }
+    }
+
     return exams.filter((e) => {
+      // 1. Class Level Check
+      const examClassNorm = normalizeClass(e.classLevel);
+      if (studentClassNorm && examClassNorm && studentClassNorm !== examClassNorm) {
+        return false;
+      }
+
+      // 2. Subject Offering / Program Check
+      const examSubId = e.subject?._id ? e.subject._id.toString() : (typeof e.subject === "string" ? e.subject : "");
+      const examSubName = (e.subject?.name || e.subject || "").toString().trim().toLowerCase();
+
+      const examProgId = e.program?._id ? e.program._id.toString() : (typeof e.program === "string" ? e.program : "");
+      const examProgName = (e.program?.name || e.program || "").toString().trim().toLowerCase();
+      const subProgId = e.subject?.program?._id ? e.subject.program._id.toString() : (typeof e.subject?.program === "string" ? e.subject.program : "");
+      const subProgName = (e.subject?.program?.name || e.subject?.program || "").toString().trim().toLowerCase();
+
+      const isUnderStudentProgram = Boolean(
+        (studentProgId && (studentProgId === examProgId || studentProgId === subProgId)) ||
+        (studentProgName && (studentProgName === examProgName || studentProgName === subProgName))
+      );
+
+      const matchedOffered = offeredSubjects.find((os) => {
+        const idMatch = os.id && examSubId && os.id === examSubId;
+        const nameMatch = os.nameNorm && examSubName && (os.nameNorm === examSubName || examSubName.includes(os.nameNorm) || os.nameNorm.includes(examSubName));
+        return idMatch || nameMatch;
+      });
+
+      if (!matchedOffered && !isUnderStudentProgram) {
+        return false;
+      }
+
+      // 3. Assigned Teacher / Authority Check
+      const examCreatorId = e.createdBy?._id ? e.createdBy._id.toString() : (typeof e.createdBy === "string" ? e.createdBy : "");
+      const examCreatorName = (e.createdBy?.name || "").trim().toLowerCase();
+      const examCreatorRole = (e.createdBy?.role || "").toLowerCase();
+
+      const isAdminExam = examCreatorRole === "admin" || examCreatorName.includes("administration") || (!examCreatorId && !examCreatorName);
+
+      // Student can write any exam under their program or created by admin
+      if (!isUnderStudentProgram && !isAdminExam) {
+        if (matchedOffered) {
+          const isAssigned =
+            (examCreatorId && matchedOffered.teacherIds.includes(examCreatorId)) ||
+            (examCreatorName && matchedOffered.teacherNames.some((tn) => tn && (tn === examCreatorName || examCreatorName.includes(tn) || tn.includes(examCreatorName)))) ||
+            (primaryTeacherId && examCreatorId && examCreatorId === primaryTeacherId) ||
+            (primaryTeacherName && examCreatorName && (examCreatorName === primaryTeacherName || examCreatorName.includes(primaryTeacherName) || primaryTeacherName.includes(examCreatorName)));
+
+          if (!isAssigned && (matchedOffered.teacherIds.length > 0 || primaryTeacherId || primaryTeacherName)) {
+            return false;
+          }
+        }
+      }
+
+      // 4. UI Search Query & Exam Type filter
       const matchSearch =
         e.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         e.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -214,9 +367,10 @@ export default function StudentWriteExam() {
       const matchType =
         filterType === "all" ||
         e.examType?.toLowerCase() === filterType.toLowerCase();
+
       return matchSearch && matchType;
     });
-  }, [exams, searchQuery, filterType]);
+  }, [exams, activeStudent, searchQuery, filterType]);
 
   // Current Question Object
   const currentQuestion = activeExam?.questions?.[currentQuestionIndex];
@@ -272,6 +426,35 @@ export default function StudentWriteExam() {
               <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider mt-1">
                 Score: {scoreVal} / {totalQuestions || submittedResult.score}
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Two-Tier Publication Pipeline Notice */}
+        <div className="p-5 rounded-3xl bg-gradient-to-r from-violet-950/50 via-purple-950/40 to-indigo-950/50 border border-violet-500/30 backdrop-blur-md shadow-xl space-y-3">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-300 flex items-center justify-center font-bold text-sm shrink-0 border border-violet-500/30">
+              ⚖️
+            </span>
+            <div>
+              <h4 className="text-sm font-bold text-white">Submission Forwarded to Respective Teacher</h4>
+              <p className="text-xs text-slate-300">
+                Your responses have been saved and sent to your teacher's dashboard for verification. Admin cannot review until your teacher publishes, and your grade will appear on your dashboard once Admin completes publication.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-1">
+            <div className="p-2.5 rounded-xl bg-violet-500/20 border border-violet-400/40 text-violet-200">
+              <span className="font-bold block text-white">1. Teacher Dashboard</span>
+              <span className="text-[11px] text-violet-300">Respective teacher verifies & publishes to Admin</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
+              <span className="font-bold block text-white">2. Admin Review</span>
+              <span className="text-[11px] text-slate-400">Admin reviews and publishes to student portal</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300">
+              <span className="font-bold block text-white">3. Student Dashboard</span>
+              <span className="text-[11px] text-slate-400">Official grade released on your profile</span>
             </div>
           </div>
         </div>
@@ -789,6 +972,37 @@ export default function StudentWriteExam() {
         </div>
       </div>
 
+      {/* Student Offering & Assigned Teacher Indicator */}
+      <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
+            <span className="font-semibold text-slate-500 dark:text-slate-400">Class:</span>
+            <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 font-bold text-indigo-700 dark:text-indigo-300">
+              {activeStudent?.currentClassLevel || "Level 100"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
+            <span className="font-semibold text-slate-500 dark:text-slate-400">Enrolled Subject:</span>
+            <span className="font-bold">
+              {typeof activeStudent?.subject === "object" ? (activeStudent?.subject as any)?.name : activeStudent?.subject || "Curriculum Courses"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
+            <span className="font-semibold text-slate-500 dark:text-slate-400">Assigned Teacher:</span>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+              <HiOutlineShieldCheck className="w-3.5 h-3.5" />
+              {(typeof activeStudent?.assignedTeacher === "object" ? (activeStudent?.assignedTeacher as any)?.name : null) || "Assigned Instructor"}
+            </span>
+          </div>
+        </div>
+
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+          🔒 Showing only exams prepared by your assigned teacher for your class
+        </span>
+      </div>
+
       {/* Suspension / Withdrawn Alert */}
       {activeStudent?.isSuspended && (
         <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-3">
@@ -841,10 +1055,18 @@ export default function StudentWriteExam() {
             📚
           </div>
           <h4 className="font-bold text-gray-900 dark:text-white text-base">
-            No Scheduled Examinations Found
+            No Examinations Available For Your Class & Assigned Teacher
           </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            There are no active tests matching your search. Check back later or notify your instructor.
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
+            You only see examinations set by your assigned teacher (
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              {(typeof activeStudent?.assignedTeacher === "object" ? (activeStudent?.assignedTeacher as any)?.name : null) || "your assigned instructor"}
+            </span>
+            ) for your enrolled subject in{" "}
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              {activeStudent?.currentClassLevel || "your class"}
+            </span>
+            . No examinations match this criteria at this time.
           </p>
         </div>
       ) : (
@@ -893,6 +1115,19 @@ export default function StudentWriteExam() {
                       <span>Subject:</span>
                       <strong className="text-gray-900 dark:text-white">
                         {exam.subject?.name || (typeof exam.subject === "string" ? exam.subject : "Academic Subject")}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Class Level:</span>
+                      <strong className="text-gray-900 dark:text-white">
+                        {exam.classLevel?.name || (typeof exam.classLevel === "string" ? exam.classLevel : "Class Level")}
+                      </strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Assigned Teacher:</span>
+                      <strong className="text-gray-900 dark:text-white flex items-center gap-1">
+                        <HiOutlineShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        {exam.createdBy?.name || "Teacher"}
                       </strong>
                     </div>
                     <div className="flex justify-between">

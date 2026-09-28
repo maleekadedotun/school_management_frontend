@@ -2,8 +2,21 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
 
 export const fetchExams = createAsyncThunk("exams/fetchAll", async (_, { rejectWithValue }) => {
-  try { const { data } = await api.get("/exams"); return data; }
-  catch (err: any) { return rejectWithValue(err.response?.data?.message || "Failed"); }
+  try {
+    const userRole = localStorage.getItem("userRole");
+    const isStudentRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/student");
+    const endpoint = (userRole === "student" || isStudentRoute) ? "/students/exams" : "/exams";
+    const { data } = await api.get(endpoint);
+    return data;
+  }
+  catch (err: any) {
+    try {
+      const { data } = await api.get("/exams");
+      return data;
+    } catch (fallbackErr: any) {
+      return rejectWithValue(err.response?.data?.message || fallbackErr.response?.data?.message || "Failed to fetch exams");
+    }
+  }
 });
 export const createExam = createAsyncThunk("exams/create", async (payload: any, { rejectWithValue }) => {
   try { const { data } = await api.post("/exams", payload); return data; }

@@ -9,13 +9,20 @@ import StudentLogin from "./pages/student/studentLogin";
 import Dashboard from "./pages/Dashboard/AdminDashboard";
 import TeacherDashboard from "./pages/Dashboard/TeacherDashboard";
 import StudentDashboard from "./pages/Dashboard/StudentDashboard";
+import StudentSubjects from "./pages/student/StudentSubjects";
 import StudentWriteExam from "./pages/student/StudentWriteExam";
+import StudentProgram from "./pages/student/StudentProgram";
+import StudentProfile from "./pages/student/StudentProfile";
+import StudentForgotPassword from "./pages/student/StudentForgotPassword";
+import TeacherForgotPassword from "./pages/Teachers/TeacherForgotPassword";
+import AdminForgotPassword from "./pages/AuthPages/AdminForgotPassword";
 import StudentsList from "./pages/Students/StudentsList";
 import TeachersList from "./pages/Teachers/TeachersList";
 import TeacherProfile from "./pages/Teachers/TeacherProfile";
 import TeacherExamsManagement from "./pages/Teachers/TeacherExamsManagement";
 import TeacherQuestionsList from "./pages/Teachers/TeacherQuestionsList";
 import TeacherStudentResults from "./pages/Teachers/TeacherStudentResults";
+import TeacherAttendance from "./pages/Teachers/TeacherAttendance";
 import AcademicYearsList from "./pages/Academic/AcademicYearsList";
 import AcademicTermsList from "./pages/Academic/AcademicTermsList";
 import ClassLevelsList from "./pages/Academic/ClassLevelsList";
@@ -42,6 +49,15 @@ export default function App() {
           <Route path="/admin/login" element={<SignIn />} />
           <Route path="/teacher/login" element={<TeacherLogin />} />
           <Route path="/student/login" element={<StudentLogin />} />
+          <Route path="/student/forgot-password" element={<StudentForgotPassword />} />
+          <Route path="/student/reset-password" element={<StudentForgotPassword />} />
+          <Route path="/student/reset-password/:token" element={<StudentForgotPassword />} />
+          <Route path="/teacher/forgot-password" element={<TeacherForgotPassword />} />
+          <Route path="/teacher/reset-password" element={<TeacherForgotPassword />} />
+          <Route path="/teacher/reset-password/:token" element={<TeacherForgotPassword />} />
+          <Route path="/admin/forgot-password" element={<AdminForgotPassword />} />
+          <Route path="/admin/reset-password" element={<AdminForgotPassword />} />
+          <Route path="/admin/reset-password/:token" element={<AdminForgotPassword />} />
 
           {/* Shared Routes for Admin & Teacher */}
           <Route
@@ -101,6 +117,7 @@ export default function App() {
             <Route path="/teacher/questions" element={<TeacherQuestionsList />} />
             <Route path="/teacher/results" element={<TeacherStudentResults />} />
             <Route path="/teacher/students" element={<StudentsList />} />
+            <Route path="/teacher/attendance" element={<TeacherAttendance />} />
           </Route>
 
           {/* Student Protected Dashboard Routes */}
@@ -112,9 +129,15 @@ export default function App() {
             }
           >
             <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/results" element={<StudentDashboard initialTab="results" />} />
+            <Route path="/student/program" element={<StudentProgram />} />
+            <Route path="/student/subjects" element={<StudentSubjects />} />
             <Route path="/student/exams" element={<StudentWriteExam />} />
             <Route path="/student/exams/:examId/write" element={<StudentWriteExam />} />
-            <Route path="/academic/programs" element={<ProgramsList />} />
+            <Route path="/student/profile" element={<StudentProfile />} />
+            <Route path="/profile" element={<StudentProfile />} />
+            <Route path="/academic/programs" element={<StudentProgram />} />
+            <Route path="/academic/subjects" element={<Navigate to="/student/subjects" replace />} />
           </Route>
 
           {/* Fallback */}

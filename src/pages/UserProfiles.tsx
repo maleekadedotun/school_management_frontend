@@ -1,10 +1,10 @@
 import { useAppSelector } from "../app/hooks";
-import { Navigate } from "react-router-dom";
+import StudentProfile from "./student/StudentProfile";
 
 export default function UserProfiles() {
-  const userRole = localStorage.getItem("userRole");
+  const userRole = localStorage.getItem("userRole") || localStorage.getItem("studentRole");
   if (userRole === "student") {
-    return <Navigate to="/student/dashboard" replace />;
+    return <StudentProfile />;
   }
 
   const { admin } = useAppSelector((s) => s.auth);

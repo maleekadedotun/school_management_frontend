@@ -1,9 +1,12 @@
 import { useSidebar } from "@/context/SidebarContext";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useAppSelector } from "../app/hooks";
+import { useAppDispatch, useAppSelector } from "../app/hooks";
+import { fetchStudentEnrolledSubjects, fetchStudentProfile } from "../features/students/studentsSlice";
 import {
+  CalenderIcon,
   ChevronDownIcon,
+  FileIcon,
   GridIcon,
   HorizontaLDots,
   ListIcon,
@@ -14,14 +17,39 @@ import {
 } from "../icons";
 import { cn } from "../utils";
 
+const BookIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={cn("w-full h-full", className)}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+    />
+  </svg>
+);
+
+type SubItem = {
+  name: string;
+  path: string;
+  badge?: number | string;
+  icon?: React.ReactNode;
+  children?: {
+    name: string;
+    path: string;
+  }[];
+};
+
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subItems?: {
-    name: string;
-    path: string;
-  }[];
+  badge?: number | string;
+  subItems?: SubItem[];
 };
 
 type NavGroup = {
@@ -136,6 +164,11 @@ const teacherNavGroups: NavGroup[] = [
         icon: <UserCircleIcon />,
         path: "/teacher/students",
       },
+      {
+        name: "Student Attendance",
+        icon: <CalenderIcon />,
+        path: "/teacher/attendance",
+      },
     ],
   },
   {
@@ -170,68 +203,17 @@ const teacherNavGroups: NavGroup[] = [
   },
 ];
 
-// Student Specific Sidebar Groups
-const studentNavGroups: NavGroup[] = [
-  {
-    title: "Overview",
-    items: [
-      {
-        name: "Student Dashboard",
-        icon: <GridIcon />,
-        path: "/student/dashboard",
-      },
-    ],
-  },
-  {
-    title: "My Academics",
-    items: [
-      {
-        name: "My Enrolled Subjects",
-        icon: <TableIcon />,
-        path: "/academic/subjects",
-      },
-      {
-        name: "Programs & Curriculum",
-        icon: <PageIcon />,
-        path: "/academic/programs",
-      },
-    ],
-  },
-  {
-    title: "Exams & Evaluation",
-    items: [
-      {
-        name: "Take / Write Exam",
-        icon: <TaskIcon />,
-        path: "/student/exams",
-      },
-      {
-        name: "Check Exam Results",
-        icon: <PageIcon />,
-        path: "/student/dashboard",
-      },
-    ],
-  },
-  {
-    title: "Account",
-    items: [
-      {
-        name: "My Profile",
-        icon: <UserCircleIcon />,
-        path: "/profile",
-      },
-    ],
-  },
-];
 
 const AppSidebar: React.FC = () => {
   const { isExpanded, isMobileOpen, isHovered, setIsHovered, setIsMobileOpen } =
     useSidebar();
   const location = useLocation();
 
+  const dispatch = useAppDispatch();
   const authState = useAppSelector((state) => state.auth);
   const teacherState = useAppSelector((state) => state.teacherAuth);
   const studentState = useAppSelector((state) => state.students);
+  const { enrolledSubjectsByClass, allEnrolledSubjects } = studentState;
 
   // Safely resolve active role
   const getUserFromStorage = (key: string) => {
@@ -245,7 +227,11 @@ const AppSidebar: React.FC = () => {
 
   const adminObj = authState.admin || getUserFromStorage("admin");
   const teacherObj = teacherState.teacher || getUserFromStorage("teacher");
-  const studentObj = studentState.student || studentState.currentStudent || getUserFromStorage("student");
+  const studentObj =
+    studentState.profile ||
+    studentState.student ||
+    studentState.currentStudent ||
+    getUserFromStorage("student");
 
   const storedRole = localStorage.getItem("userRole") || localStorage.getItem("teacherRole") || localStorage.getItem("studentRole");
   const userRole =
@@ -255,12 +241,113 @@ const AppSidebar: React.FC = () => {
     storedRole ||
     (adminObj ? "admin" : teacherObj ? "teacher" : studentObj ? "student" : "admin");
 
+  // Fetch enrolled subjects & student profile if logged-in user is a student
+  useEffect(() => {
+    if (userRole === "student") {
+      dispatch(fetchStudentEnrolledSubjects());
+      dispatch(fetchStudentProfile());
+    }
+  }, [userRole, dispatch]);
+
+  // Construct dynamic student navigation groups arranged from 100L to Final
+  const dynamicStudentNavGroups: NavGroup[] = useMemo(() => {
+    const classGroups =
+      enrolledSubjectsByClass && enrolledSubjectsByClass.length > 0
+        ? enrolledSubjectsByClass
+        : [
+            { classLevel: "Level 100", shortCode: "100L", isCurrent: false, isCompleted: true, isFinal: false, count: 0, subjects: [] },
+            { classLevel: "Level 200", shortCode: "200L", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+            { classLevel: "Level 300", shortCode: "300L", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+            { classLevel: "Level 400", shortCode: "400L / Final", isCurrent: true, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+          ];
+
+    // Each level's subjects in one file, all grouped inside a folder
+    const levelFiles: SubItem[] = [
+      {
+        name: "All Levels Overview",
+        path: "/student/subjects",
+        badge: allEnrolledSubjects.length > 0 ? allEnrolledSubjects.length : undefined,
+        icon: <TableIcon className="w-4 h-4 text-indigo-400" />,
+      },
+      ...classGroups.map((group) => {
+        const hasSubjects = group.subjects && group.subjects.length > 0;
+        return {
+          name: `${group.shortCode} Subjects`,
+          path: `/student/subjects?class=${encodeURIComponent(group.classLevel)}`,
+          badge: group.count,
+          icon: <FileIcon className="w-4 h-4 text-indigo-400 shrink-0" />,
+          children: hasSubjects
+            ? group.subjects.map((sub) => ({
+                name: sub.name,
+                path: `/student/subjects?class=${encodeURIComponent(group.classLevel)}&subject=${encodeURIComponent(sub.name)}`,
+              }))
+            : [],
+        };
+      }),
+    ];
+
+    return [
+      {
+        title: "Overview",
+        items: [
+          {
+            name: "Student Dashboard",
+            icon: <GridIcon />,
+            path: "/student/dashboard",
+          },
+        ],
+      },
+      {
+        title: "Academic Curriculum",
+        items: [
+          {
+            name: "Level Subjects",
+            icon: <BookIcon />,
+            badge: allEnrolledSubjects.length > 0 ? `${allEnrolledSubjects.length}` : undefined,
+            subItems: levelFiles,
+          },
+          {
+            name: "My Program",
+            icon: <PageIcon />,
+            path: "/student/program",
+            badge: "Active",
+          },
+        ],
+      },
+      {
+        title: "Exams & Evaluation",
+        items: [
+          {
+            name: "Take / Write Exam",
+            icon: <TaskIcon />,
+            path: "/student/exams",
+          },
+          {
+            name: "Check Exam Results",
+            icon: <PageIcon />,
+            path: "/student/results",
+          },
+        ],
+      },
+      {
+        title: "Account",
+        items: [
+          {
+            name: "My Profile",
+            icon: <UserCircleIcon />,
+            path: "/profile",
+          },
+        ],
+      },
+    ];
+  }, [enrolledSubjectsByClass, allEnrolledSubjects, studentObj]);
+
   // Select groups according to active role
   const navGroups =
     userRole === "teacher"
       ? teacherNavGroups
       : userRole === "student"
-      ? studentNavGroups
+      ? dynamicStudentNavGroups
       : adminNavGroups;
 
   const dashboardHomePath =
@@ -281,9 +368,8 @@ const AppSidebar: React.FC = () => {
     groupIndex: number;
     itemIndex: number;
   } | null>(null);
+  const [expandedFile, setExpandedFile] = useState<string | null>(null);
 
-  const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>({});
-  const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (isMobileOpen) {
@@ -292,11 +378,47 @@ const AppSidebar: React.FC = () => {
   }, [location.pathname]);
 
   const isActive = useCallback(
-    (path: string) =>
-      location.pathname === path ||
-      (path === "/students" && location.pathname === "/teacher/students") ||
-      (path === "/teacher/students" && location.pathname === "/students"),
-    [location.pathname]
+    (path: string) => {
+      if (path.includes("?")) {
+        const fullCurrent = location.pathname + location.search;
+        return (
+          fullCurrent === path ||
+          (location.pathname === path.split("?")[0] &&
+            location.search.includes(path.split("?")[1]))
+        );
+      }
+
+      // Strictly isolate Student Dashboard so it only highlights on the dashboard itself
+      if (path === "/student/dashboard") {
+        if (location.search.includes("tab=results") || location.search.includes("tab=exams")) {
+          return false;
+        }
+        return location.pathname === "/student/dashboard";
+      }
+
+      // Check Exam Results activates on /student/results or tab=results
+      if (path === "/student/results") {
+        return (
+          location.pathname === "/student/results" ||
+          (location.pathname === "/student/dashboard" && location.search.includes("tab=results"))
+        );
+      }
+
+      // Take / Write Exam activates on /student/exams (and active exam writing sub-routes) or tab=exams
+      if (path === "/student/exams") {
+        return (
+          location.pathname.startsWith("/student/exams") ||
+          (location.pathname === "/student/dashboard" && location.search.includes("tab=exams"))
+        );
+      }
+
+      return (
+        location.pathname === path ||
+        (path === "/students" && location.pathname === "/teacher/students") ||
+        (path === "/teacher/students" && location.pathname === "/students")
+      );
+    },
+    [location.pathname, location.search]
   );
 
   useEffect(() => {
@@ -310,6 +432,15 @@ const AppSidebar: React.FC = () => {
               setOpenSubmenu({ groupIndex: gIdx, itemIndex: iIdx });
               submenuMatched = true;
             }
+            if (subItem.children) {
+              subItem.children.forEach((child) => {
+                if (isActive(child.path)) {
+                  setOpenSubmenu({ groupIndex: gIdx, itemIndex: iIdx });
+                  setExpandedFile(subItem.name);
+                  submenuMatched = true;
+                }
+              });
+            }
           });
         }
       });
@@ -320,17 +451,6 @@ const AppSidebar: React.FC = () => {
     }
   }, [location, isActive, navGroups]);
 
-  useEffect(() => {
-    if (openSubmenu !== null) {
-      const key = `${openSubmenu.groupIndex}-${openSubmenu.itemIndex}`;
-      if (subMenuRefs.current[key]) {
-        setSubMenuHeight((prev) => ({
-          ...prev,
-          [key]: subMenuRefs.current[key]?.scrollHeight || 0,
-        }));
-      }
-    }
-  }, [openSubmenu]);
 
   const handleSubmenuToggle = (groupIndex: number, itemIndex: number) => {
     setOpenSubmenu((prev) => {
@@ -404,7 +524,6 @@ const AppSidebar: React.FC = () => {
                   const isSubOpen =
                     openSubmenu?.groupIndex === gIdx &&
                     openSubmenu?.itemIndex === iIdx;
-                  const key = `${gIdx}-${iIdx}`;
 
                   return (
                     <li key={item.name}>
@@ -426,13 +545,20 @@ const AppSidebar: React.FC = () => {
                           </span>
 
                           {(isExpanded || isHovered || isMobileOpen) && (
-                            <span className="flex-1 text-left">{item.name}</span>
+                            <span className="flex-1 text-left flex items-center justify-between pr-1">
+                              <span className="truncate">{item.name}</span>
+                              {item.badge !== undefined && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </span>
                           )}
 
                           {(isExpanded || isHovered || isMobileOpen) && (
                             <ChevronDownIcon
                               className={cn(
-                                "h-4 w-4 transition-transform duration-200 text-slate-400",
+                                "h-4 w-4 transition-transform duration-200 text-slate-400 shrink-0",
                                 isSubOpen ? "rotate-180 text-indigo-400" : ""
                               )}
                             />
@@ -456,7 +582,14 @@ const AppSidebar: React.FC = () => {
                               {item.icon}
                             </span>
                             {(isExpanded || isHovered || isMobileOpen) && (
-                              <span>{item.name}</span>
+                              <span className="flex-1 flex items-center justify-between pr-1">
+                                <span className="truncate">{item.name}</span>
+                                {item.badge !== undefined && (
+                                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </span>
                             )}
                           </Link>
                         )
@@ -464,28 +597,82 @@ const AppSidebar: React.FC = () => {
 
                       {item.subItems && (isExpanded || isHovered || isMobileOpen) && (
                         <div
-                          ref={(el) => {
-                            subMenuRefs.current[key] = el;
-                          }}
-                          className="overflow-hidden transition-all duration-300"
-                          style={{
-                            height: isSubOpen ? `${subMenuHeight[key] || 0}px` : "0px",
-                          }}
+                          className={cn(
+                            "overflow-hidden transition-all duration-300 ease-in-out",
+                            isSubOpen ? "max-h-[1600px] opacity-100 mt-1" : "max-h-0 opacity-0 pointer-events-none"
+                          )}
                         >
-                          <ul className="ms-8 mt-1.5 space-y-1 border-s border-white/10 pl-3">
+                          <ul className="ms-6 space-y-1 border-s-2 border-white/10 pl-2.5 py-1">
                             {item.subItems.map((subItem) => (
-                              <li key={subItem.name}>
-                                <Link
-                                  to={subItem.path}
-                                  className={cn(
-                                    "block py-2 px-3 rounded-lg text-xs font-medium transition-all",
-                                    isActive(subItem.path)
-                                      ? "text-indigo-400 bg-indigo-500/10 font-semibold"
-                                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                              <li key={subItem.name} className="relative group/file">
+                                <div className="flex items-center justify-between rounded-lg transition-colors">
+                                  <Link
+                                    to={subItem.path}
+                                    className={cn(
+                                      "flex-1 flex items-center gap-2 py-2 px-2.5 rounded-lg text-xs font-medium transition-all min-w-0",
+                                      isActive(subItem.path)
+                                        ? "text-indigo-300 bg-indigo-500/20 font-semibold shadow-xs border border-indigo-500/30"
+                                        : "text-slate-400 hover:text-white hover:bg-white/5"
+                                    )}
+                                  >
+                                    {subItem.icon ? (
+                                      <span className="shrink-0">{subItem.icon}</span>
+                                    ) : (
+                                      <FileIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />
+                                    )}
+                                    <span className="truncate">{subItem.name}</span>
+                                    {subItem.badge !== undefined && (
+                                      <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                                        {subItem.badge}
+                                      </span>
+                                    )}
+                                  </Link>
+                                  {subItem.children && subItem.children.length > 0 && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setExpandedFile((prev) => (prev === subItem.name ? null : subItem.name));
+                                      }}
+                                      className={cn(
+                                        "p-1.5 rounded-md transition-colors shrink-0 ml-1 text-slate-400 hover:text-white hover:bg-white/10",
+                                        expandedFile === subItem.name ? "text-indigo-300 bg-white/10" : ""
+                                      )}
+                                      title="Toggle subject list"
+                                    >
+                                      <ChevronDownIcon
+                                        className={cn(
+                                          "w-3.5 h-3.5 transition-transform duration-200",
+                                          expandedFile === subItem.name ? "rotate-180 text-indigo-400" : ""
+                                        )}
+                                      />
+                                    </button>
                                   )}
-                                >
-                                  {subItem.name}
-                                </Link>
+                                </div>
+
+                                {/* Expanded individual subject files inside the level file */}
+                                {subItem.children && subItem.children.length > 0 && expandedFile === subItem.name && (
+                                  <ul className="ms-5 mt-1 mb-1.5 space-y-1 border-s border-indigo-500/25 pl-2">
+                                    {subItem.children.map((child) => (
+                                      <li key={child.name}>
+                                        <Link
+                                          to={child.path}
+                                          className={cn(
+                                            "flex items-center gap-1.5 py-1.5 px-2 rounded-md text-[11px] transition-all truncate",
+                                            isActive(child.path)
+                                              ? "text-indigo-300 bg-indigo-500/20 font-medium"
+                                              : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                                          )}
+                                          title={child.name}
+                                        >
+                                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                                          <span className="truncate">{child.name}</span>
+                                        </Link>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
                               </li>
                             ))}
                           </ul>
