@@ -9,41 +9,44 @@ export interface Student {
   StudentId?: string;
   studentId?: string;
   currentClassLevel?: string;
-  classLevels?: string;
-  program?: { name: string } | string;
+  classLevels?: string[] | string;
+  program?: { _id?: string; name: string; description?: string } | string;
   isSuspended?: boolean;
   isWithDrawn?: boolean;
   isGraduated?: boolean;
+  yearGraduated?: string;
   dateAdmitted?: string;
-  academicYear?: { name: string } | string;
+  academicYear?: { _id?: string; name: string } | string;
   prefectName?: string;
   subject?: string;
   assignedTeacher?: { _id: string; name: string; email?: string; subject?: string; classLevel?: string } | string;
+  examsResults?: any[];
 }
 
-// interface AuthState {
-//   student: Student | null;
-//   token: string | null;
-//   loading: boolean;
-//   error: string | null;
-//   // total: number | null;
-// }
-
 const storedStudent = localStorage.getItem("student");
-const storedToken = localStorage.getItem("token");
+const storedToken = localStorage.getItem("token") || localStorage.getItem("studentToken");
 
 interface AuthState {
   student: Student | null;
   token: string | null;
+  profile: Student | null;
+  currentExamResult: any | null;
+  studentExamResults: any[];
   students: Student[];
   teacherClassStudents: Student[];
   teacherClassLevel: string | null;
   currentStudent: Student | null;
   total: number;
   loading: boolean;
+  profileLoading: boolean;
   error: string | null;
+  examSubmitting: boolean;
+  examSubmitSuccess: boolean;
+  examSubmitError: string | null;
+  profileUpdating: boolean;
+  profileUpdateSuccess: boolean;
+  profileUpdateError: string | null;
 }
-
 
 const initialState: AuthState = {
   student:
@@ -60,6 +63,9 @@ const initialState: AuthState = {
       ? storedToken
       : null,
 
+  profile: null,
+  currentExamResult: null,
+  studentExamResults: [],
   students: [],
   teacherClassStudents: [],
   teacherClassLevel: null,
@@ -67,7 +73,14 @@ const initialState: AuthState = {
   total: 0,
 
   loading: false,
+  profileLoading: false,
   error: null,
+  examSubmitting: false,
+  examSubmitSuccess: false,
+  examSubmitError: null,
+  profileUpdating: false,
+  profileUpdateSuccess: false,
+  profileUpdateError: null,
 };
 
 // const initialStudent = localStorage.getItem("student");
@@ -228,13 +241,65 @@ export const unwithdrawStudent = createAsyncThunk("students/unwithdraw", async (
 
 // const initialState: StudentsState = { students: [], currentStudent: null, loading: false, error: null, total: 0 };
 
+export const fetchStudentProfile = createAsyncThunk(
+  "students/fetchProfile",
+  async (_, { rejectWithValue }) => {
+    try {
+      let data;
+      try {
+        const res = await api.get("/students/profile");
+        data = res.data;
+      } catch (err: any) {
+        if (err.response?.status === 404 || err.response?.status === 405) {
+          const res = await api.put("/students/profile");
+          data = res.data;
+        } else {
+          throw err;
+        }
+      }
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to load profile");
+    }
+  }
+);
+
+export const updateStudentProfile = createAsyncThunk(
+  "students/updateProfile",
+  async (payload: { email?: string; password?: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put("/students/update", payload);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to update profile");
+    }
+  }
+);
+
+export const writeStudentExam = createAsyncThunk(
+  "students/writeExam",
+  async ({ examId, answers }: { examId: string; answers: string[] }, { dispatch, rejectWithValue }) => {
+    try {
+      const { data } = await api.post(`/students/exams/${examId}/write`, { answers });
+      // Immediately refresh student profile so promotion & exam results update live
+      dispatch(fetchStudentProfile());
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to submit exam");
+    }
+  }
+);
+
 const studentsSlice = createSlice({
   name: "students",
   initialState,
   reducers: {
     logout: (state) => {
       state.student = null;
+      state.profile = null;
       state.currentStudent = null;
+      state.currentExamResult = null;
+      state.studentExamResults = [];
       state.token = null;
       localStorage.removeItem("studentToken");
       localStorage.removeItem("token");
@@ -243,6 +308,18 @@ const studentsSlice = createSlice({
     },
     clearError: (state) => {
       state.error = null;
+      state.examSubmitError = null;
+      state.profileUpdateError = null;
+    },
+    resetExamSubmitState: (state) => {
+      state.examSubmitting = false;
+      state.examSubmitSuccess = false;
+      state.examSubmitError = null;
+    },
+    resetProfileUpdateState: (state) => {
+      state.profileUpdating = false;
+      state.profileUpdateSuccess = false;
+      state.profileUpdateError = null;
     },
   },
   extraReducers: (builder) => {
@@ -297,6 +374,69 @@ const studentsSlice = createSlice({
         if (idx !== -1) state.students[idx].isWithDrawn = false;
       });
 
+    // Student Profile
+    builder
+      .addCase(fetchStudentProfile.pending, (state) => {
+        state.profileLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchStudentProfile.fulfilled, (state, action) => {
+        state.profileLoading = false;
+        const p = action.payload.data?.studentProfile || action.payload.studentProfile || action.payload.data || {};
+        state.profile = p;
+        state.currentExamResult = action.payload.data?.currentExamResult || null;
+        state.studentExamResults = action.payload.data?.examResults || p.examsResults || [];
+        state.student = { ...state.student, ...p };
+        state.currentStudent = { ...state.currentStudent, ...p };
+        localStorage.setItem("student", JSON.stringify(state.student));
+      })
+      .addCase(fetchStudentProfile.rejected, (state, action) => {
+        state.profileLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Student Update Credentials
+    builder
+      .addCase(updateStudentProfile.pending, (state) => {
+        state.profileUpdating = true;
+        state.profileUpdateSuccess = false;
+        state.profileUpdateError = null;
+      })
+      .addCase(updateStudentProfile.fulfilled, (state, action) => {
+        state.profileUpdating = false;
+        state.profileUpdateSuccess = true;
+        const updated = action.payload.data || action.payload;
+        if (updated) {
+          state.profile = { ...state.profile, ...updated };
+          state.student = { ...state.student, ...updated };
+          localStorage.setItem("student", JSON.stringify(state.student));
+        }
+      })
+      .addCase(updateStudentProfile.rejected, (state, action) => {
+        state.profileUpdating = false;
+        state.profileUpdateError = action.payload as string;
+      });
+
+    // Student Write Exam
+    builder
+      .addCase(writeStudentExam.pending, (state) => {
+        state.examSubmitting = true;
+        state.examSubmitSuccess = false;
+        state.examSubmitError = null;
+      })
+      .addCase(writeStudentExam.fulfilled, (state, action) => {
+        state.examSubmitting = false;
+        state.examSubmitSuccess = true;
+        if (action.payload.data) {
+          state.currentExamResult = action.payload.data;
+          state.studentExamResults.unshift(action.payload.data);
+        }
+      })
+      .addCase(writeStudentExam.rejected, (state, action) => {
+        state.examSubmitting = false;
+        state.examSubmitError = action.payload as string;
+      });
+
     // Login
     builder
       .addCase(studentLogin.pending, (state) => { state.loading = true; state.error = null; })
@@ -324,5 +464,5 @@ const studentsSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = studentsSlice.actions;
+export const { logout, clearError, resetExamSubmitState, resetProfileUpdateState } = studentsSlice.actions;
 export default studentsSlice.reducer;

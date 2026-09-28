@@ -52,7 +52,7 @@ export default function TeacherExamsManagement() {
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "live" | "pending">("all");
-  const [viewScope, setViewScope] = useState<"my" | "all">("my");
+  const [viewScope, setViewScope] = useState<"accessible" | "admin" | "my" | "all">("accessible");
   const [page, setPage] = useState(1);
 
   // Exam modal
@@ -85,18 +85,48 @@ export default function TeacherExamsManagement() {
 
   const teacherId = teacher?._id || (teacher as any)?.id;
 
+  // Helper to identify if an exam was created by Admin / School Administration
+  const isCreatedByAdmin = (e: any): boolean => {
+    if (!e) return false;
+    const role = e.createdBy?.role?.toLowerCase();
+    if (role === "admin") return true;
+    const name = (e.createdBy?.name || "").toLowerCase();
+    if (name.includes("admin") || name.includes("school administration")) return true;
+    if (!e.createdBy || (!e.createdBy.teacherId && e.createdBy.role !== "teacher")) return true;
+    return false;
+  };
+
+  // Helper to identify if an exam was created by this logged-in teacher
+  const isCreatedByMe = (e: any): boolean => {
+    if (!teacherId || !e) return false;
+    const creatorId = e.createdBy?._id || e.createdBy;
+    const isCreator = creatorId && creatorId.toString() === teacherId.toString();
+    const inExamsCreated =
+      Array.isArray((teacher as any)?.examsCreated) &&
+      (teacher as any).examsCreated.some(
+        (ex: any) => (ex?._id || ex)?.toString() === e._id?.toString()
+      );
+    return Boolean(isCreator || inExamsCreated);
+  };
+
+  const adminExamsCount = useMemo(() => {
+    return exams.filter(isCreatedByAdmin).length;
+  }, [exams]);
+
+  const myExamsCount = useMemo(() => {
+    return exams.filter(isCreatedByMe).length;
+  }, [exams, teacherId, teacher]);
+
+  const accessibleExamsCount = useMemo(() => {
+    return exams.filter((e) => isCreatedByAdmin(e) || isCreatedByMe(e)).length;
+  }, [exams, teacherId, teacher]);
+
   const examsToFilter = useMemo(() => {
-    if (viewScope === "all" || !teacherId) return exams;
-    return exams.filter((e) => {
-      const creatorId = e.createdBy?._id || e.createdBy;
-      const isCreator = creatorId && creatorId.toString() === teacherId.toString();
-      const inExamsCreated =
-        Array.isArray((teacher as any)?.examsCreated) &&
-        (teacher as any).examsCreated.some(
-          (ex: any) => (ex?._id || ex)?.toString() === e._id?.toString()
-        );
-      return isCreator || inExamsCreated;
-    });
+    if (viewScope === "all") return exams;
+    if (viewScope === "admin") return exams.filter(isCreatedByAdmin);
+    if (viewScope === "my") return exams.filter(isCreatedByMe);
+    // Default: "accessible" -> All Admin exams PLUS exams created by this teacher
+    return exams.filter((e) => isCreatedByAdmin(e) || isCreatedByMe(e));
   }, [exams, viewScope, teacherId, teacher]);
 
   const filtered = useMemo(() => {
@@ -108,20 +138,6 @@ export default function TeacherExamsManagement() {
       return matchSearch && matchStatus;
     });
   }, [examsToFilter, search, statusFilter]);
-
-  const myExamsCount = useMemo(() => {
-    if (!teacherId) return exams.length;
-    return exams.filter((e) => {
-      const creatorId = e.createdBy?._id || e.createdBy;
-      const isCreator = creatorId && creatorId.toString() === teacherId.toString();
-      const inExamsCreated =
-        Array.isArray((teacher as any)?.examsCreated) &&
-        (teacher as any).examsCreated.some(
-          (ex: any) => (ex?._id || ex)?.toString() === e._id?.toString()
-        );
-      return isCreator || inExamsCreated;
-    }).length;
-  }, [exams, teacherId, teacher]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
@@ -205,10 +221,11 @@ export default function TeacherExamsManagement() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <span>📝</span> My Exams
+            <span>📝</span> Exams Management
           </h1>
           <p className="text-slate-400 text-sm mt-1">
-            {exams.length} total · {exams.filter((e) => e.examStatus === "live").length} live ·{" "}
+            {accessibleExamsCount} accessible ({adminExamsCount} Admin · {myExamsCount} authored) · {exams.length} school total ·{" "}
+            {exams.filter((e) => e.examStatus === "live").length} live ·{" "}
             {exams.filter((e) => e.examStatus === "pending").length} pending
           </p>
         </div>
@@ -223,19 +240,53 @@ export default function TeacherExamsManagement() {
         </button>
       </div>
 
-      {/* Scope Selector: My Created Exams vs All School Exams */}
+      {/* Scope Selector: Accessible (Admin + My) vs Admin Created vs My Authored vs All School */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-2 rounded-2xl bg-white/5 border border-white/10">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => { setViewScope("accessible"); setPage(1); }}
+            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+              viewScope === "accessible"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-lg shadow-emerald-500/25"
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <span>✨</span>
+            <span>All Accessible Exams</span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              viewScope === "accessible" ? "bg-black/20 text-black" : "bg-white/10 text-slate-300"
+            }`}>
+              {accessibleExamsCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => { setViewScope("admin"); setPage(1); }}
+            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+              viewScope === "admin"
+                ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-lg shadow-indigo-500/25"
+                : "text-slate-400 hover:text-white hover:bg-white/5"
+            }`}
+          >
+            <span>🏛️</span>
+            <span>Admin Created</span>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+              viewScope === "admin" ? "bg-white/20 text-white" : "bg-white/10 text-slate-300"
+            }`}>
+              {adminExamsCount}
+            </span>
+          </button>
+
           <button
             onClick={() => { setViewScope("my"); setPage(1); }}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               viewScope === "my"
                 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-lg shadow-emerald-500/25"
                 : "text-slate-400 hover:text-white hover:bg-white/5"
             }`}
           >
-            <span>📝</span>
-            <span>My Created Exams</span>
+            <span>✍️</span>
+            <span>My Authored Exams</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
               viewScope === "my" ? "bg-black/20 text-black" : "bg-white/10 text-slate-300"
             }`}>
@@ -245,7 +296,7 @@ export default function TeacherExamsManagement() {
 
           <button
             onClick={() => { setViewScope("all"); setPage(1); }}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               viewScope === "all"
                 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-lg shadow-emerald-500/25"
                 : "text-slate-400 hover:text-white hover:bg-white/5"
@@ -262,7 +313,13 @@ export default function TeacherExamsManagement() {
         </div>
 
         <div className="text-xs text-slate-400 px-3">
-          {viewScope === "my" ? "Showing exams authored by you" : "Showing all exams across the institution"}
+          {viewScope === "accessible"
+            ? `Showing all ${adminExamsCount} Admin exams + ${myExamsCount} exams authored by you`
+            : viewScope === "admin"
+            ? `Showing all ${adminExamsCount} exams created by School Administration`
+            : viewScope === "my"
+            ? `Showing ${myExamsCount} exams authored by you`
+            : `Showing all ${exams.length} exams across the entire institution`}
         </div>
       </div>
 
@@ -334,7 +391,22 @@ export default function TeacherExamsManagement() {
                   <tr key={exam._id} className="hover:bg-white/5 transition-colors group">
                     <td className="px-5 py-4">
                       <div>
-                        <p className="font-semibold text-white">{exam.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="font-semibold text-white">{exam.name}</p>
+                          {isCreatedByAdmin(exam) ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
+                              🏛️ Created by Admin
+                            </span>
+                          ) : isCreatedByMe(exam) ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                              ✍️ Created by You
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-500/20 text-slate-300 border border-slate-500/30 flex items-center gap-1">
+                              👤 {exam.createdBy?.name || "Teacher"}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-slate-500 text-xs mt-0.5 line-clamp-1">{exam.description || "—"}</p>
                       </div>
                     </td>
@@ -371,24 +443,32 @@ export default function TeacherExamsManagement() {
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditExam(exam)}
-                          className="p-2 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors"
-                          title="Edit Exam"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => { if (window.confirm("Delete this exam?")) dispatch(deleteExam(exam._id)); }}
-                          className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                          title="Delete Exam"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
+                        {isCreatedByMe(exam) ? (
+                          <>
+                            <button
+                              onClick={() => openEditExam(exam)}
+                              className="p-2 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors"
+                              title="Edit Exam"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => { if (window.confirm("Delete this exam?")) dispatch(deleteExam(exam._id)); }}
+                              className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                              title="Delete Exam"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-md">
+                            🏛️ Admin Exam
+                          </span>
+                        )}
                       </div>
                     </td>
                   </tr>

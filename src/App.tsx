@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import LandingPage from "./pages/LandingPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -9,6 +9,7 @@ import StudentLogin from "./pages/student/studentLogin";
 import Dashboard from "./pages/Dashboard/AdminDashboard";
 import TeacherDashboard from "./pages/Dashboard/TeacherDashboard";
 import StudentDashboard from "./pages/Dashboard/StudentDashboard";
+import StudentWriteExam from "./pages/student/StudentWriteExam";
 import StudentsList from "./pages/Students/StudentsList";
 import TeachersList from "./pages/Teachers/TeachersList";
 import TeacherProfile from "./pages/Teachers/TeacherProfile";
@@ -36,6 +37,7 @@ export default function App() {
         <Routes>
           {/* Public Landing & Login Routes */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/index.html" element={<Navigate to="/" replace />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/admin/login" element={<SignIn />} />
           <Route path="/teacher/login" element={<TeacherLogin />} />
@@ -110,6 +112,8 @@ export default function App() {
             }
           >
             <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/exams" element={<StudentWriteExam />} />
+            <Route path="/student/exams/:examId/write" element={<StudentWriteExam />} />
             <Route path="/academic/programs" element={<ProgramsList />} />
           </Route>
 

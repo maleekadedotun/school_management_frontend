@@ -16,6 +16,7 @@ export default function TeacherDashboard() {
   const [studentSearch, setStudentSearch] = useState("");
   const [questionSearch, setQuestionSearch] = useState("");
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [examTab, setExamTab] = useState<"accessible" | "admin" | "my">("accessible");
 
   useEffect(() => {
     dispatch(fetchTeacherProfile());
@@ -53,20 +54,52 @@ export default function TeacherDashboard() {
     });
   }, [myQuestions, questionSearch]);
 
+  // Helper to identify if an exam was created by Admin / School Administration
+  const isCreatedByAdmin = (e: any): boolean => {
+    if (!e) return false;
+    const role = e.createdBy?.role?.toLowerCase();
+    if (role === "admin") return true;
+    const name = (e.createdBy?.name || "").toLowerCase();
+    if (name.includes("admin") || name.includes("school administration")) return true;
+    if (!e.createdBy || (!e.createdBy.teacherId && e.createdBy.role !== "teacher")) return true;
+    return false;
+  };
+
+  // Helper to identify if an exam was created by this logged-in teacher
+  const isCreatedByMe = (e: any): boolean => {
+    if (!teacherId || !e) return false;
+    const creatorId = e.createdBy?._id || e.createdBy;
+    const isCreator = creatorId && creatorId.toString() === teacherId.toString();
+    const inExamsCreated =
+      Array.isArray(t?.examsCreated) &&
+      t.examsCreated.some(
+        (ex: any) => (ex?._id || ex)?.toString() === e._id?.toString()
+      );
+    return Boolean(isCreator || inExamsCreated);
+  };
+
   // Filter exams authored by this teacher
   const myExams = useMemo(() => {
     if (!teacherId) return exams;
-    return exams.filter((e) => {
-      const creatorId = e.createdBy?._id || e.createdBy;
-      const isCreator = creatorId && creatorId.toString() === teacherId.toString();
-      const inExamsCreated =
-        Array.isArray(t?.examsCreated) &&
-        t.examsCreated.some(
-          (ex: any) => (ex?._id || ex)?.toString() === e._id?.toString()
-        );
-      return isCreator || inExamsCreated;
-    });
+    return exams.filter(isCreatedByMe);
   }, [exams, teacherId, t]);
+
+  // Filter exams created by Admin
+  const adminExams = useMemo(() => {
+    return exams.filter(isCreatedByAdmin);
+  }, [exams]);
+
+  // All accessible exams: all Admin exams PLUS teacher's authored exams
+  const accessibleExams = useMemo(() => {
+    return exams.filter((e) => isCreatedByAdmin(e) || isCreatedByMe(e));
+  }, [exams, teacherId, t]);
+
+  // Exams displayed in the dashboard widget according to active tab
+  const displayedDashboardExams = useMemo(() => {
+    if (examTab === "admin") return adminExams;
+    if (examTab === "my") return myExams;
+    return accessibleExams;
+  }, [examTab, adminExams, myExams, accessibleExams]);
 
   const assignedClassLevelName =
     t?.classLevel?.name || t?.classLevel || (t?.subject?.name || t?.subject ? `${t?.subject?.name || t?.subject} (Subject)` : "Assigned Level");
@@ -234,14 +267,14 @@ export default function TeacherDashboard() {
             badge: "Class Roster",
           },
           {
-            title: "My Created Exams",
-            value: myExams.length,
-            label: "Authored by you",
+            title: "Accessible Exams",
+            value: accessibleExams.length,
+            label: `${adminExams.length} Admin · ${myExams.length} by you`,
             icon: "📝",
             bg: "from-blue-500/10 to-cyan-500/5",
             border: "border-blue-500/20",
             text: "text-blue-400",
-            badge: "Assessments",
+            badge: "Available to Teach",
           },
           {
             title: "Questions Authored",
@@ -405,39 +438,82 @@ export default function TeacherDashboard() {
         )}
       </div>
 
-      {/* 4. MY RECENT EXAMS WIDGET */}
+      {/* 4. SCHOOL & TEACHER EXAMS WIDGET */}
       <div className="rounded-3xl bg-[#0e172a]/90 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-2xl space-y-6">
-        <div className="flex items-center justify-between border-b border-white/10 pb-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
               <span className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-sm">
                 📝
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                My Authored Exams
+                School & Authored Exams
               </h2>
             </div>
             <p className="text-xs sm:text-sm text-slate-400">
-              Recent exams created by you ({myExams.length} total exams created)
+              All exams created by Administration and authored by you ({accessibleExams.length} accessible · {adminExams.length} Admin · {myExams.length} authored)
             </p>
           </div>
 
-          <Link
-            to="/teacher/exams"
-            className="text-xs sm:text-sm text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors"
-          >
-            Manage All Exams →
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center p-1 rounded-xl bg-white/5 border border-white/10">
+              <button
+                onClick={() => setExamTab("accessible")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  examTab === "accessible"
+                    ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                All ({accessibleExams.length})
+              </button>
+              <button
+                onClick={() => setExamTab("admin")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  examTab === "admin"
+                    ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                🏛️ Admin ({adminExams.length})
+              </button>
+              <button
+                onClick={() => setExamTab("my")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  examTab === "my"
+                    ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                ✍️ My Authored ({myExams.length})
+              </button>
+            </div>
+
+            <Link
+              to="/teacher/exams"
+              className="text-xs sm:text-sm text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors px-2 py-1"
+            >
+              Manage All Exams →
+            </Link>
+          </div>
         </div>
 
         {examsLoading ? (
-          <div className="p-8 text-center text-slate-400 text-sm">Loading your exams...</div>
-        ) : myExams.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 text-sm">Loading exams...</div>
+        ) : displayedDashboardExams.length === 0 ? (
           <div className="p-10 text-center rounded-2xl bg-white/5 border border-white/10 space-y-3">
             <span className="text-3xl block">📋</span>
-            <h4 className="text-base font-bold text-white">No Exams Authored Yet</h4>
+            <h4 className="text-base font-bold text-white">
+              {examTab === "admin"
+                ? "No Admin Exams Found"
+                : examTab === "my"
+                ? "No Exams Authored Yet"
+                : "No Exams Available"}
+            </h4>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
-              You haven't created any exams yet. Start preparing your class assessments today!
+              {examTab === "admin"
+                ? "There are currently no institution-wide exams created by Admin."
+                : "You haven't created any exams yet. Start preparing your class assessments today!"}
             </p>
             <Link
               to="/teacher/exams"
@@ -448,36 +524,55 @@ export default function TeacherDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {myExams.slice(0, 6).map((exam) => (
+            {displayedDashboardExams.slice(0, 6).map((exam) => (
               <div
                 key={exam._id}
-                className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3 hover:border-blue-500/40 transition-all"
+                className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3 hover:border-blue-500/40 transition-all flex flex-col justify-between"
               >
-                <div className="flex items-center justify-between">
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    {exam.examType || "Quiz"}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      exam.examStatus === "live"
-                        ? "bg-emerald-500/20 text-emerald-400"
-                        : "bg-amber-500/20 text-amber-400"
-                    }`}
-                  >
-                    {exam.examStatus === "live" ? "🟢 Live" : "🟡 Pending"}
-                  </span>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {exam.examType || "Quiz"}
+                      </span>
+                      {isCreatedByAdmin(exam) ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          🏛️ Admin Exam
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          ✍️ My Exam
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        exam.examStatus === "live"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : "bg-amber-500/20 text-amber-400"
+                      }`}
+                    >
+                      {exam.examStatus === "live" ? "🟢 Live" : "🟡 Pending"}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-base font-bold text-white truncate">{exam.name}</h4>
+                    <p className="text-xs text-slate-400 line-clamp-1">{exam.description || "No description provided."}</p>
+                  </div>
                 </div>
 
-                <div>
-                  <h4 className="text-base font-bold text-white truncate">{exam.name}</h4>
-                  <p className="text-xs text-slate-400 line-clamp-1">{exam.description || "No description provided."}</p>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-white/5">
-                  <span>⏱️ {exam.duration || "N/A"}</span>
-                  <span className="text-teal-300 font-semibold">
-                    ❓ {exam.questions?.length || 0} Questions
-                  </span>
+                <div className="pt-3 border-t border-white/5 space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>⏱️ {exam.duration || "N/A"}</span>
+                    <span className="text-teal-300 font-semibold">
+                      ❓ {exam.questions?.length || 0} Questions
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>By: <strong className="text-slate-300 font-medium">{isCreatedByAdmin(exam) ? "Administration" : (exam.createdBy?.name || "You")}</strong></span>
+                    <Link to="/teacher/exams" className="text-blue-400 hover:text-blue-300 font-medium">View →</Link>
+                  </div>
                 </div>
               </div>
             ))}

@@ -203,7 +203,7 @@ const studentNavGroups: NavGroup[] = [
       {
         name: "Take / Write Exam",
         icon: <TaskIcon />,
-        path: "/exams",
+        path: "/student/exams",
       },
       {
         name: "Check Exam Results",

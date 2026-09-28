@@ -37,10 +37,35 @@ export const fetchTeacherExamsAdmin = createAsyncThunk(
   }
 );
 
+export const fetchExamById = createAsyncThunk(
+  "exams/fetchById",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get(`/exams/${id}`);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to fetch exam details");
+    }
+  }
+);
+
 const slice = createSlice({
   name: "exams",
-  initialState: { items: [] as any[], teacherExams: [] as any[], loading: false, error: null as string | null },
-  reducers: { clearError: (state) => { state.error = null; } },
+  initialState: {
+    items: [] as any[],
+    teacherExams: [] as any[],
+    currentExam: null as any | null,
+    loading: false,
+    error: null as string | null,
+  },
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearCurrentExam: (state) => {
+      state.currentExam = null;
+    },
+  },
   extraReducers: (b) => {
     b.addCase(fetchExams.pending, (s) => { s.loading = true; })
      .addCase(fetchExams.fulfilled, (s, a) => { s.loading = false; s.items = a.payload.data || []; })
@@ -48,6 +73,9 @@ const slice = createSlice({
      .addCase(fetchTeacherExamsAdmin.pending, (s) => { s.loading = true; s.error = null; })
      .addCase(fetchTeacherExamsAdmin.fulfilled, (s, a) => { s.loading = false; s.teacherExams = a.payload.data || []; })
      .addCase(fetchTeacherExamsAdmin.rejected, (s, a) => { s.loading = false; s.error = a.payload as string; })
+     .addCase(fetchExamById.pending, (s) => { s.loading = true; s.error = null; })
+     .addCase(fetchExamById.fulfilled, (s, a) => { s.loading = false; s.currentExam = a.payload.data || a.payload; })
+     .addCase(fetchExamById.rejected, (s, a) => { s.loading = false; s.error = a.payload as string; })
      .addCase(createExam.fulfilled, (s, a) => { if (a.payload.data) s.items.unshift(a.payload.data); })
      .addCase(updateExam.fulfilled, (s, a) => {
        const updated = a.payload.data || a.payload;
@@ -58,5 +86,5 @@ const slice = createSlice({
      .addCase(deleteExam.fulfilled, (s, a) => { s.items = s.items.filter(i => i._id !== a.payload); });
   },
 });
-export const { clearError } = slice.actions;
+export const { clearError, clearCurrentExam } = slice.actions;
 export default slice.reducer;
