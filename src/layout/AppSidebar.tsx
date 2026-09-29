@@ -133,6 +133,16 @@ const adminNavGroups: NavGroup[] = [
     ],
   },
   {
+    title: "Reports & Monitoring",
+    items: [
+      {
+        name: "Class Performance Reports",
+        icon: <FileIcon />,
+        path: "/admin/class-reports",
+      },
+    ],
+  },
+  {
     title: "System & Settings",
     items: [
       {
@@ -168,6 +178,11 @@ const teacherNavGroups: NavGroup[] = [
         name: "Student Attendance",
         icon: <CalenderIcon />,
         path: "/teacher/attendance",
+      },
+      {
+        name: "Weekly Class Reports",
+        icon: <FileIcon />,
+        path: "/teacher/weekly-reports",
       },
     ],
   },

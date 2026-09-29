@@ -34,6 +34,8 @@ import StudentResultsList from "./pages/Exams/StudentResultsList";
 import TeacherExamsList from "./pages/Exams/TeacherExamsList";
 import QuestionsList from "./pages/Exams/QuestionsList";
 import UserProfiles from "./pages/UserProfiles";
+import AdminClassReports from "./pages/Admin/AdminClassReports";
+import TeacherWeeklyReports from "./pages/Teachers/TeacherWeeklyReports";
 import NotFound from "./pages/OtherPage/NotFound";
 
 export default function App() {
@@ -101,6 +103,7 @@ export default function App() {
             <Route path="/admin/results" element={<StudentResultsList />} />
             <Route path="/admin/teacher-exams" element={<TeacherExamsList />} />
             <Route path="/admin/questions" element={<QuestionsList />} />
+            <Route path="/admin/class-reports" element={<AdminClassReports />} />
           </Route>
 
           {/* Teacher Protected Dashboard Routes */}
@@ -118,6 +121,7 @@ export default function App() {
             <Route path="/teacher/results" element={<TeacherStudentResults />} />
             <Route path="/teacher/students" element={<StudentsList />} />
             <Route path="/teacher/attendance" element={<TeacherAttendance />} />
+            <Route path="/teacher/weekly-reports" element={<TeacherWeeklyReports />} />
           </Route>
 
           {/* Student Protected Dashboard Routes */}

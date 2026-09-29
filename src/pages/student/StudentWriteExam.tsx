@@ -42,6 +42,8 @@ export default function StudentWriteExam() {
     student,
     profile,
     studentExamResults,
+    allExamResults,
+    writtenExamIds,
     examSubmitting,
     examSubmitSuccess,
     examSubmitError,
@@ -60,6 +62,16 @@ export default function StudentWriteExam() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [submittedResult, setSubmittedResult] = useState<any | null>(null);
+  const [submissionBanner, setSubmissionBanner] = useState<{ examName: string; message: string } | null>(null);
+
+  const studentStorageKey = `completed_exams_${activeStudent?._id || (activeStudent as any)?.studentId || (profile as any)?._id || (student as any)?._id || "student"}`;
+  const [localCompletedIds, setLocalCompletedIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(studentStorageKey) || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   // Load active student and all exams
   useEffect(() => {
@@ -67,15 +79,20 @@ export default function StudentWriteExam() {
     dispatch(fetchExams());
   }, [dispatch]);
 
-  // If URL specified an examId, auto-select it
+  // If URL specified an examId, auto-select it if not completed
   useEffect(() => {
     if (effectiveExamId && exams && exams.length > 0 && !activeExam) {
       const found = exams.find((e) => e._id === effectiveExamId);
       if (found) {
-        startExamSession(found);
+        if (isExamCompleted(found._id)) {
+          // Already completed: cannot take/enter exam again, clean up URL route
+          navigate("/student/exams", { replace: true });
+        } else {
+          startExamSession(found);
+        }
       }
     }
-  }, [effectiveExamId, exams, activeExam]);
+  }, [effectiveExamId, exams, activeExam, writtenExamIds, localCompletedIds]);
 
   // Timer countdown
   useEffect(() => {
@@ -104,14 +121,27 @@ export default function StudentWriteExam() {
     return `${mins.toString().padStart(2, "0")}:${rem.toString().padStart(2, "0")}`;
   };
 
-  // Check if student already completed exam
-  const getExamResultRecord = (examId: string) => {
-    if (!studentExamResults) return null;
-    return studentExamResults.find((r) => {
-      const eId = r.exam?._id || r.exam;
-      return eId?.toString() === examId.toString();
-    });
+  // Comprehensive check if student has already completed an exam
+  const isExamCompleted = (examId: string | undefined | null) => {
+    if (!examId) return false;
+    const sId = examId.toString();
+    if (writtenExamIds && writtenExamIds.some((id) => id?.toString() === sId)) return true;
+    if (localCompletedIds.includes(sId)) return true;
+    if (studentExamResults?.some((r) => (r.exam?._id || r.exam)?.toString() === sId)) return true;
+    if (allExamResults?.some((r) => (r.exam?._id || r.exam)?.toString() === sId)) return true;
+    if (
+      activeStudent?.examsResults &&
+      Array.isArray(activeStudent.examsResults) &&
+      activeStudent.examsResults.some((r: any) => {
+        const rExamId = r?.exam?._id || r?.exam || r?._id;
+        return rExamId?.toString() === sId;
+      })
+    ) {
+      return true;
+    }
+    return false;
   };
+
 
   // Start exam session
   const startExamSession = (exam: any) => {
@@ -123,10 +153,9 @@ export default function StudentWriteExam() {
       alert("Your account is marked as withdrawn. Access to exams is revoked.");
       return;
     }
-    const alreadyTaken = getExamResultRecord(exam._id);
-    if (alreadyTaken) {
-      setSubmittedResult(alreadyTaken);
-      setActiveExam(exam);
+    // Block if already completed - student should NOT be able to click or start the exam again
+    if (isExamCompleted(exam._id)) {
+      alert("You have already completed this examination. You cannot access or write this exam again.");
       return;
     }
     if (!exam.questions || exam.questions.length === 0) {
@@ -191,16 +220,47 @@ export default function StudentWriteExam() {
       answersArray.push(studentAnswers[i]);
     }
 
+    const submittedExamId = activeExam._id;
+    const submittedExamName = activeExam.name;
+
     setShowConfirmModal(false);
     const resultAction = await dispatch(
       writeStudentExam({
-        examId: activeExam._id,
+        examId: submittedExamId,
         answers: answersArray,
       })
     );
 
     if (writeStudentExam.fulfilled.match(resultAction)) {
-      setSubmittedResult(resultAction.payload.data || resultAction.payload);
+      // 1. Immediately record in local state and persistence to lock exam
+      setLocalCompletedIds((prev) => {
+        const next = [...prev, submittedExamId.toString()];
+        try {
+          localStorage.setItem(studentStorageKey, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+
+      // 2. Set submission success banner to inform student
+      setSubmissionBanner({
+        examName: submittedExamName,
+        message: "Exam submitted successfully! Your submission has been delivered to your respective teacher's dashboard for review.",
+      });
+
+      // 3. Return to where student clicked start exam!
+      setActiveExam(null);
+      setSubmittedResult(null);
+      setCurrentQuestionIndex(0);
+      setStudentAnswers({});
+      setFlaggedQuestions({});
+
+      // 4. Reset URL back to base /student/exams
+      navigate("/student/exams", { replace: true });
+
+      // 5. Fetch student profile in background to synchronize with database
+      dispatch(fetchStudentProfile());
     }
   };
 
@@ -972,6 +1032,33 @@ export default function StudentWriteExam() {
         </div>
       </div>
 
+      {/* Submission Success Banner */}
+      {submissionBanner && (
+        <div className="p-5 rounded-3xl bg-gradient-to-r from-emerald-950/80 via-teal-950/60 to-slate-900 border border-emerald-500/40 text-white shadow-2xl flex items-start justify-between gap-4 animate-fadeIn">
+          <div className="flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0 border border-emerald-500/30">
+              <HiOutlineCheckCircle className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-bold text-sm text-emerald-300">
+                Exam Submitted Successfully!
+              </h4>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Your answers for <strong className="text-white font-semibold">"{submissionBanner.examName}"</strong> have been submitted and locked. You can no longer access this examination. Your submission is now in your teacher's dashboard for verification.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSubmissionBanner(null)}
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Dismiss notification"
+          >
+            <HiOutlineXMark className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* Student Offering & Assigned Teacher Indicator */}
       <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-4">
@@ -1072,15 +1159,15 @@ export default function StudentWriteExam() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredExams.map((exam) => {
-            const alreadyTaken = getExamResultRecord(exam._id);
+            const isCompleted = isExamCompleted(exam._id);
             const qCount = exam.questions?.length || 0;
 
             return (
               <div
                 key={exam._id}
                 className={`rounded-3xl bg-white dark:bg-slate-900 border p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all ${
-                  alreadyTaken
-                    ? "border-emerald-500/30"
+                  isCompleted
+                    ? "border-emerald-500/40 bg-slate-50/50 dark:bg-slate-900/60"
                     : "border-gray-200/80 dark:border-slate-800 hover:border-indigo-400"
                 }`}
               >
@@ -1089,10 +1176,9 @@ export default function StudentWriteExam() {
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
                       {exam.examType || "Quiz"}
                     </span>
-                    {alreadyTaken ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                        <HiOutlineCheckCircle className="w-4 h-4" /> Grade:{" "}
-                        {alreadyTaken.grade}%
+                    {isCompleted ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/50">
+                        <HiOutlineCheckCircle className="w-3.5 h-3.5" /> Completed
                       </span>
                     ) : (
                       <span className="text-[11px] font-semibold text-slate-400">
@@ -1146,19 +1232,19 @@ export default function StudentWriteExam() {
                 </div>
 
                 <div className="pt-6 mt-4">
-                  {alreadyTaken ? (
+                  {isCompleted ? (
                     <button
-                      onClick={() => {
-                        setActiveExam(exam);
-                        setSubmittedResult(alreadyTaken);
-                      }}
-                      className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 text-slate-400 dark:text-slate-500 font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80 pointer-events-none"
                     >
-                      <HiOutlineShieldCheck className="w-4 h-4" />
-                      View Completed Result
+                      <HiOutlineCheckCircle className="w-4 h-4 text-emerald-500" />
+                      Exam Completed
                     </button>
                   ) : (
                     <button
+                      type="button"
                       onClick={() => startExamSession(exam)}
                       className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
                     >

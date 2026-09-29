@@ -56,6 +56,8 @@ interface AuthState {
   profile: Student | null;
   currentExamResult: any | null;
   studentExamResults: any[];
+  allExamResults: any[];
+  writtenExamIds: string[];
   students: Student[];
   teacherClassStudents: Student[];
   teacherClassLevel: string | null;
@@ -99,6 +101,8 @@ const initialState: AuthState = {
   profile: null,
   currentExamResult: null,
   studentExamResults: [],
+  allExamResults: [],
+  writtenExamIds: [],
   students: [],
   teacherClassStudents: [],
   teacherClassLevel: null,
@@ -514,6 +518,12 @@ const studentsSlice = createSlice({
         state.profile = p;
         state.currentExamResult = action.payload.data?.currentExamResult || action.payload.currentExamResult || null;
         state.studentExamResults = action.payload.data?.examResults || p.examsResults || [];
+        state.allExamResults = action.payload.data?.allExamResults || p.examsResults || [];
+        const backendWrittenIds: string[] = (action.payload.data?.writtenExamIds || []).map((id: any) => id?.toString());
+        const profileExamIds: string[] = (p.examsResults || [])
+          .map((r: any) => (r?.exam?._id || r?.exam || r?._id)?.toString())
+          .filter(Boolean);
+        state.writtenExamIds = Array.from(new Set([...state.writtenExamIds, ...backendWrittenIds, ...profileExamIds]));
         state.hasPendingReview = !!(action.payload.hasPendingReview ?? action.payload.data?.hasPendingReview);
         state.pendingReviewCount = action.payload.pendingReviewCount ?? action.payload.data?.pendingReviewCount ?? 0;
         state.student = { ...state.student, ...p };
@@ -559,10 +569,26 @@ const studentsSlice = createSlice({
         state.examSubmitSuccess = true;
         state.hasPendingReview = true;
         state.pendingReviewCount = (state.pendingReviewCount || 0) + 1;
-        // Result is saved as unpublished; only expose if published
-        if (action.payload.data?.isPublished) {
-          state.currentExamResult = action.payload.data;
-          state.studentExamResults.unshift(action.payload.data);
+        const newResult = action.payload.data || action.payload;
+        const examId = (action.meta?.arg?.examId || action.payload?.examId || newResult?.exam?._id || newResult?.exam)?.toString();
+        if (examId && !state.writtenExamIds.includes(examId)) {
+          state.writtenExamIds.push(examId);
+        }
+        if (newResult) {
+          state.allExamResults.unshift(newResult);
+          if (state.profile) {
+            if (!Array.isArray(state.profile.examsResults)) state.profile.examsResults = [];
+            state.profile.examsResults.unshift(newResult);
+          }
+          if (state.student) {
+            if (!Array.isArray(state.student.examsResults)) state.student.examsResults = [];
+            state.student.examsResults.unshift(newResult);
+          }
+          // Result is saved as unpublished; only expose if published
+          if (newResult.isPublished) {
+            state.currentExamResult = newResult;
+            state.studentExamResults.unshift(newResult);
+          }
         }
       })
       .addCase(writeStudentExam.rejected, (state, action) => {

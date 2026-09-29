@@ -55,6 +55,8 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     profile,
     currentExamResult,
     studentExamResults,
+    allExamResults,
+    writtenExamIds,
     profileLoading,
     profileUpdating,
     profileUpdateSuccess,
@@ -122,6 +124,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [formFeedback, setFormFeedback] = useState<string | null>(null);
+  const [examSubmittedBanner, setExamSubmittedBanner] = useState<{ examName: string } | null>(null);
 
   // Initial Load
   useEffect(() => {
@@ -179,11 +182,22 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
 
   // Check if student has already taken an exam
   const hasTakenExam = (examId: string) => {
-    if (!studentExamResults) return false;
-    return studentExamResults.some((res) => {
-      const eId = res.exam?._id || res.exam;
-      return eId?.toString() === examId?.toString();
-    });
+    if (!examId) return false;
+    const eIdStr = examId.toString();
+    if (writtenExamIds && writtenExamIds.some((id) => id?.toString() === eIdStr)) return true;
+    if (studentExamResults?.some((res) => (res.exam?._id || res.exam)?.toString() === eIdStr)) return true;
+    if (allExamResults?.some((res) => (res.exam?._id || res.exam)?.toString() === eIdStr)) return true;
+    if (
+      activeStudent?.examsResults &&
+      Array.isArray(activeStudent.examsResults) &&
+      activeStudent.examsResults.some((r: any) => {
+        const rExamId = r?.exam?._id || r?.exam || r?._id;
+        return rExamId?.toString() === eIdStr;
+      })
+    ) {
+      return true;
+    }
+    return false;
   };
 
   // Helper to normalize class levels (e.g. "Level 200", "200 Level", "200L" -> "200")
@@ -366,13 +380,22 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
       answersArray.push(examAnswers[i]);
     }
 
+    const examToSubmit = selectedExam;
     setShowExamConfirmModal(false);
-    await dispatch(
+    const resultAction = await dispatch(
       writeStudentExam({
-        examId: selectedExam._id,
+        examId: examToSubmit._id,
         answers: answersArray,
       })
     );
+
+    if (writeStudentExam.fulfilled.match(resultAction)) {
+      // Return to where student clicked start exam (the exams tab in dashboard)
+      setExamSubmittedBanner({ examName: examToSubmit.name });
+      setSelectedExam(null);
+      setExamAnswers({});
+      dispatch(fetchStudentProfile());
+    }
   };
 
   // Handle Profile Update
@@ -1218,6 +1241,32 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
             </div>
           </div>
 
+          {/* Exam Submitted Banner */}
+          {examSubmittedBanner && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-teal-950/60 to-slate-900 border border-emerald-500/40 text-white shadow-xl flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg shrink-0 border border-emerald-500/30">
+                  <HiOutlineCheck className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-emerald-300">
+                    Exam Submitted Successfully!
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Your answers for <strong className="text-white">"{examSubmittedBanner.examName}"</strong> have been submitted and locked. You can no longer access this examination.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExamSubmittedBanner(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
           {/* Student Offering & Assigned Teacher Indicator */}
           <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 flex flex-wrap items-center justify-between gap-4 text-xs">
             <div className="flex flex-wrap items-center gap-4">
@@ -1345,13 +1394,16 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                     <div className="pt-5 mt-4">
                       {taken ? (
                         <button
+                          type="button"
                           disabled
-                          className="w-full py-2.5 rounded-xl bg-gray-100 dark:bg-slate-800 text-slate-400 font-semibold text-xs cursor-not-allowed flex items-center justify-center gap-1.5"
+                          aria-disabled="true"
+                          className="w-full py-2.5 rounded-xl bg-gray-100 dark:bg-slate-800 text-slate-400 font-semibold text-xs cursor-not-allowed flex items-center justify-center gap-1.5 select-none pointer-events-none"
                         >
-                          <HiOutlineCheck className="w-4 h-4" /> Exam Submitted
+                          <HiOutlineCheck className="w-4 h-4 text-emerald-500" /> Exam Completed
                         </button>
                       ) : (
                         <button
+                          type="button"
                           onClick={() => handleStartExam(exam)}
                           className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
                         >

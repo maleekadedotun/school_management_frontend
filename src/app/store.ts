@@ -13,6 +13,8 @@ import examsReducer from "../features/exams/examsSlice";
 import examResultsReducer from "../features/examResults/examResultsSlice";
 import questionsReducer from "../features/questions/questionsSlice";
 import attendanceReducer from "../features/attendance/attendanceSlice";
+import classReportsReducer from "../features/classReports/classReportsSlice";
+import notificationsReducer from "../features/notifications/notificationsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -30,6 +32,8 @@ export const store = configureStore({
     examResults: examResultsReducer,
     questions: questionsReducer,
     attendance: attendanceReducer,
+    classReports: classReportsReducer,
+    notifications: notificationsReducer,
   },
 });
 
