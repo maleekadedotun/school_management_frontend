@@ -341,6 +341,12 @@
 .apexcharts-tooltip-text-y-value {
   @apply font-medium!;
 }
+.apexcharts-tooltip.apexcharts-theme-dark .apexcharts-tooltip-title,
+.apexcharts-tooltip.apexcharts-theme-dark .apexcharts-tooltip-text,
+.apexcharts-tooltip.apexcharts-theme-dark .apexcharts-tooltip-text-y-label,
+.apexcharts-tooltip.apexcharts-theme-dark .apexcharts-tooltip-text-y-value {
+  color: #ffffff !important;
+}
 
 .apexcharts-gridline {
   @apply stroke-gray-100! dark:stroke-gray-800!;

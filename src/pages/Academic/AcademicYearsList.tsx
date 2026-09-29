@@ -134,7 +134,7 @@ export default function AcademicYearsList() {
                     <td className="px-6 py-4">
                       {item.fromYear ? new Date(item.fromYear).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-6 py-4 text-indigo-300">
+                    <td className="px-6 py-4 text-dark">
                       {item.toYear ? new Date(item.toYear).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-6 py-4">

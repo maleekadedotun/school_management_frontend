@@ -6,10 +6,14 @@ import {
   updateClassLevel,
   deleteClassLevel,
 } from "../../features/classLevels/classLevelsSlice";
+import { fetchAllStudents } from "../../features/students/studentsSlice";
+import { fetchSubjects } from "../../features/subjects/subjectsSlice";
 
 export default function ClassLevelsList() {
   const dispatch = useAppDispatch();
   const { items: classLevels, loading, error } = useAppSelector((s) => s.classLevels);
+  const { students } = useAppSelector((s) => s.students);
+  const { items: subjects } = useAppSelector((s) => s.subjects);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -19,9 +23,55 @@ export default function ClassLevelsList() {
   });
   const [submitting, setSubmitting] = useState(false);
 
+  // Modal to inspect enrolled students or subjects of a class
+  const [detailModal, setDetailModal] = useState<{
+    className: string;
+    type: "students" | "subjects";
+    items: any[];
+  } | null>(null);
+
   useEffect(() => {
     dispatch(fetchClassLevels());
+    dispatch(fetchAllStudents());
+    dispatch(fetchSubjects());
   }, [dispatch]);
+
+  // Helper to get enrolled students for a class level
+  const getEnrolledStudents = (item: any) => {
+    const targetName = (item.name || "").trim().toLowerCase();
+    const targetId = item._id ? item._id.toString() : "";
+
+    // 1. If backend already populated objects in item.students
+    if (Array.isArray(item.students) && item.students.length > 0 && typeof item.students[0] === "object") {
+      return item.students;
+    }
+
+    // 2. Search loaded students list in Redux
+    return students.filter((s: any) => {
+      const current = (s.currentClassLevel || (Array.isArray(s.classLevels) && s.classLevels.length > 0 ? s.classLevels[s.classLevels.length - 1] : "") || "").trim().toLowerCase();
+      if (current && (current === targetName || current === targetId)) {
+        return true;
+      }
+      return false;
+    });
+  };
+
+  // Helper to get subjects assigned to a class level
+  const getClassSubjects = (item: any) => {
+    const targetName = (item.name || "").trim().toLowerCase();
+    const targetId = item._id ? item._id.toString() : "";
+
+    // 1. If backend already populated objects in item.subjects
+    if (Array.isArray(item.subjects) && item.subjects.length > 0 && typeof item.subjects[0] === "object") {
+      return item.subjects;
+    }
+
+    // 2. Search loaded subjects list in Redux
+    return subjects.filter((sub: any) => {
+      const subLvl = (sub.classLevel || "").trim().toLowerCase();
+      return subLvl && (subLvl === targetName || subLvl === targetId);
+    });
+  };
 
   const handleOpenCreate = () => {
     setEditingId(null);
@@ -117,23 +167,64 @@ export default function ClassLevelsList() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5 text-sm text-dark-300">
-                {classLevels.map((item) => (
-                  <tr key={item._id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-dark">{item.name}</td>
-                    <td className="px-6 py-4">{item.description || "—"}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {Array.isArray(item.students) ? item.students.length : 0} Students
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                        {Array.isArray(item.subjects) ? item.subjects.length : 0} Subjects
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-dark  -400">
-                      {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
-                    </td>
+                {classLevels.map((item) => {
+                  const enrolledStudents = getEnrolledStudents(item);
+                  const classSubjects = getClassSubjects(item);
+                  const studentCount =
+                    typeof item.studentCount === "number"
+                      ? item.studentCount
+                      : Array.isArray(item.students) && item.students.length > 0
+                      ? item.students.length
+                      : enrolledStudents.length;
+
+                  const subjectCount =
+                    typeof item.subjectCount === "number"
+                      ? item.subjectCount
+                      : Array.isArray(item.subjects) && item.subjects.length > 0
+                      ? item.subjects.length
+                      : classSubjects.length;
+
+                  return (
+                    <tr key={item._id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4 font-semibold text-dark">{item.name}</td>
+                      <td className="px-6 py-4">{item.description || "—"}</td>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDetailModal({
+                              className: item.name,
+                              type: "students",
+                              items: enrolledStudents,
+                            })
+                          }
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                          title="Click to view enrolled students"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                          {studentCount} {studentCount === 1 ? "Student" : "Students"}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDetailModal({
+                              className: item.name,
+                              type: "subjects",
+                              items: classSubjects,
+                            })
+                          }
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                          title="Click to view subjects"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                          {subjectCount} {subjectCount === 1 ? "Subject" : "Subjects"}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 text-slate-400">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
+                      </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
@@ -167,7 +258,8 @@ export default function ClassLevelsList() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -241,6 +333,84 @@ export default function ClassLevelsList() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Inspection Modal for Enrolled Students / Subjects */}
+      {detailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 w-full max-w-lg space-y-4 shadow-2xl max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>{detailModal.type === "students" ? "👨‍🎓" : "📚"}</span>
+                  {detailModal.type === "students"
+                    ? `Students Enrolled in ${detailModal.className}`
+                    : `Subjects in ${detailModal.className}`}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Total: {detailModal.items.length} {detailModal.type === "students" ? "student(s)" : "subject(s)"}
+                </p>
+              </div>
+              <button
+                onClick={() => setDetailModal(null)}
+                className="text-slate-400 hover:text-white transition-colors text-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {detailModal.items.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 text-sm">
+                  No {detailModal.type === "students" ? "students" : "subjects"} found for this class level.
+                </div>
+              ) : detailModal.type === "students" ? (
+                detailModal.items.map((student: any, idx: number) => (
+                  <div
+                    key={student._id || idx}
+                    className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between gap-3 text-sm"
+                  >
+                    <div>
+                      <div className="font-semibold text-white">{student.name}</div>
+                      <div className="text-xs text-slate-400">{student.email || "No email"}</div>
+                    </div>
+                    {student.StudentId && (
+                      <span className="font-mono text-xs px-2 py-1 rounded bg-indigo-500/15 border border-indigo-500/30 text-indigo-300">
+                        {student.StudentId}
+                      </span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                detailModal.items.map((subject: any, idx: number) => (
+                  <div
+                    key={subject._id || idx}
+                    className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between gap-3 text-sm"
+                  >
+                    <div>
+                      <div className="font-semibold text-white">{subject.name}</div>
+                      <div className="text-xs text-slate-400">{subject.description || "Standard curriculum course"}</div>
+                    </div>
+                    {subject.duration && (
+                      <span className="text-xs px-2 py-1 rounded bg-blue-500/15 border border-blue-500/30 text-blue-300">
+                        {subject.duration}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setDetailModal(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

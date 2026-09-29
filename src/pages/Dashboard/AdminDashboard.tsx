@@ -181,7 +181,25 @@ export default function Dashboard() {
     },
     yaxis: { labels: { style: { colors: "#94a3b8" } } },
     grid: { borderColor: "rgba(255, 255, 255, 0.05)" },
-    tooltip: { theme: "dark" },
+    tooltip: {
+      theme: "dark",
+      custom: ({ series, seriesIndex, dataPointIndex, w }) => {
+        const category =
+          w.globals.categoryLabels?.[dataPointIndex] ||
+          w.globals.labels?.[dataPointIndex] ||
+          "";
+        const val = series[seriesIndex]?.[dataPointIndex] ?? 0;
+        return `
+          <div style="background: #0f172a; color: #ffffff; padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4); font-family: inherit;">
+            <div style="color: #cbd5e1; font-size: 11px; font-weight: 500; margin-bottom: 3px;">${category}</div>
+            <div style="color: #ffffff; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #6366f1;"></span>
+              Count: <span style="color: #ffffff; font-weight: 800;">${val}</span>
+            </div>
+          </div>
+        `;
+      },
+    },
   };
 
   const examChartSeries = [
@@ -473,7 +491,7 @@ export default function Dashboard() {
               <p className="text-dark-300 text-xs font-medium leading-tight group-hover:text-white transition-colors">
                 {item.label}
               </p>
-              <p className="text-lg font-bold text-white">{item.count}</p>
+              <p className="text-lg font-bold text-dark">{item.count}</p>
             </Link>
           ))}
         </div>

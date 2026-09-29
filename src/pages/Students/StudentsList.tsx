@@ -419,12 +419,12 @@ export default function StudentsList() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-300 text-sm font-mono">{s.StudentId || "—"}</td>
-                    <td className="px-6 py-4 text-slate-300 text-sm font-medium">{s.currentClassLevel || "—"}</td>
-                    <td className="px-6 py-4 text-indigo-300 text-sm">{s.subject || "—"}</td>
+                    <td className="px-6 py-4 text-dark text-sm font-mono">{s.StudentId || "—"}</td>
+                    <td className="px-6 py-4 text-dark text-sm font-medium">{s.currentClassLevel || "—"}</td>
+                    <td className="px-6 py-4 text-dark-300 text-sm">{s.subject || "—"}</td>
                     <td className="px-6 py-4 text-sm">
                       {s.assignedTeacher ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-300 text-xs font-medium">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-dark-300 text-xs font-medium">
                           <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
                           {typeof s.assignedTeacher === "object" ? s.assignedTeacher?.name : s.assignedTeacher}
                         </span>
