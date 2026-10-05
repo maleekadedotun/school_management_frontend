@@ -240,23 +240,23 @@ export default function ExamsList() {
 
                   {/* Exam Title & Description */}
                   <div>
-                    <h3 className="text-white font-bold text-base truncate group-hover:text-amber-300 transition-colors">
+                    <h3 className="text-dark font-bold text-base truncate group-hover:text-amber-300 transition-colors">
                       {exam.name}
                     </h3>
-                    <p className="text-slate-400 text-xs mt-1 line-clamp-2">
+                    <p className="text-dark-400 text-xs mt-1 line-clamp-2">
                       {exam.description || "No description provided."}
                     </p>
                   </div>
 
                   {/* PROMINENT TEACHER & CLASS LEVEL CARD ROW */}
-                  <div className="p-3 rounded-xl bg-white/[0.04] border border-white/5 space-y-2">
+                  <div className="p-3 text-dark rounded-xl bg-white/[0.04] border border-white/5 space-y-2">
                     <div className="flex items-center justify-between gap-2 text-xs">
                       {/* Teacher / Author Information */}
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                           isCreatedByAdmin
-                            ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                            : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                            ? "bg-indigo-500/20  border border-indigo-500/30"
+                            : "bg-amber-500/20  border border-amber-500/30"
                         }`}>
                           {isCreatedByAdmin ? "🏛️" : (teacherName.charAt(0).toUpperCase() || "👨‍🏫")}
                         </div>
@@ -292,8 +292,8 @@ export default function ExamsList() {
                       { label: "Questions", value: `${exam.questions?.length || 0} Questions` },
                     ].map((d) => (
                       <div key={d.label} className="bg-white/5 border border-white/5 rounded-lg px-2.5 py-1.5">
-                        <p className="text-slate-500 text-[10px] uppercase font-semibold">{d.label}</p>
-                        <p className="text-white text-xs font-medium truncate">{d.value}</p>
+                        <p className="text-dark-500 text-[10px] uppercase font-semibold">{d.label}</p>
+                        <p className="text-dark text-xs font-medium truncate">{d.value}</p>
                       </div>
                     ))}
                   </div>
@@ -307,7 +307,7 @@ export default function ExamsList() {
                   >
                     <span>📢</span>
                     <span>Publish Results</span>
-                  </button>
+                  </button> 
                   <button
                     onClick={() => { if (window.confirm("Are you sure you want to delete this exam?")) dispatch(deleteExam(exam._id)); }}
                     title="Delete Exam"

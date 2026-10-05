@@ -5,8 +5,8 @@ import { useAppDispatch, useAppSelector } from "../../app/hooks";
 // import {
 //   studentLogin,
 //   clearError,
-// } from "../../features/students/studentSlice";
 import { studentLogin, clearError } from "../../features/students/studentsSlice";
+import { clearAssignmentsState } from "../../features/assignments/assignmentsSlice";
 
 export default function StudentLogin() {
   const dispatch = useAppDispatch();
@@ -45,6 +45,7 @@ export default function StudentLogin() {
     const result = await dispatch(studentLogin(form));
 
     if (studentLogin.fulfilled.match(result)) {
+      dispatch(clearAssignmentsState());
       navigate("/student/dashboard");
     }
   };

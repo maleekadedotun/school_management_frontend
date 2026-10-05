@@ -222,7 +222,7 @@ export default function ClassLevelsList() {
                           {subjectCount} {subjectCount === 1 ? "Subject" : "Subjects"}
                         </button>
                       </td>
-                      <td className="px-6 py-4 text-slate-400">
+                      <td className="px-6 py-4 text-dark-400">
                         {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                       </td>
                     <td className="px-6 py-4 text-right">

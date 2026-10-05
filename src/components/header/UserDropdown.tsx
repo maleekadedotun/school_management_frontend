@@ -2,6 +2,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { logout as adminLogout } from "@/features/auth/authSlice";
 import { logout as teacherLogout } from "@/features/teacherAuth/teacherAuthSlice";
 import { logout as studentLogout } from "@/features/students/studentsSlice";
+import { clearAssignmentsState } from "@/features/assignments/assignmentsSlice";
 import { useLanguage } from "@/context/LanguageContext";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { getLanguage, languages, type Locale } from "@/i18n/languages";
@@ -55,6 +56,7 @@ export default function UserDropdown() {
     dispatch(adminLogout());
     dispatch(teacherLogout());
     dispatch(studentLogout());
+    dispatch(clearAssignmentsState());
     localStorage.clear();
 
     if (roleToRedirect === "student") {

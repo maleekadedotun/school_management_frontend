@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { SiTypescript } from "react-icons/si";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   fetchSubjects,
@@ -102,10 +103,13 @@ export default function SubjectsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
+            {/* <HiBookOpen className="w-5 h-5 text-white-400" />
+            <span>Academic Subjects</span> */}
             <span>📖</span> Academic Subjects
+            {/* <span><SiTypescript className="text-4xl text-[3178c6]" /></span> Academic Subjects */}
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-dark-400 text-sm mt-1">
             Manage course subjects, curricula, and term-specific subject offerings
           </p>
         </div>
@@ -161,7 +165,7 @@ export default function SubjectsList() {
           </div>
         ) : paginated.length === 0 ? (
           <div className="px-6 py-16 text-center">
-            <span className="text-4xl">📖</span>
+            <SiTypescript className="mx-auto text-4xl text-[#3178c6]" />
             <h3 className="mt-3 text-white font-semibold text-lg">No Subjects Found</h3>
             <p className="mt-1 text-slate-400 text-sm">
               {search ? `No results for "${search}"` : "Click the button above to create your first subject."}
@@ -179,7 +183,7 @@ export default function SubjectsList() {
                   <th className="px-5 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm text-slate-300">
+              <tbody className="divide-y divide-white/5 text-sm text-dark-300">
                 {paginated.map((item) => (
                   <tr key={item._id} className="hover:bg-white/5 transition-colors group">
                     <td className="px-5 py-4">
@@ -187,25 +191,25 @@ export default function SubjectsList() {
                         <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center text-sm font-bold shrink-0">
                           {item.name?.[0]?.toUpperCase()}
                         </div>
-                        <span className="font-semibold text-dark">{item.name}</span>
+                        <span className="font-semibold">{item.name}</span>
                       </div>
                     </td>
                     <td className="px-5 py-4 max-w-[200px]">
-                      <span className="text-dark-400 text-xs line-clamp-2">{item.description || "—"}</span>
+                      <span className="text-xs line-clamp-2">{item.description || "—"}</span>
                     </td>
                     <td className="px-5 py-4">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                         {typeof item.academicTerms === "object" ? item.academicTerms?.name : item.academicTerms || "—"}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-slate-400 text-xs">
+                    <td className="px-5 py-4 text-xs">
                       {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => setViewItem(item)}
-                          className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                          className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-white/10 transition-colors"
                           title="View Subject"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

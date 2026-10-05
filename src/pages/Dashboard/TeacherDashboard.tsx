@@ -249,6 +249,22 @@ export default function TeacherDashboard() {
               <span>❓</span>
               Question Bank
             </Link>
+
+            <Link
+              to="/teacher/assignments"
+              className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <span>📑</span>
+              Assignments Portal
+            </Link>
+
+            <Link
+              to="/teacher/assignments/drafts"
+              className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <span>📝</span>
+              Assignment Drafts
+            </Link>
           </div>
         </div>
       </div>

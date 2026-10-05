@@ -55,7 +55,6 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     profile,
     currentExamResult,
     studentExamResults,
-    allExamResults,
     writtenExamIds,
     profileLoading,
     profileUpdating,
@@ -180,18 +179,20 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     return Math.round(sum / studentExamResults.length);
   }, [studentExamResults]);
 
-  // Check if student has already taken an exam
+  // Check if current student has already taken an exam
   const hasTakenExam = (examId: string) => {
-    if (!examId) return false;
+    if (!examId || !activeStudent) return false;
     const eIdStr = examId.toString();
+
+    // 1. Verified backend writtenExamIds for this student
     if (writtenExamIds && writtenExamIds.some((id) => id?.toString() === eIdStr)) return true;
-    if (studentExamResults?.some((res) => (res.exam?._id || res.exam)?.toString() === eIdStr)) return true;
-    if (allExamResults?.some((res) => (res.exam?._id || res.exam)?.toString() === eIdStr)) return true;
+
+    // 2. Verified results specifically belonging to this student
+    const studentResults = activeStudent?.examsResults || studentExamResults || [];
     if (
-      activeStudent?.examsResults &&
-      Array.isArray(activeStudent.examsResults) &&
-      activeStudent.examsResults.some((r: any) => {
-        const rExamId = r?.exam?._id || r?.exam || r?._id;
+      Array.isArray(studentResults) &&
+      studentResults.some((res: any) => {
+        const rExamId = res?.exam?._id || res?.exam || res?._id;
         return rExamId?.toString() === eIdStr;
       })
     ) {

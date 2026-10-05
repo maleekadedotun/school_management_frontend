@@ -42,7 +42,6 @@ export default function StudentWriteExam() {
     student,
     profile,
     studentExamResults,
-    allExamResults,
     writtenExamIds,
     examSubmitting,
     examSubmitSuccess,
@@ -64,14 +63,23 @@ export default function StudentWriteExam() {
   const [submittedResult, setSubmittedResult] = useState<any | null>(null);
   const [submissionBanner, setSubmissionBanner] = useState<{ examName: string; message: string } | null>(null);
 
-  const studentStorageKey = `completed_exams_${activeStudent?._id || (activeStudent as any)?.studentId || (profile as any)?._id || (student as any)?._id || "student"}`;
-  const [localCompletedIds, setLocalCompletedIds] = useState<string[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(studentStorageKey) || "[]");
-    } catch {
-      return [];
+  const currentStudentUid = activeStudent?._id || (activeStudent as any)?.studentId || (profile as any)?._id || (student as any)?._id;
+  const studentStorageKey = currentStudentUid ? `completed_exams_${currentStudentUid}` : null;
+  const [localCompletedIds, setLocalCompletedIds] = useState<string[]>([]);
+
+  // Synchronize local completed IDs whenever active student identity resolves
+  useEffect(() => {
+    if (studentStorageKey) {
+      try {
+        const stored = JSON.parse(localStorage.getItem(studentStorageKey) || "[]");
+        setLocalCompletedIds(Array.isArray(stored) ? stored : []);
+      } catch {
+        setLocalCompletedIds([]);
+      }
+    } else {
+      setLocalCompletedIds([]);
     }
-  });
+  }, [studentStorageKey]);
 
   // Load active student and all exams
   useEffect(() => {
@@ -121,24 +129,29 @@ export default function StudentWriteExam() {
     return `${mins.toString().padStart(2, "0")}:${rem.toString().padStart(2, "0")}`;
   };
 
-  // Comprehensive check if student has already completed an exam
+  // Comprehensive check if current active student has already completed an exam
   const isExamCompleted = (examId: string | undefined | null) => {
-    if (!examId) return false;
+    if (!examId || !activeStudent) return false;
     const sId = examId.toString();
+
+    // 1. Check verified backend writtenExamIds for this student
     if (writtenExamIds && writtenExamIds.some((id) => id?.toString() === sId)) return true;
-    if (localCompletedIds.includes(sId)) return true;
-    if (studentExamResults?.some((r) => (r.exam?._id || r.exam)?.toString() === sId)) return true;
-    if (allExamResults?.some((r) => (r.exam?._id || r.exam)?.toString() === sId)) return true;
+
+    // 2. Check local completion cache for this specific student
+    if (studentStorageKey && localCompletedIds.includes(sId)) return true;
+
+    // 3. Check student's own examsResults
+    const studentResults = activeStudent?.examsResults || studentExamResults || [];
     if (
-      activeStudent?.examsResults &&
-      Array.isArray(activeStudent.examsResults) &&
-      activeStudent.examsResults.some((r: any) => {
+      Array.isArray(studentResults) &&
+      studentResults.some((r: any) => {
         const rExamId = r?.exam?._id || r?.exam || r?._id;
         return rExamId?.toString() === sId;
       })
     ) {
       return true;
     }
+
     return false;
   };
 
@@ -233,15 +246,17 @@ export default function StudentWriteExam() {
 
     if (writeStudentExam.fulfilled.match(resultAction)) {
       // 1. Immediately record in local state and persistence to lock exam
-      setLocalCompletedIds((prev) => {
-        const next = [...prev, submittedExamId.toString()];
-        try {
-          localStorage.setItem(studentStorageKey, JSON.stringify(next));
-        } catch {
-          // ignore
-        }
-        return next;
-      });
+      if (studentStorageKey) {
+        setLocalCompletedIds((prev) => {
+          const next = Array.from(new Set([...prev, submittedExamId.toString()]));
+          try {
+            localStorage.setItem(studentStorageKey, JSON.stringify(next));
+          } catch {
+            // ignore
+          }
+          return next;
+        });
+      }
 
       // 2. Set submission success banner to inform student
       setSubmissionBanner({

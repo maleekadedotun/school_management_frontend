@@ -36,11 +36,16 @@ import QuestionsList from "./pages/Exams/QuestionsList";
 import UserProfiles from "./pages/UserProfiles";
 import AdminClassReports from "./pages/Admin/AdminClassReports";
 import TeacherWeeklyReports from "./pages/Teachers/TeacherWeeklyReports";
+import AssignmentsPortal from "./pages/Assignments/AssignmentsPortal";
+import TeacherAssignmentCreate from "./pages/Assignments/TeacherAssignmentCreate";
+import TeacherAssignmentDrafts from "./pages/Assignments/TeacherAssignmentDrafts";
 import NotFound from "./pages/OtherPage/NotFound";
+import { Toaster } from "react-hot-toast";
 
 export default function App() {
   return (
     <>
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
       {/* <Router> */}
         <ScrollToTop />
         <Routes>
@@ -81,6 +86,7 @@ export default function App() {
             }
           >
             <Route path="/exams" element={<ExamsList />} />
+            <Route path="/assignments" element={<AssignmentsPortal />} />
             <Route path="/profile" element={<UserProfiles />} />
           </Route>
 
@@ -104,6 +110,7 @@ export default function App() {
             <Route path="/admin/teacher-exams" element={<TeacherExamsList />} />
             <Route path="/admin/questions" element={<QuestionsList />} />
             <Route path="/admin/class-reports" element={<AdminClassReports />} />
+            <Route path="/admin/assignments" element={<AssignmentsPortal />} />
           </Route>
 
           {/* Teacher Protected Dashboard Routes */}
@@ -117,6 +124,10 @@ export default function App() {
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="/teacher/profile" element={<TeacherProfile />} />
             <Route path="/teacher/exams" element={<TeacherExamsManagement />} />
+            <Route path="/teacher/assignments" element={<AssignmentsPortal />} />
+            <Route path="/teacher/assignments/drafts" element={<TeacherAssignmentDrafts />} />
+            <Route path="/teacher/assignments/create" element={<TeacherAssignmentCreate />} />
+            <Route path="/teacher/assignments/edit/:id" element={<TeacherAssignmentCreate />} />
             <Route path="/teacher/questions" element={<TeacherQuestionsList />} />
             <Route path="/teacher/results" element={<TeacherStudentResults />} />
             <Route path="/teacher/students" element={<StudentsList />} />
@@ -138,6 +149,7 @@ export default function App() {
             <Route path="/student/subjects" element={<StudentSubjects />} />
             <Route path="/student/exams" element={<StudentWriteExam />} />
             <Route path="/student/exams/:examId/write" element={<StudentWriteExam />} />
+            <Route path="/student/assignments" element={<AssignmentsPortal />} />
             <Route path="/student/profile" element={<StudentProfile />} />
             <Route path="/profile" element={<StudentProfile />} />
             <Route path="/academic/programs" element={<StudentProgram />} />

@@ -68,7 +68,7 @@ export default function ProgramsList() {
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <span>📚</span> Academic Programs
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-dark-400 text-sm mt-1">
             Manage degree options, study paths, and field specializations
           </p>
         </div>
@@ -99,8 +99,8 @@ export default function ProgramsList() {
       ) : programs.length === 0 ? (
         <div className="bg-white/5 border border-white/10 rounded-2xl px-6 py-16 text-center">
           <span className="text-4xl">📚</span>
-          <h3 className="mt-3 text-white font-semibold text-lg">No Programs Found</h3>
-          <p className="mt-1 text-slate-400 text-sm">
+          <h3 className="mt-3 text-dark font-semibold text-lg">No Programs Found</h3>
+          <p className="mt-1 text-dark-400 text-sm">
             Click the button above to create your first academic program.
           </p>
         </div>
@@ -149,7 +149,7 @@ export default function ProgramsList() {
                 </div>
 
                 <h3 className="text-lg font-bold text-dark mb-1">{item.name}</h3>
-                <p className="text-slate-400 text-xs line-clamp-2 mb-4">
+                <p className="text-dark-400 text-xs line-clamp-2 mb-4">
                   {item.description || "No description provided."}
                 </p>
               </div>
@@ -161,12 +161,12 @@ export default function ProgramsList() {
                       {item.code}
                     </span>
                   )}
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-300 text-xs font-medium">
+                  <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-dark-300 text-xs font-medium">
                     {item.duration || "4 years"}
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-slate-400">
+                <div className="flex items-center justify-between text-xs text-dark-400">
                   <span>{Array.isArray(item.subjects) ? item.subjects.length : 0} Subjects</span>
                   <span>{Array.isArray(item.students) ? item.students.length : 0} Students</span>
                 </div>

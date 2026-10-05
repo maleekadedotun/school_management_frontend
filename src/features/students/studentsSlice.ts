@@ -425,6 +425,10 @@ const studentsSlice = createSlice({
       state.currentStudent = null;
       state.currentExamResult = null;
       state.studentExamResults = [];
+      state.allExamResults = [];
+      state.writtenExamIds = [];
+      state.enrolledSubjectsByClass = [];
+      state.allEnrolledSubjects = [];
       state.hasPendingReview = false;
       state.pendingReviewCount = 0;
       state.token = null;
@@ -432,6 +436,7 @@ const studentsSlice = createSlice({
       localStorage.removeItem("token");
       localStorage.removeItem("student");
       localStorage.removeItem("userRole");
+      localStorage.removeItem("completed_exams_student");
     },
     clearError: (state) => {
       state.error = null;
@@ -523,7 +528,7 @@ const studentsSlice = createSlice({
         const profileExamIds: string[] = (p.examsResults || [])
           .map((r: any) => (r?.exam?._id || r?.exam || r?._id)?.toString())
           .filter(Boolean);
-        state.writtenExamIds = Array.from(new Set([...state.writtenExamIds, ...backendWrittenIds, ...profileExamIds]));
+        state.writtenExamIds = Array.from(new Set([...backendWrittenIds, ...profileExamIds]));
         state.hasPendingReview = !!(action.payload.hasPendingReview ?? action.payload.data?.hasPendingReview);
         state.pendingReviewCount = action.payload.pendingReviewCount ?? action.payload.data?.pendingReviewCount ?? 0;
         state.student = { ...state.student, ...p };
@@ -604,12 +609,20 @@ const studentsSlice = createSlice({
         state.token = action.payload.token;
         state.student = action.payload.student;
         state.currentStudent = action.payload.student;
+        state.profile = null;
+        state.currentExamResult = null;
+        state.studentExamResults = [];
+        state.allExamResults = [];
+        state.writtenExamIds = [];
+        state.hasPendingReview = false;
+        state.pendingReviewCount = 0;
         state.error = null;
         // Purge conflicting sessions to prevent cross-role hijacking
         localStorage.removeItem("admin");
         localStorage.removeItem("adminToken");
         localStorage.removeItem("teacher");
         localStorage.removeItem("teacherToken");
+        localStorage.removeItem("completed_exams_student");
 
         localStorage.setItem("studentToken", action.payload.token);
         localStorage.setItem("token", action.payload.token);

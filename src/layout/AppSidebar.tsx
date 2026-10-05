@@ -14,6 +14,7 @@ import {
   TableIcon,
   TaskIcon,
   UserCircleIcon,
+  PlusIcon,
 } from "../icons";
 import { cn } from "../utils";
 
@@ -29,6 +30,22 @@ const BookIcon: React.FC<{ className?: string }> = ({ className }) => (
       strokeLinecap="round"
       strokeLinejoin="round"
       d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+    />
+  </svg>
+);
+
+const DraftIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={cn("w-full h-full", className)}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.8}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125"
     />
   </svg>
 );
@@ -130,6 +147,11 @@ const adminNavGroups: NavGroup[] = [
         icon: <PageIcon />,
         path: "/admin/results",
       },
+      {
+        name: "Assignments Portal",
+        icon: <FileIcon />,
+        path: "/assignments",
+      },
     ],
   },
   {
@@ -193,6 +215,21 @@ const teacherNavGroups: NavGroup[] = [
         name: "My Exams",
         icon: <TaskIcon />,
         path: "/teacher/exams",
+      },
+      {
+        name: "Create Assignment",
+        icon: <PlusIcon />,
+        path: "/teacher/assignments/create",
+      },
+      {
+        name: "Assignment Drafts",
+        icon: <DraftIcon />,
+        path: "/teacher/assignments/drafts",
+      },
+      {
+        name: "Assignments Portal",
+        icon: <FileIcon />,
+        path: "/teacher/assignments",
       },
       {
         name: "Question Bank",
@@ -336,6 +373,11 @@ const AppSidebar: React.FC = () => {
             name: "Take / Write Exam",
             icon: <TaskIcon />,
             path: "/student/exams",
+          },
+          {
+            name: "Assignments & Tasks",
+            icon: <FileIcon />,
+            path: "/student/assignments",
           },
           {
             name: "Check Exam Results",

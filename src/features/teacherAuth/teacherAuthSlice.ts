@@ -7,6 +7,10 @@ interface Teacher {
   name: string;
   email: string;
   role: string;
+  program?: string;
+  subject?: string;
+  classLevel?: string;
+  teacherId?: string;
 }
 
 interface TeacherAuthState {
