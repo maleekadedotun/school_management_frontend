@@ -592,8 +592,8 @@ export default function TeacherExamsList() {
 
                         {/* Marks & Duration */}
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <p className="text-slate-200 text-xs">Pass Mark: <strong className="text-white">{exam.passMark || 50}%</strong></p>
-                          <p className="text-slate-200 text-xs">Total Mark: <strong className="text-white">{exam.totalMark || 100}</strong></p>
+                          <p className="text-slate-200 text-xs">Pass Mark: <strong className="text-white">{exam.passMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 15 : 40)}</strong></p>
+                          <p className="text-slate-200 text-xs">Total Mark: <strong className="text-white">{exam.totalMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 30 : 70)}</strong></p>
                           <p className="text-[11px] text-slate-400 mt-0.5">Duration: {exam.duration || "30 mins"}</p>
                         </td>
 
@@ -773,11 +773,11 @@ export default function TeacherExamsList() {
               </div>
               <div className="bg-white/5 border border-white/5 rounded-xl p-3">
                 <p className="text-slate-400">Pass Mark</p>
-                <p className="text-sm font-semibold text-emerald-400 mt-0.5">{selectedExam.passMark || 50}%</p>
+                <p className="text-sm font-semibold text-emerald-400 mt-0.5">{selectedExam.passMark || (["test", "quiz", "continuous assessment", "ca"].includes((selectedExam.examType || "").toLowerCase()) ? 15 : 40)}</p>
               </div>
               <div className="bg-white/5 border border-white/5 rounded-xl p-3">
                 <p className="text-slate-400">Total Mark</p>
-                <p className="text-sm font-semibold text-white mt-0.5">{selectedExam.totalMark || 100}</p>
+                <p className="text-sm font-semibold text-white mt-0.5">{selectedExam.totalMark || (["test", "quiz", "continuous assessment", "ca"].includes((selectedExam.examType || "").toLowerCase()) ? 30 : 70)}</p>
               </div>
               <div className="bg-white/5 border border-white/5 rounded-xl p-3">
                 <p className="text-slate-400">Duration</p>

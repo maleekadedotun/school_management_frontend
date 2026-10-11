@@ -37,11 +37,11 @@ export default function ExamsList() {
     academicTerm: "",
     academicYear: "",
     duration: "1 hr",
-    examType: "Quiz",
+    examType: "Exam",
     examDate: "",
     examTime: "10:00 AM",
-    passMark: 50,
-    totalMark: 100,
+    passMark: 40,
+    totalMark: 70,
   });
 
   useEffect(() => {
@@ -95,11 +95,11 @@ export default function ExamsList() {
       academicTerm: "",
       academicYear: "",
       duration: "1 hr",
-      examType: "Quiz",
+      examType: "Exam",
       examDate: "",
       examTime: "10:00 AM",
-      passMark: 50,
-      totalMark: 100,
+      passMark: 40,
+      totalMark: 70,
     });
     dispatch(fetchExams());
   };
@@ -286,7 +286,7 @@ export default function ExamsList() {
                     {[
                       { label: "Subject", value: exam.subject?.name || "General" },
                       { label: "Program", value: exam.program?.name || "Curriculum" },
-                      { label: "Pass / Total", value: `${exam.passMark || 50}% / ${exam.totalMark || 100}` },
+                      { label: "Pass / Total", value: `${exam.passMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 15 : 40)} / ${exam.totalMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 30 : 70)}` },
                       { label: "Duration", value: exam.duration || "1 hr" },
                       { label: "Exam Date", value: exam.examDate ? new Date(exam.examDate).toLocaleDateString() : "TBD" },
                       { label: "Questions", value: `${exam.questions?.length || 0} Questions` },
@@ -451,10 +451,19 @@ export default function ExamsList() {
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Exam Type</label>
                   <select
                     value={form.examType}
-                    onChange={(e) => setForm({ ...form, examType: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const isTest = ["test", "quiz", "continuous assessment", "ca"].includes(val.toLowerCase());
+                      setForm({
+                        ...form,
+                        examType: val,
+                        totalMark: isTest ? 30 : 70,
+                        passMark: isTest ? 15 : 40,
+                      });
+                    }}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white focus:outline-none focus:border-amber-500 text-sm"
                   >
-                    {["Quiz", "MidTerm", "Final", "Assignment"].map((t) => (
+                    {["Exam", "Test", "Quiz", "Continuous Assessment", "MidTerm", "Final", "Assignment"].map((t) => (
                       <option key={t} value={t}>{t}</option>
                     ))}
                   </select>
@@ -496,7 +505,9 @@ export default function ExamsList() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Pass Mark (%)</label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Pass Mark {["test", "quiz", "continuous assessment", "ca"].includes(form.examType.toLowerCase()) ? "(Pass: 15 / 30)" : "(Pass: 40 / 70)"}
+                  </label>
                   <input
                     type="number"
                     value={form.passMark}
@@ -505,7 +516,9 @@ export default function ExamsList() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Total Mark</label>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                    Total Mark {["test", "quiz", "continuous assessment", "ca"].includes(form.examType.toLowerCase()) ? "(Max: 30)" : "(Max: 70)"}
+                  </label>
                   <input
                     type="number"
                     value={form.totalMark}

@@ -128,7 +128,7 @@ const StudentProfile: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto text-slate-100 min-w-0">
       {/* Top Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
         <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -621,8 +621,8 @@ const StudentProfile: React.FC = () => {
           )}
 
           {examResults.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
+            <div className="overflow-x-auto custom-scrollbar">
+              <table className="w-full text-left text-xs border-collapse min-w-[580px]">
                 <thead>
                   <tr className="border-b border-white/10 text-slate-400 text-[11px] uppercase tracking-wider">
                     <th className="py-3 px-4">Exam / Course</th>

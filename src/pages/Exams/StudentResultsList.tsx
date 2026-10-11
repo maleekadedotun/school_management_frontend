@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchAdminResults, togglePublishResult, type ExamResultItem } from "../../features/examResults/examResultsSlice";
 import { fetchPrograms } from "../../features/programs/programsSlice";
@@ -294,6 +294,12 @@ export default function StudentResultsList() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to="/admin/report-cards"
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/25"
+          >
+            <span>Term Report Cards & Publication →</span>
+          </Link>
           <button
             onClick={handleExportCSV}
             disabled={filteredResults.length === 0}

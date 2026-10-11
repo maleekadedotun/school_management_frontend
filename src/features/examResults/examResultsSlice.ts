@@ -19,9 +19,16 @@ export interface ExamResultItem {
   };
   grade: number;
   score: number;
+  testScore?: number;
+  examScore?: number;
+  position?: number | null;
+  positionFormatted?: string;
   passMark: number;
   status: "Passed" | "Failed" | string;
   remarks: "Excellent" | "Good" | "Fair" | "Poor" | string;
+  subject?: { _id: string; name: string };
+  subjectName?: string;
+  currentClassLevel?: string;
   classLevel?: { _id: string; name: string };
   academicTerm?: { _id: string; name: string };
   academicYear?: { _id: string; name: string };
@@ -41,6 +48,7 @@ export interface ExamResultItem {
     currentClassLevel?: string;
   };
   program?: { _id: string; name: string; code?: string };
+  programName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -100,10 +108,15 @@ export const teacherEnterResult = createAsyncThunk(
   async (
     payload: {
       studentId: string;
-      examId: string;
-      score: number;
+      examId?: string;
+      subjectId?: string;
+      subjectName?: string;
+      testScore?: number;
+      examScore?: number;
+      score?: number;
       passMark?: number;
       remarks?: string;
+      publishToAdmin?: boolean;
     },
     { rejectWithValue }
   ) => {

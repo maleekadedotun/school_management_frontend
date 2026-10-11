@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
@@ -33,7 +33,7 @@ export default function TeacherAssignmentCreate() {
   const { items: classLevels } = useAppSelector((state) => state.classLevels);
   const { items: subjects } = useAppSelector((state) => state.subjects);
   const { items: programs } = useAppSelector((state) => state.programs);
-  const { actionLoading, currentAssignment } = useAppSelector((state) => state.assignments);
+  const { actionLoading } = useAppSelector((state) => state.assignments);
 
   // Form State
   const [activeId, setActiveId] = useState<string | null>(assignmentId || null);
@@ -79,28 +79,28 @@ export default function TeacherAssignmentCreate() {
   // Auto-fill teacher defaults if creating brand new
   useEffect(() => {
     if (!activeId && teacher) {
-      if (!subject && teacher.subject) {
-        // Look up by name or ID
+      const teacherObj = teacher as any;
+      if (!subject && teacherObj.subject) {
+        const subId = teacherObj.subject?._id || teacherObj.subject;
+        const subName = (teacherObj.subject?.name || teacherObj.subject || "").toString().toLowerCase();
         const matched = subjects.find(
-          (s) =>
-            s._id === (teacher.subject?._id || teacher.subject) ||
-            s.name.toLowerCase() === (teacher.subject?.name || teacher.subject || "").toLowerCase()
+          (s) => s._id === subId || s.name.toLowerCase() === subName
         );
         if (matched) setSubject(matched._id);
       }
-      if (!classLevel && teacher.classLevel) {
+      if (!classLevel && teacherObj.classLevel) {
+        const cId = teacherObj.classLevel?._id || teacherObj.classLevel;
+        const cName = (teacherObj.classLevel?.name || teacherObj.classLevel || "").toString().toLowerCase();
         const matched = classLevels.find(
-          (c) =>
-            c._id === (teacher.classLevel?._id || teacher.classLevel) ||
-            c.name.toLowerCase() === (teacher.classLevel?.name || teacher.classLevel || "").toLowerCase()
+          (c) => c._id === cId || c.name.toLowerCase() === cName
         );
         if (matched) setClassLevel(matched._id);
       }
-      if (!program && teacher.program) {
+      if (!program && teacherObj.program) {
+        const pId = teacherObj.program?._id || teacherObj.program;
+        const pName = (teacherObj.program?.name || teacherObj.program || "").toString().toLowerCase();
         const matched = programs.find(
-          (p) =>
-            p._id === (teacher.program?._id || teacher.program) ||
-            p.name.toLowerCase() === (teacher.program?.name || teacher.program || "").toLowerCase()
+          (p) => p._id === pId || p.name.toLowerCase() === pName
         );
         if (matched) setProgram(matched._id);
       }
@@ -318,7 +318,7 @@ export default function TeacherAssignmentCreate() {
           status: "published",
           attachment: attachment.url ? attachment : undefined,
         };
-        const res = await dispatch(createAssignment(payload)).unwrap();
+        await dispatch(createAssignment(payload)).unwrap();
         toast.success("Assignment published successfully!");
         navigate("/teacher/assignments");
         return;

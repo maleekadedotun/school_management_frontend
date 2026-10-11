@@ -26,6 +26,7 @@ export interface Student {
 
 export interface EnrolledSubjectItem {
   _id: string;
+  id?: string;
   subjectId?: string;
   name: string;
   description?: string;
@@ -61,6 +62,7 @@ interface AuthState {
   students: Student[];
   teacherClassStudents: Student[];
   teacherClassLevel: string | null;
+  teacherSubject: string | null;
   currentStudent: Student | null;
   total: number;
   loading: boolean;
@@ -106,6 +108,7 @@ const initialState: AuthState = {
   students: [],
   teacherClassStudents: [],
   teacherClassLevel: null,
+  teacherSubject: null,
   currentStudent: null,
   total: 0,
 
@@ -382,10 +385,10 @@ export const fetchStudentEnrolledSubjects = createAsyncThunk(
   }
 );
 
-// Enroll in a subject
+// Enroll in a subject (single or multiple)
 export const studentEnrollSubject = createAsyncThunk(
   "students/enrollSubject",
-  async (payload: { subjectId: string; classLevel?: string }, { dispatch, rejectWithValue }) => {
+  async (payload: { subjectId?: string; subjectIds?: string[]; classLevel?: string }, { dispatch, rejectWithValue }) => {
     try {
       const { data } = await api.post("/students/enroll-subject", payload);
       dispatch(fetchStudentEnrolledSubjects());
@@ -473,6 +476,7 @@ const studentsSlice = createSlice({
         state.loading = false;
         state.teacherClassStudents = action.payload.data || [];
         state.teacherClassLevel = action.payload.teacherClassLevel || null;
+        state.teacherSubject = action.payload.teacherSubject || null;
       })
       .addCase(fetchTeacherClassStudents.rejected, (state, action) => {
         state.loading = false;

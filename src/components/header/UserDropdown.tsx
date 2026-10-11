@@ -110,7 +110,7 @@ export default function UserDropdown() {
       <Dropdown
         isOpen={isOpen}
         onClose={closeDropdown}
-        className="absolute inset-e-0 mt-3 w-64 rounded-2xl border border-white/10 bg-[#0f1629] p-3 shadow-2xl backdrop-blur-xl z-50"
+        className="absolute right-0 inset-e-0 mt-3 w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-[#0f1629] p-3 shadow-2xl backdrop-blur-xl z-50"
       >
         {/* User Info Header */}
         <div className="px-3 py-2 border-b border-white/10 mb-2">

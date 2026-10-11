@@ -26,13 +26,16 @@ api.interceptors.request.use((config) => {
     url.includes("/teachers") ||
     url.includes("/students/teacher") ||
     url.includes("/exam-results/teacher") ||
-    userRole === "teacher"
+    url.includes("/timetables/teacher") ||
+    (userRole === "teacher" && !url.includes("/student"))
   ) {
     token = localStorage.getItem("teacherToken") || localStorage.getItem("token");
   } else if (
     currentPath.startsWith("/student") ||
     url.includes("/students/exams") ||
     url.includes("/students/profile") ||
+    url.includes("/timetables/student") ||
+    url.includes("/report-cards/student") ||
     userRole === "student"
   ) {
     token = localStorage.getItem("studentToken") || localStorage.getItem("token");

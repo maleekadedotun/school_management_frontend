@@ -9,6 +9,7 @@ interface Teacher {
   role: string;
   program?: string;
   subject?: string;
+  subjects?: any[];
   classLevel?: string;
   teacherId?: string;
 }

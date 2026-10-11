@@ -11,7 +11,6 @@ import {
   FiMinus,
 } from "react-icons/fi";
 import { MdFormatListNumbered, MdFormatClear, MdTableChart } from "react-icons/md";
-import { BiHeading } from "react-icons/bi";
 
 interface RichTextEditorProps {
   value: string;

@@ -1,10 +1,10 @@
 "use client";
 
+import { useAppSelector } from "@/app/hooks";
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import UserDropdown from "@/components/header/UserDropdown";
 import { useSidebar } from "@/context/SidebarContext";
-// import { cn } from "@/utils";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -13,6 +13,18 @@ const AppHeader: React.FC = () => {
   const { t } = useTranslation("header");
   const inputRef = useRef<HTMLInputElement>(null);
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+
+  const { admin } = useAppSelector((s) => s.auth);
+  const { teacher } = useAppSelector((s) => s.teacherAuth);
+  const { student, currentStudent } = useAppSelector((s) => s.students);
+  const activeUser = admin || teacher || student || currentStudent;
+  const userRole = activeUser?.role || localStorage.getItem("userRole") || "admin";
+  const homePath =
+    userRole === "teacher"
+      ? "/teacher/dashboard"
+      : userRole === "student"
+      ? "/student/dashboard"
+      : "/admin/dashboard";
 
   const handleToggle = () => {
     if (window.innerWidth >= 1280) {
@@ -38,11 +50,11 @@ const AppHeader: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 flex w-full border-b border-white/10 bg-[#0a0f1e]/90 backdrop-blur-md">
-      <div className="flex grow items-center justify-between px-4 py-3 xl:px-6">
+      <div className="flex grow items-center justify-between px-3 sm:px-4 py-2.5 sm:py-3 xl:px-6 min-w-0 max-w-full">
         {/* Left Section: Sidebar Toggle & Mobile Logo */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
             onClick={handleToggle}
             aria-label={t("toggleSidebar")}
           >
@@ -58,7 +70,7 @@ const AppHeader: React.FC = () => {
           </button>
 
           {/* Mobile Logo */}
-          <Link to="/admin/dashboard" className="xl:hidden flex items-center gap-2">
+          <Link to={homePath} className="xl:hidden flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-xs">
               S
             </div>
@@ -91,8 +103,8 @@ const AppHeader: React.FC = () => {
         </div>
 
         {/* Right Section: Theme Toggle, Notifications, User Dropdown */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <ThemeToggleButton />
             <NotificationDropdown />
           </div>

@@ -16,6 +16,10 @@ import attendanceReducer from "../features/attendance/attendanceSlice";
 import classReportsReducer from "../features/classReports/classReportsSlice";
 import notificationsReducer from "../features/notifications/notificationsSlice";
 import assignmentsReducer from "../features/assignments/assignmentsSlice";
+import lessonNotesReducer from "../features/lessonNotes/lessonNotesSlice";
+import timetableReducer from "../features/timetable/timetableSlice";
+import announcementsReducer from "../features/announcements/announcementsSlice";
+import reportCardsReducer from "../features/reportCards/reportCardsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -36,6 +40,10 @@ export const store = configureStore({
     classReports: classReportsReducer,
     notifications: notificationsReducer,
     assignments: assignmentsReducer,
+    lessonNotes: lessonNotesReducer,
+    timetable: timetableReducer,
+    announcements: announcementsReducer,
+    reportCards: reportCardsReducer,
   },
 });
 

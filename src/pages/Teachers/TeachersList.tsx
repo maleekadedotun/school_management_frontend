@@ -9,6 +9,7 @@ interface Teacher {
   email: string;
   teacherId?: string;
   subject?: string;
+  subjects?: any[];
   classLevel?: string;
   program?: string;
   applicationStatus?: "pending" | "approved" | "rejected";
@@ -25,10 +26,25 @@ export default function TeachersList() {
   const [showModal, setShowModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", password: "", subject: "", classLevel: "", program: "" });
-  const [editTeacherForm, setEditTeacherForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    subject: string;
+    subjects: string[];
+    classLevel: string;
+    program: string;
+  }>({ name: "", email: "", password: "", subject: "", subjects: [], classLevel: "", program: "" });
+  const [editTeacherForm, setEditTeacherForm] = useState<{
+    program: string;
+    subject: string;
+    subjects: string[];
+    classLevel: string;
+    academicYear: string;
+  }>({
     program: "",
     subject: "",
+    subjects: [],
     classLevel: "",
     academicYear: "",
   });
@@ -61,43 +77,67 @@ export default function TeachersList() {
     fetchAcademicData();
   }, [dispatch]);
 
-  // Helper to group subjects by the chosen program while keeping ALL created subjects accessible
-  const getSubjectGroups = (programVal: string) => {
-    if (!programVal) {
-      return { programSubjects: subjects, otherSubjects: [] };
-    }
-    const matched = programs.find(
-      (p) => p.name?.toLowerCase() === programVal.toLowerCase() || p._id === programVal
-    );
-    const programId = (matched?._id || programVal).toString();
-    const programName = (matched?.name || programVal).toString().toLowerCase();
 
-    const programSubjects: any[] = [];
-    const otherSubjects: any[] = [];
 
-    subjects.forEach((s: any) => {
-      const sProgId = typeof s.program === "object" ? s.program?._id?.toString() : s.program?.toString();
-      const sProgName = typeof s.program === "object" ? s.program?.name?.toLowerCase() : "";
-      const isInProgramArray =
-        matched &&
-        Array.isArray(matched.subjects) &&
-        matched.subjects.some((sub: any) => (sub?._id || sub)?.toString() === s._id?.toString());
 
-      if (
-        isInProgramArray ||
-        (sProgId && sProgId === programId) ||
-        (sProgName && sProgName === programName)
-      ) {
-        programSubjects.push(s);
-      } else {
-        otherSubjects.push(s);
+
+  // Helper to reliably resolve and extract all subject names assigned to teacher
+  const getTeacherDisplaySubjects = (t: any): string[] => {
+    const list: string[] = [];
+    const addSub = (val: any) => {
+      if (!val) return;
+      if (typeof val === "object" && val?.name) {
+        const n = val.name.trim();
+        if (n && !list.includes(n)) list.push(n);
+        return;
       }
-    });
+      const str = val.toString().trim();
+      const matched = subjects.find(
+        (sub: any) => sub._id?.toString() === str || sub.name?.toLowerCase() === str.toLowerCase()
+      );
+      const resolved = matched?.name || str;
+      if (resolved && !list.includes(resolved)) list.push(resolved);
+    };
 
-    return { programSubjects, otherSubjects };
+    if (Array.isArray(t?.subjects) && t.subjects.length > 0) {
+      t.subjects.forEach(addSub);
+    }
+    if (t?.subject) {
+      addSub(t.subject);
+    }
+    return list;
   };
 
+  // Helper to reliably resolve teacher's program name
+  const getTeacherProgramName = (t: any): string => {
+    if (t?.program) {
+      if (typeof t.program === "object" && t.program?.name) {
+        return t.program.name;
+      }
+      const str = t.program.toString().trim();
+      const matched = programs.find(
+        (p: any) => p._id?.toString() === str || p.name?.toLowerCase() === str.toLowerCase()
+      );
+      if (matched?.name) return matched.name;
+      return str || "—";
+    }
 
+    // Fallback: check if any assigned subject has a program
+    if (Array.isArray(t?.subjects) && t.subjects.length > 0) {
+      for (const s of t.subjects) {
+        const subProgram = typeof s === "object" ? s?.program : null;
+        if (subProgram) {
+          if (typeof subProgram === "object" && subProgram?.name) return subProgram.name;
+          const matched = programs.find(
+            (p: any) => p._id?.toString() === subProgram.toString() || p.name?.toLowerCase() === subProgram.toString().toLowerCase()
+          );
+          if (matched?.name) return matched.name;
+        }
+      }
+    }
+
+    return "—";
+  };
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -107,7 +147,8 @@ export default function TeachersList() {
       t.name?.toLowerCase().includes(search.toLowerCase()) ||
       t.email?.toLowerCase().includes(search.toLowerCase()) ||
       t.subject?.toLowerCase().includes(search.toLowerCase()) ||
-      t.teacherId?.toLowerCase().includes(search.toLowerCase())
+      t.teacherId?.toLowerCase().includes(search.toLowerCase()) ||
+      getTeacherProgramName(t)?.toLowerCase().includes(search.toLowerCase())
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
@@ -121,17 +162,38 @@ export default function TeachersList() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await dispatch(registerTeacher(form));
+    const resolvedSubjectIds = form.subjects
+      .map((nameOrId) => {
+        const found = subjects.find(
+          (s: any) =>
+            s._id?.toString() === nameOrId ||
+            s.name?.toLowerCase().trim() === nameOrId.toLowerCase().trim()
+        );
+        return found ? found._id : nameOrId;
+      })
+      .filter(Boolean);
+
+    await dispatch(
+      registerTeacher({
+        ...form,
+        subjectIds: resolvedSubjectIds,
+      })
+    );
+    await dispatch(fetchAllTeachers());
     setSubmitting(false);
     setShowModal(false);
-    setForm({ name: "", email: "", password: "", subject: "", classLevel: "", program: "" });
+    setForm({ name: "", email: "", password: "", subject: "", subjects: [], classLevel: "", program: "" });
   };
 
   const openEditTeacherModal = (t: Teacher) => {
     setEditingTeacher(t);
+    const initialSubjects = getTeacherDisplaySubjects(t);
+    const initialProg = getTeacherProgramName(t);
+
     setEditTeacherForm({
-      program: typeof t.program === "object" ? (t.program as any)?.name || "" : (t.program || ""),
-      subject: typeof t.subject === "object" ? (t.subject as any)?.name || "" : (t.subject || ""),
+      program: initialProg !== "—" ? initialProg : (typeof t.program === "object" ? (t.program as any)?.name || "" : (t.program || "")),
+      subject: initialSubjects[0] || "",
+      subjects: initialSubjects,
       classLevel: typeof t.classLevel === "object" ? (t.classLevel as any)?.name || "" : (t.classLevel || ""),
       academicYear: typeof (t as any).academicYear === "object" ? (t as any).academicYear?.name || "" : ((t as any).academicYear || ""),
     });
@@ -141,7 +203,27 @@ export default function TeachersList() {
     e.preventDefault();
     if (!editingTeacher) return;
     setSubmitting(true);
-    await dispatch(updateTeacherAdmin({ id: editingTeacher._id, updates: editTeacherForm }));
+    const resolvedSubjectIds = editTeacherForm.subjects
+      .map((nameOrId) => {
+        const found = subjects.find(
+          (s: any) =>
+            s._id?.toString() === nameOrId ||
+            s.name?.toLowerCase().trim() === nameOrId.toLowerCase().trim()
+        );
+        return found ? found._id : nameOrId;
+      })
+      .filter(Boolean);
+
+    await dispatch(
+      updateTeacherAdmin({
+        id: editingTeacher._id,
+        updates: {
+          ...editTeacherForm,
+          subjectIds: resolvedSubjectIds,
+        },
+      })
+    );
+    await dispatch(fetchAllTeachers());
     setSubmitting(false);
     setEditingTeacher(null);
   };
@@ -172,7 +254,7 @@ export default function TeachersList() {
         <input
           id="teacher-search"
           type="text"
-          placeholder="Search by name, email or subject..."
+          placeholder="Search by name, email, subject or program..."
           value={search}
           onChange={handleSearchChange}
           className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-dark-500 placeholder-slate-500 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
@@ -190,6 +272,7 @@ export default function TeachersList() {
                 <th className="text-left px-6 py-4  text-xs font-semibold uppercase tracking-wider">ID</th>
                 <th className="text-left px-6 py-4  text-xs font-semibold uppercase tracking-wider">Subject</th>
                 <th className="text-left px-6 py-4  text-xs font-semibold uppercase tracking-wider">Class Level</th>
+                <th className="text-left px-6 py-4  text-xs font-semibold uppercase tracking-wider">Program</th>
                 <th className="text-left px-6 py-4  text-xs font-semibold uppercase tracking-wider">Application</th>
                 <th className="text-right px-6 py-4  text-xs font-semibold uppercase tracking-wider">Actions</th>
               </tr>
@@ -198,13 +281,13 @@ export default function TeachersList() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-white/5">
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-6 py-4"><div className="h-4 bg-white/10 rounded animate-pulse w-3/4" /></td>
                     ))}
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-16 text-center text-slate-500">{search ? `No results for "${search}"` : "No teachers registered yet."}</td></tr>
+                <tr><td colSpan={7} className="px-6 py-16 text-center text-slate-500">{search ? `No results for "${search}"` : "No teachers registered yet."}</td></tr>
               ) : (
                 paginatedTeachers.map((t, i) => (
                   <tr key={t._id || i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
@@ -214,14 +297,39 @@ export default function TeachersList() {
                           {t.name?.[0]?.toUpperCase() || "T"}
                         </div>
                         <div>
-                          <p className="text-white font-medium text-sm">{t.name}</p>
+                          <p className="text-dark font-medium text-sm">{t.name}</p>
                           <p className="text-dark-400 text-xs">{t.email}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-dark-300 text-sm font-mono">{t.teacherId || "—"}</td>
-                    <td className="px-6 py-4 text-dark-300 text-sm">{t.subject || "—"}</td>
+                    <td className="px-6 py-4 text-dark-300 text-sm">
+                      {(() => {
+                        const list = getTeacherDisplaySubjects(t);
+                        if (list.length === 0) return "—";
+                        return (
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {list.map((sName, sIdx) => (
+                              <span key={sIdx} className="px-2 py-0.5 rounded-md text-xs bg-violet-500/10 text-violet-300 border border-violet-500/20 font-medium">
+                                {sName}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-6 py-4 text-dark-300 text-sm">{t.classLevel || "—"}</td>
+                    <td className="px-6 py-4 text-dark-300 text-sm font-medium">
+                      {(() => {
+                        const progName = getTeacherProgramName(t);
+                        if (!progName || progName === "—") return <span className="text-slate-500">—</span>;
+                        return (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                            {progName}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
                         t.applicationStatus === "approved" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
@@ -355,9 +463,12 @@ export default function TeachersList() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: "Teacher ID", value: selectedTeacher.teacherId || "N/A" },
-                { label: "Subject", value: selectedTeacher.subject || "N/A" },
+                {
+                  label: "Assigned Subject(s)",
+                  value: getTeacherDisplaySubjects(selectedTeacher).join(", ") || "N/A"
+                },
                 { label: "Class Level", value: selectedTeacher.classLevel || "N/A" },
-                { label: "Program", value: selectedTeacher.program || "N/A" },
+                { label: "Program", value: getTeacherProgramName(selectedTeacher) !== "—" ? getTeacherProgramName(selectedTeacher) : "N/A" },
               ].map((item) => (
                 <div key={item.label} className="bg-white/5 border border-white/5 rounded-xl p-3">
                   <p className="text-slate-500 text-xs font-medium">{item.label}</p>
@@ -435,76 +546,98 @@ export default function TeachersList() {
                   </select>
                 </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
+                <div className="col-span-1 md:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-medium text-slate-300">
-                      Subject
+                      Assigned Subject(s)
+                      {editTeacherForm.subjects.length > 0 && (
+                        <span className="ml-2 text-violet-400 font-semibold">
+                          ({editTeacherForm.subjects.length} selected)
+                        </span>
+                      )}
                     </label>
-                    {editTeacherForm.program && (
-                      <span className="text-[10px] text-violet-400 font-mono">
-                        Showing All Subjects
-                      </span>
-                    )}
+                    <span className="text-[11px] text-slate-400">
+                      Teacher can teach multiple subjects
+                    </span>
                   </div>
-                  <select
-                    value={editTeacherForm.subject}
-                    onChange={(e) => {
-                      const selectedSub = e.target.value;
-                      const foundSub = subjects.find((s: any) => (s.name || s) === selectedSub);
-                      const associatedProgram = foundSub?.program?.name || "";
-                      setEditTeacherForm({
-                        ...editTeacherForm,
-                        subject: selectedSub,
-                        ...(associatedProgram && (!editTeacherForm.program || editTeacherForm.program !== associatedProgram) ? { program: associatedProgram } : {}),
-                      });
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0f1629] border border-white/10 text-white text-sm focus:outline-none focus:border-violet-500"
-                  >
-                    <option value="">Select Subject...</option>
-                    {(() => {
-                      const { programSubjects, otherSubjects } = getSubjectGroups(editTeacherForm.program);
-                      if (!editTeacherForm.program || otherSubjects.length === 0) {
-                        return subjects.map((s: any) => {
-                          const sName = s.name || s;
-                          const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                          return (
-                            <option key={s._id || sName} value={sName}>
-                              {sName}{progTag}
-                            </option>
-                          );
-                        });
-                      }
-                      return (
-                        <>
-                          {programSubjects.length > 0 && (
-                            <optgroup label="Subjects in Selected Program (Recommended)">
-                              {programSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    {sName}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-                          {otherSubjects.length > 0 && (
-                            <optgroup label="All Other Created Subjects">
-                              {otherSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    {sName}{progTag}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-                        </>
+
+                  {/* Selected badges */}
+                  {editTeacherForm.subjects.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2.5 p-2 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                      {editTeacherForm.subjects.map((subName) => (
+                        <span
+                          key={subName}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-600/30 text-violet-200 border border-violet-500/40"
+                        >
+                          {subName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = editTeacherForm.subjects.filter((s) => s !== subName);
+                              setEditTeacherForm({
+                                ...editTeacherForm,
+                                subjects: updated,
+                                subject: updated[0] || "",
+                              });
+                            }}
+                            className="hover:text-red-400 cursor-pointer text-xs font-bold"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Scrollable multi-subject checklist */}
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-[#0f1629] border border-white/10 custom-scrollbar">
+                    {subjects.map((s: any) => {
+                      const sName = s.name || s;
+                      const isSelected = editTeacherForm.subjects.some(
+                        (sel) => sel.toLowerCase().trim() === sName.toLowerCase().trim() || sel === s._id?.toString()
                       );
-                    })()}
-                  </select>
+                      return (
+                        <div
+                          key={s._id || sName}
+                          onClick={() => {
+                            const exists = editTeacherForm.subjects.some(
+                              (sel) => sel.toLowerCase().trim() === sName.toLowerCase().trim() || sel === s._id?.toString()
+                            );
+                            const updated = exists
+                              ? editTeacherForm.subjects.filter(
+                                  (x) => x.toLowerCase().trim() !== sName.toLowerCase().trim() && x !== s._id?.toString()
+                                )
+                              : [...editTeacherForm.subjects, sName];
+                            setEditTeacherForm({
+                              ...editTeacherForm,
+                              subjects: updated,
+                              subject: updated[0] || "",
+                            });
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-violet-600/20 text-white border border-violet-500/40"
+                              : "hover:bg-white/5 text-slate-300 border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded text-violet-600 bg-slate-900 border-white/20 focus:ring-violet-500 pointer-events-none"
+                            />
+                            <span className="font-medium text-white">{sName}</span>
+                          </div>
+                          {s.program?.name && (
+                            <span className="text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                              {s.program.name}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -653,68 +786,98 @@ export default function TeachersList() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Subject</label>
-                  <select
-                    id="teacher-subject"
-                    value={form.subject}
-                    onChange={(e) => {
-                      const selectedSub = e.target.value;
-                      const foundSub = subjects.find((s: any) => (s.name || s) === selectedSub);
-                      const associatedProgram = foundSub?.program?.name || "";
-                      setForm({
-                        ...form,
-                        subject: selectedSub,
-                        ...(associatedProgram && (!form.program || form.program !== associatedProgram) ? { program: associatedProgram } : {}),
-                      });
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0f1629] border border-white/10 text-white text-sm focus:outline-none focus:border-violet-500"
-                  >
-                    <option value="">Select Subject...</option>
-                    {(() => {
-                      const { programSubjects, otherSubjects } = getSubjectGroups(form.program);
-                      if (!form.program || otherSubjects.length === 0) {
-                        return subjects.map((s: any) => {
-                          const sName = s.name || s;
-                          const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                          return (
-                            <option key={s._id || sName} value={sName}>
-                              {sName}{progTag}
-                            </option>
-                          );
-                        });
-                      }
-                      return (
-                        <>
-                          {programSubjects.length > 0 && (
-                            <optgroup label="Subjects in Selected Program (Recommended)">
-                              {programSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    {sName}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-                          {otherSubjects.length > 0 && (
-                            <optgroup label="All Other Created Subjects">
-                              {otherSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    {sName}{progTag}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-                        </>
+                <div className="col-span-1 md:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-slate-300">
+                      Assigned Subject(s)
+                      {form.subjects.length > 0 && (
+                        <span className="ml-2 text-violet-400 font-semibold">
+                          ({form.subjects.length} selected)
+                        </span>
+                      )}
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      Teacher can teach multiple subjects
+                    </span>
+                  </div>
+
+                  {/* Selected badges */}
+                  {form.subjects.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2.5 p-2 rounded-xl bg-violet-500/10 border border-violet-500/20">
+                      {form.subjects.map((subName) => (
+                        <span
+                          key={subName}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-violet-600/30 text-violet-200 border border-violet-500/40"
+                        >
+                          {subName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = form.subjects.filter((s) => s !== subName);
+                              setForm({
+                                ...form,
+                                subjects: updated,
+                                subject: updated[0] || "",
+                              });
+                            }}
+                            className="hover:text-red-400 cursor-pointer text-xs font-bold"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Scrollable multi-subject checklist */}
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-[#0f1629] border border-white/10 custom-scrollbar">
+                    {subjects.map((s: any) => {
+                      const sName = s.name || s;
+                      const isSelected = form.subjects.some(
+                        (sel) => sel.toLowerCase().trim() === sName.toLowerCase().trim() || sel === s._id?.toString()
                       );
-                    })()}
-                  </select>
+                      return (
+                        <div
+                          key={s._id || sName}
+                          onClick={() => {
+                            const exists = form.subjects.some(
+                              (sel) => sel.toLowerCase().trim() === sName.toLowerCase().trim() || sel === s._id?.toString()
+                            );
+                            const updated = exists
+                              ? form.subjects.filter(
+                                  (x) => x.toLowerCase().trim() !== sName.toLowerCase().trim() && x !== s._id?.toString()
+                                )
+                              : [...form.subjects, sName];
+                            setForm({
+                              ...form,
+                              subjects: updated,
+                              subject: updated[0] || "",
+                            });
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-violet-600/20 text-white border border-violet-500/40"
+                              : "hover:bg-white/5 text-slate-300 border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded text-violet-600 bg-slate-900 border-white/20 focus:ring-violet-500 pointer-events-none"
+                            />
+                            <span className="font-medium text-white">{sName}</span>
+                          </div>
+                          {s.program?.name && (
+                            <span className="text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                              {s.program.name}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 

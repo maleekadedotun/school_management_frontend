@@ -37,12 +37,32 @@ export default function StudentsList() {
   const [studentResultsLoading, setStudentResultsLoading] = useState(false);
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
-  const [form, setForm] = useState({ name: "", email: "", password: "", classLevels: "Level 100", subject: "", program: "" });
-  const [editForm, setEditForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    classLevels: string;
+    subject: string;
+    subjects: string[];
+    program: string;
+  }>({ name: "", email: "", password: "", classLevels: "Level 100", subject: "", subjects: [], program: "" });
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    email: string;
+    classLevels: string;
+    subject: string;
+    subjects: string[];
+    prefectName: string;
+    program: string;
+    academicYear: string;
+    isSuspended: boolean;
+    isWithDrawn: boolean;
+  }>({
     name: "",
     email: "",
     classLevels: "",
     subject: "",
+    subjects: [],
     prefectName: "",
     program: "",
     academicYear: "",
@@ -169,7 +189,6 @@ export default function StudentsList() {
   };
 
   const currentTeacher = teacherState.teacher as any;
-  const teacherId = currentTeacher?._id || currentTeacher?.id;
   const teacherSubject = (currentTeacher?.subject?.name || currentTeacher?.subject || "").toString().trim().toLowerCase();
 
   const targetClassLevel =
@@ -196,26 +215,35 @@ export default function StudentsList() {
         }
       }
 
-      // 2. Direct assignment (and verified class level)
-      const assignedId = (s as any).assignedTeacher?._id || (s as any).assignedTeacher;
-      if (assignedId && (assignedId.toString() === teacherId?.toString())) {
-        return true;
+      // 2. If teacher has a subject specified, student MUST be offering this teacher's subject alone
+      if (teacherSubject) {
+        const studentSub = (s.subject || "").toString().trim().toLowerCase();
+        const matchesDirectSub =
+          studentSub === teacherSubject ||
+          studentSub.includes(teacherSubject) ||
+          teacherSubject.includes(studentSub);
+
+        const matchesEnrolledSub =
+          Array.isArray((s as any).enrolledSubjects) &&
+          (s as any).enrolledSubjects.some((es: any) => {
+            const esSub = es?.subject;
+            const esName = typeof esSub === "object" ? (esSub?.name || "") : (es?.name || "");
+            const cleanEsName = esName.toString().trim().toLowerCase();
+            return (
+              cleanEsName === teacherSubject ||
+              cleanEsName.includes(teacherSubject) ||
+              teacherSubject.includes(cleanEsName)
+            );
+          });
+
+        if (!matchesDirectSub && !matchesEnrolledSub) {
+          return false;
+        }
       }
 
-      // 3. Subject match
-      const studentSub = (s.subject || "").toString().trim().toLowerCase();
-      if (teacherSubject && studentSub && teacherSubject === studentSub) {
-        return true;
-      }
-
-      // 4. Class level match without subject
-      if (targetClassLevel && !teacherSubject) {
-        return true;
-      }
-
-      return false;
+      return true;
     });
-  }, [isTeacher, students, teacherClassStudents, targetClassLevel, teacherSubject, teacherId]);
+  }, [isTeacher, students, teacherClassStudents, targetClassLevel, teacherSubject]);
 
   const rawList: Student[] = teacherScopedList;
 
@@ -239,18 +267,52 @@ export default function StudentsList() {
     e.preventDefault();
     setSubmitting(true);
     await dispatch(registerStudent({ ...form, classLevels: [form.classLevels] }));
+    dispatch(fetchAllStudents());
     setSubmitting(false);
     setShowModal(false);
-    setForm({ name: "", email: "", password: "", classLevels: "Level 100", subject: "", program: "" });
+    setForm({ name: "", email: "", password: "", classLevels: "Level 100", subject: "", subjects: [], program: "" });
+  };
+
+  // Helper to reliably resolve and extract all subject names enrolled by student
+  const getStudentDisplaySubjects = (s: any): string[] => {
+    const list: string[] = [];
+    const addSub = (val: any) => {
+      if (!val) return;
+      if (typeof val === "object" && val?.name) {
+        const n = val.name.trim();
+        if (n && !list.includes(n)) list.push(n);
+        return;
+      }
+      const str = val.toString().trim();
+      const matched = subjects.find(
+        (sub: any) => sub._id?.toString() === str || sub.name?.toLowerCase() === str.toLowerCase()
+      );
+      const resolved = matched?.name || str;
+      if (resolved && !list.includes(resolved)) list.push(resolved);
+    };
+
+    if (Array.isArray(s?.enrolledSubjects) && s.enrolledSubjects.length > 0) {
+      s.enrolledSubjects.forEach((es: any) => {
+        if (es?.subject) addSub(es.subject);
+        else if (es?.name) addSub(es.name);
+      });
+    }
+    if (s?.subject) {
+      addSub(s.subject);
+    }
+    return list;
   };
 
   const openEditModal = (s: Student) => {
     setEditingStudent(s);
+    const initialSubs = getStudentDisplaySubjects(s);
+
     setEditForm({
       name: s.name || "",
       email: s.email || "",
       classLevels: s.currentClassLevel || "",
-      subject: (s as any).subject || "",
+      subject: initialSubs[0] || "",
+      subjects: initialSubs,
       prefectName: (s as any).prefectName || "",
       program: typeof s.program === "object" ? (s.program as any)?._id || (s.program as any)?.name || "" : (s.program || ""),
       academicYear: typeof s.academicYear === "object" ? (s.academicYear as any)?._id || (s.academicYear as any)?.name || "" : (s.academicYear || ""),
@@ -264,6 +326,7 @@ export default function StudentsList() {
     if (!editingStudent) return;
     setSubmitting(true);
     await dispatch(updateStudentAdmin({ id: editingStudent._id, updates: editForm }));
+    dispatch(fetchAllStudents());
     setSubmitting(false);
     setEditingStudent(null);
   };
@@ -421,7 +484,21 @@ export default function StudentsList() {
                     </td>
                     <td className="px-6 py-4 text-dark text-sm font-mono">{s.StudentId || "—"}</td>
                     <td className="px-6 py-4 text-dark text-sm font-medium">{s.currentClassLevel || "—"}</td>
-                    <td className="px-6 py-4 text-dark-300 text-sm">{s.subject || "—"}</td>
+                    <td className="px-6 py-4 text-dark-300 text-sm">
+                      {(() => {
+                        const list = getStudentDisplaySubjects(s);
+                        if (list.length === 0) return "—";
+                        return (
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {list.map((name, idx) => (
+                              <span key={idx} className="px-2 py-0.5 rounded-md text-xs bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-medium">
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-6 py-4 text-sm">
                       {s.assignedTeacher ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-dark-300 text-xs font-medium">
@@ -564,7 +641,7 @@ export default function StudentsList() {
       {/* Student Profile Detail Modal */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-6">
+          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl space-y-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
@@ -583,8 +660,10 @@ export default function StudentsList() {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: "Student ID", value: selectedStudent.StudentId || "N/A" },
-                { label: "Class Level", value: selectedStudent.currentClassLevel || "N/A" },
-                { label: "Subject", value: selectedStudent.subject || "N/A" },
+                {
+                  label: "Enrolled Subject(s)",
+                  value: getStudentDisplaySubjects(selectedStudent).join(", ") || "N/A"
+                },
                 { label: "Assigned Teacher", value: typeof selectedStudent.assignedTeacher === "object" ? selectedStudent.assignedTeacher?.name : (selectedStudent.assignedTeacher || "None") },
                 { label: "Program", value: typeof selectedStudent.program === "object" ? selectedStudent.program?.name : (selectedStudent.program || "N/A") },
                 { label: "Date Admitted", value: selectedStudent.dateAdmitted ? new Date(selectedStudent.dateAdmitted).toLocaleDateString() : "N/A" },
@@ -833,8 +912,8 @@ export default function StudentsList() {
       {/* Admin Update Student Modal */}
       {editingStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
-          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl space-y-5">
-            <div className="flex items-center justify-between">
+          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl space-y-5">
+            <div className="flex items-center justify-between sticky -top-6 bg-[#0f1629] -mt-2 pt-2 pb-3 z-10 border-b border-white/10">
               <h2 className="text-xl font-bold text-white">Update Student (Admin)</h2>
               <button onClick={() => setEditingStudent(null)} className="text-slate-400 hover:text-white transition-colors">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -915,76 +994,92 @@ export default function StudentsList() {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
+                <div className="col-span-1 md:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-xs font-medium text-slate-300">
-                      Subject
+                      Enrolled Subject(s)
+                      {editForm.subjects.length > 0 && (
+                        <span className="ml-2 text-indigo-400 font-semibold">
+                          ({editForm.subjects.length} selected)
+                        </span>
+                      )}
                     </label>
-                    {editForm.program && (
-                      <span className="text-[10px] text-indigo-400 font-mono">
-                        Showing All Subjects
-                      </span>
-                    )}
+                    <span className="text-[11px] text-slate-400">
+                      Student can take multiple subjects
+                    </span>
                   </div>
-                  <select
-                    value={editForm.subject}
-                    onChange={(e) => {
-                      const selectedSub = e.target.value;
-                      const foundSub = subjects.find((s: any) => (s.name || s) === selectedSub);
-                      const associatedProgram = foundSub?.program?._id || foundSub?.program?.name || "";
-                      setEditForm((prev) => ({
-                        ...prev,
-                        subject: selectedSub,
-                        ...(associatedProgram && (!prev.program || prev.program !== associatedProgram) ? { program: associatedProgram } : {}),
-                      }));
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-[#0f1629] border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="">Select Subject...</option>
-                    {(() => {
-                      const { programSubjects, otherSubjects } = getSubjectGroups(editForm.program);
-                      if (!editForm.program || otherSubjects.length === 0) {
-                        return subjects.map((s: any) => {
-                          const sName = s.name || s;
-                          const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                          return (
-                            <option key={s._id || sName} value={sName}>
-                              {sName}{progTag}
-                            </option>
-                          );
-                        });
-                      }
+
+                  {/* Selected badges */}
+                  {editForm.subjects.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2.5 p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                      {editForm.subjects.map((subName) => (
+                        <span
+                          key={subName}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600/30 text-indigo-200 border border-indigo-500/40"
+                        >
+                          {subName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = editForm.subjects.filter((s) => s !== subName);
+                              setEditForm({
+                                ...editForm,
+                                subjects: updated,
+                                subject: updated[0] || "",
+                              });
+                            }}
+                            className="hover:text-red-400 cursor-pointer text-xs font-bold"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Scrollable multi-subject checklist */}
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-[#0f1629] border border-white/10 custom-scrollbar">
+                    {subjects.map((s: any) => {
+                      const sName = s.name || s;
+                      const isSelected = editForm.subjects.includes(sName);
                       return (
-                        <>
-                          {programSubjects.length > 0 && (
-                            <optgroup label="Subjects in Selected Program (Recommended)">
-                              {programSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    {sName}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
+                        <div
+                          key={s._id || sName}
+                          onClick={() => {
+                            const exists = editForm.subjects.includes(sName);
+                            const updated = exists
+                              ? editForm.subjects.filter((x) => x !== sName)
+                              : [...editForm.subjects, sName];
+                            setEditForm({
+                              ...editForm,
+                              subjects: updated,
+                              subject: updated[0] || "",
+                            });
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-indigo-600/20 text-white border border-indigo-500/40"
+                              : "hover:bg-white/5 text-slate-300 border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-white/20 focus:ring-indigo-500 pointer-events-none"
+                            />
+                            <span className="font-medium text-white">{sName}</span>
+                          </div>
+                          {s.program?.name && (
+                            <span className="text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                              {s.program.name}
+                            </span>
                           )}
-                          {otherSubjects.length > 0 && (
-                            <optgroup label="All Other Created Subjects">
-                              {otherSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    {sName}{progTag}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-                        </>
+                        </div>
                       );
-                    })()}
-                  </select>
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -1044,7 +1139,7 @@ export default function StudentsList() {
                 </label>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+              <div className="flex justify-end gap-3 pt-4 border-t border-white/10 sticky -bottom-6 bg-[#0f1629] -mb-2 pb-2 z-10">
                 <button
                   type="button"
                   onClick={() => setEditingStudent(null)}
@@ -1068,8 +1163,8 @@ export default function StudentsList() {
       {/* Register Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+            <div className="flex items-center justify-between mb-6 sticky -top-8 bg-[#0f1629] -mt-2 pt-2 pb-2 z-10 border-b border-white/10">
               <h2 className="text-xl font-bold text-white">Register Student</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -1143,59 +1238,92 @@ export default function StudentsList() {
                     )}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Primary Subject</label>
-                  <select
-                    id="student-subject"
-                    value={form.subject}
-                    onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-[#0f1629] border border-white/10 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
-                  >
-                    <option value="">Select Subject...</option>
-                    {(() => {
-                      const { programSubjects, otherSubjects } = getSubjectGroups(form.program);
-                      if (!form.program || otherSubjects.length === 0) {
-                        return subjects.map((s: any) => {
-                          const sName = s.name || s;
-                          const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                          return (
-                            <option key={s._id || sName} value={sName}>
-                              {sName}{progTag}
-                            </option>
-                          );
-                        });
-                      }
+                <div className="col-span-1 md:col-span-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-slate-300">
+                      Enrolled Subject(s)
+                      {form.subjects.length > 0 && (
+                        <span className="ml-2 text-indigo-400 font-semibold">
+                          ({form.subjects.length} selected)
+                        </span>
+                      )}
+                    </label>
+                    <span className="text-[11px] text-slate-400">
+                      Student can register multiple subjects
+                    </span>
+                  </div>
+
+                  {/* Selected badges */}
+                  {form.subjects.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2.5 p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                      {form.subjects.map((subName) => (
+                        <span
+                          key={subName}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-indigo-600/30 text-indigo-200 border border-indigo-500/40"
+                        >
+                          {subName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = form.subjects.filter((s) => s !== subName);
+                              setForm({
+                                ...form,
+                                subjects: updated,
+                                subject: updated[0] || "",
+                              });
+                            }}
+                            className="hover:text-red-400 cursor-pointer text-xs font-bold"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Scrollable multi-subject checklist */}
+                  <div className="max-h-48 overflow-y-auto space-y-1.5 p-2 rounded-xl bg-[#0f1629] border border-white/10 custom-scrollbar">
+                    {subjects.map((s: any) => {
+                      const sName = s.name || s;
+                      const isSelected = form.subjects.includes(sName);
                       return (
-                        <>
-                          {programSubjects.length > 0 && (
-                            <optgroup label="Subjects in Selected Program (Enrolled automatically)">
-                              {programSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    ⭐ {sName}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
+                        <div
+                          key={s._id || sName}
+                          onClick={() => {
+                            const exists = form.subjects.includes(sName);
+                            const updated = exists
+                              ? form.subjects.filter((x) => x !== sName)
+                              : [...form.subjects, sName];
+                            setForm({
+                              ...form,
+                              subjects: updated,
+                              subject: updated[0] || "",
+                            });
+                          }}
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs cursor-pointer transition-all ${
+                            isSelected
+                              ? "bg-indigo-600/20 text-white border border-indigo-500/40"
+                              : "hover:bg-white/5 text-slate-300 border border-transparent"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-white/20 focus:ring-indigo-500 pointer-events-none"
+                            />
+                            <span className="font-medium text-white">{sName}</span>
+                          </div>
+                          {s.program?.name && (
+                            <span className="text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                              {s.program.name}
+                            </span>
                           )}
-                          {otherSubjects.length > 0 && (
-                            <optgroup label="Other Subjects">
-                              {otherSubjects.map((s: any) => {
-                                const sName = s.name || s;
-                                const progTag = s.program?.name ? ` (${s.program.name})` : "";
-                                return (
-                                  <option key={s._id || sName} value={sName}>
-                                    {sName}{progTag}
-                                  </option>
-                                );
-                              })}
-                            </optgroup>
-                          )}
-                        </>
+                        </div>
                       );
-                    })()}
-                  </select>
+                    })}
+                  </div>
                 </div>
               </div>
               <div className="flex gap-3 mt-6">

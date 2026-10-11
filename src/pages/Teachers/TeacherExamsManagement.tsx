@@ -15,7 +15,16 @@ import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice
 
 const ITEMS_PER_PAGE = 10;
 
-const EXAM_TYPES = ["Quiz", "MidTerm", "Final", "Assignment", "Practical"];
+const EXAM_TYPES = [
+  "Exam",
+  "Test",
+  "Quiz",
+  "Continuous Assessment",
+  "MidTerm",
+  "Final",
+  "Assignment",
+  "Practical",
+];
 
 const emptyExamForm = {
   name: "",
@@ -26,9 +35,11 @@ const emptyExamForm = {
   duration: "",
   examDate: "",
   examTime: "",
-  examType: "Quiz",
+  examType: "Exam",
   classLevel: "",
   academicYear: "",
+  passMark: 40,
+  totalMark: 70,
 };
 
 const emptyQForm = {
@@ -151,6 +162,7 @@ export default function TeacherExamsManagement() {
   };
   const openEditExam = (exam: any) => {
     setEditingExam(exam);
+    const isTest = ["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase());
     setExamForm({
       name: exam.name || "",
       description: exam.description || "",
@@ -160,9 +172,11 @@ export default function TeacherExamsManagement() {
       duration: exam.duration || "",
       examDate: exam.examDate ? exam.examDate.slice(0, 10) : "",
       examTime: exam.examTime || "",
-      examType: exam.examType || "Quiz",
+      examType: exam.examType || "Exam",
       classLevel: exam.classLevel?._id || exam.classLevel || "",
       academicYear: exam.academicYear?._id || exam.academicYear || "",
+      passMark: exam.passMark !== undefined ? exam.passMark : (isTest ? 15 : 40),
+      totalMark: exam.totalMark !== undefined ? exam.totalMark : (isTest ? 30 : 70),
     });
     setExamError("");
     setShowExamModal(true);
@@ -412,7 +426,10 @@ export default function TeacherExamsManagement() {
                     </td>
                     <td className="px-5 py-4">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        {exam.examType || "Quiz"}
+                        {exam.examType || "Exam"}
+                      </span>
+                      <span className="block text-[11px] text-slate-400 mt-1">
+                        Pass: {exam.passMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 15 : 40)} / Max: {exam.totalMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 30 : 70)}
                       </span>
                     </td>
                     <td className="px-5 py-4 text-slate-300">
@@ -587,10 +604,46 @@ export default function TeacherExamsManagement() {
                   {/* Exam Type */}
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Exam Type</label>
-                    <select value={examForm.examType} onChange={(e) => setExamForm({ ...examForm, examType: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-all">
+                    <select
+                      value={examForm.examType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        const isTest = ["test", "quiz", "continuous assessment", "ca"].includes(val.toLowerCase());
+                        setExamForm({
+                          ...examForm,
+                          examType: val,
+                          totalMark: isTest ? 30 : 70,
+                          passMark: isTest ? 15 : 40,
+                        });
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-all"
+                    >
                       {EXAM_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
+                  </div>
+                  {/* Pass Mark */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Pass Mark {["test", "quiz", "continuous assessment", "ca"].includes(examForm.examType.toLowerCase()) ? "(Pass: 15 / 30)" : "(Pass: 40 / 70)"}
+                    </label>
+                    <input
+                      type="number"
+                      value={examForm.passMark}
+                      onChange={(e) => setExamForm({ ...examForm, passMark: Number(e.target.value) })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-all"
+                    />
+                  </div>
+                  {/* Total Mark */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Total Mark {["test", "quiz", "continuous assessment", "ca"].includes(examForm.examType.toLowerCase()) ? "(Max: 30)" : "(Max: 70)"}
+                    </label>
+                    <input
+                      type="number"
+                      value={examForm.totalMark}
+                      onChange={(e) => setExamForm({ ...examForm, totalMark: Number(e.target.value) })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-all"
+                    />
                   </div>
                   {/* Exam Date */}
                   <div>

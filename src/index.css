@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme {
@@ -182,16 +201,57 @@
   ::backdrop,
   ::file-selector-button {
     border-color: var(--color-gray-200, currentColor);
+    box-sizing: border-box;
+  }
+
+  html {
+    max-width: 100%;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply relative z-1 bg-gray-50 font-outfit font-normal;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  #root {
+    min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+}
 
-  body {
-    @apply relative z-1 bg-gray-50 font-outfit font-normal;
-  }
+/* Custom horizontal scrollbar for tables and overflow tabs */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.4);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(99, 102, 241, 0.7);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 @utility menu-item {
@@ -1129,5 +1189,35 @@ pre[class*="language-"].line-numbers {
 @media (max-width: 640px) {
   .custom-calendar .fc-timegrid {
     min-width: 580px;
+  }
+}
+
+/* Print Styles for Official Student Report Cards */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .no-print,
+  aside,
+  header,
+  nav,
+  .app-header,
+  .app-sidebar,
+  button:not(.print-allow) {
+    display: none !important;
+  }
+  .report-card-container {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .report-card-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #111827 !important;
   }
 }

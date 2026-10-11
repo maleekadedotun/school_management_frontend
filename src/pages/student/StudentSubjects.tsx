@@ -60,7 +60,7 @@ export default function StudentSubjects() {
   // Enrollment Modal states
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollClassLevel, setEnrollClassLevel] = useState<string>("Level 100");
-  const [enrollSubjectId, setEnrollSubjectId] = useState<string>("");
+  const [enrollSubjectIds, setEnrollSubjectIds] = useState<string[]>([]);
   const [enrollFeedback, setEnrollFeedback] = useState<string | null>(null);
 
   // Drop / Unenroll confirmation modal
@@ -80,44 +80,86 @@ export default function StudentSubjects() {
     }
   }, [selectedClassParam]);
 
+  // Helper to reliably display human-readable subject name
+  const getSubjectDisplayName = (sub: any): string => {
+    const raw = sub?.name;
+    if (raw && !/^[0-9a-fA-F]{24}$/.test(raw) && raw !== "Subject") {
+      return raw;
+    }
+    const id = sub?.subjectId || sub?._id || sub?.id || raw;
+    const match = allSchoolSubjects.find(
+      (s: any) => s._id?.toString() === id?.toString() || s.name?.toLowerCase() === raw?.toLowerCase()
+    );
+    return match?.name || raw || "Subject";
+  };
+
+  // Check if subject is enrolled for given class level
+  const isSubjectEnrolledInLevel = (subId: string, levelName: string) => {
+    const lNorm = (levelName || "").toLowerCase().trim();
+    const lDigits = lNorm.match(/\d+/)?.[0];
+    return allEnrolledSubjects.some((item) => {
+      const matchId = ((item as any).id || item.subjectId || item._id) === subId;
+      if (!matchId) return false;
+      const itemL = (item.classLevel || "").toLowerCase().trim();
+      if (itemL === lNorm) return true;
+      const iDigits = itemL.match(/\d+/)?.[0];
+      if (lDigits && iDigits && lDigits === iDigits) return true;
+      return false;
+    });
+  };
+
+
   // Reset feedback on modal open
   const handleOpenEnrollModal = (defaultClass?: string) => {
     dispatch(resetEnrollState());
     setEnrollFeedback(null);
-    if (defaultClass) {
-      setEnrollClassLevel(defaultClass);
-    } else if (activeStudent?.currentClassLevel) {
-      setEnrollClassLevel(activeStudent.currentClassLevel);
-    } else {
-      setEnrollClassLevel("Level 100");
-    }
-
-    if (allSchoolSubjects.length > 0) {
-      setEnrollSubjectId(allSchoolSubjects[0]._id);
-    }
+    const targetClass = defaultClass || activeStudent?.currentClassLevel || "Level 100";
+    setEnrollClassLevel(targetClass);
+    setEnrollSubjectIds([]);
     setShowEnrollModal(true);
+  };
+
+  const toggleSubjectSelect = (subId: string) => {
+    setEnrollSubjectIds((prev) =>
+      prev.includes(subId) ? prev.filter((id) => id !== subId) : [...prev, subId]
+    );
+  };
+
+  const handleSelectAllAvailable = () => {
+    const available = allSchoolSubjects
+      .filter((s) => !isSubjectEnrolledInLevel(s._id, enrollClassLevel))
+      .map((s) => s._id);
+    if (enrollSubjectIds.length === available.length) {
+      setEnrollSubjectIds([]);
+    } else {
+      setEnrollSubjectIds(available);
+    }
   };
 
   const handleEnrollSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!enrollSubjectId) return;
+    if (enrollSubjectIds.length === 0) {
+      setEnrollFeedback("Please select at least one subject to enroll.");
+      return;
+    }
 
     setEnrollFeedback(null);
     const res = await dispatch(
       studentEnrollSubject({
-        subjectId: enrollSubjectId,
+        subjectIds: enrollSubjectIds,
         classLevel: enrollClassLevel,
       })
     );
 
     if (studentEnrollSubject.fulfilled.match(res)) {
-      setEnrollFeedback("Subject enrolled successfully!");
+      setEnrollFeedback("Subjects enrolled successfully!");
       setTimeout(() => {
         setShowEnrollModal(false);
         setEnrollFeedback(null);
+        setEnrollSubjectIds([]);
       }, 1200);
     } else {
-      setEnrollFeedback((res.payload as string) || "Failed to enroll in subject.");
+      setEnrollFeedback((res.payload as string) || "Failed to enroll in subjects.");
     }
   };
 
@@ -325,7 +367,7 @@ export default function StudentSubjects() {
         </div>
 
         {/* Search input */}
-        <div className="relative min-w-[240px] sm:min-w-[280px]">
+        <div className="relative w-full md:w-auto md:min-w-[260px]">
           <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -512,7 +554,7 @@ export default function StudentSubjects() {
                                   onClick={() =>
                                     setSubjectToDrop({
                                       id: sub.subjectId || sub._id,
-                                      name: sub.name,
+                                      name: getSubjectDisplayName(sub),
                                       classLevel: group.classLevel,
                                     })
                                   }
@@ -526,7 +568,7 @@ export default function StudentSubjects() {
 
                             <div>
                               <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-1">
-                                {sub.name}
+                                {getSubjectDisplayName(sub)}
                               </h3>
                               <p className="text-slate-400 text-xs mt-1 line-clamp-2 leading-relaxed">
                                 {sub.description || "Course syllabus, learning outcomes, and assessment modules."}
@@ -636,26 +678,83 @@ export default function StudentSubjects() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Select Subject to Enroll
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Select Subject(s) to Enroll
+                    {enrollSubjectIds.length > 0 && (
+                      <span className="ml-2 text-indigo-400 font-medium">
+                        ({enrollSubjectIds.length} selected)
+                      </span>
+                    )}
+                  </label>
+                  {allSchoolSubjects.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleSelectAllAvailable}
+                      className="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                    >
+                      {enrollSubjectIds.length > 0 ? "Deselect All" : "Select All"}
+                    </button>
+                  )}
+                </div>
+
                 {subjectsLoading ? (
-                  <p className="text-slate-400 text-xs">Loading course catalog...</p>
+                  <p className="text-slate-400 text-xs py-3">Loading course catalog...</p>
                 ) : allSchoolSubjects.length === 0 ? (
-                  <p className="text-slate-400 text-xs">No subjects currently available in catalog.</p>
+                  <p className="text-slate-400 text-xs py-3">No subjects currently available in catalog.</p>
                 ) : (
-                  <select
-                    value={enrollSubjectId}
-                    onChange={(e) => setEnrollSubjectId(e.target.value)}
-                    required
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-sm focus:outline-none focus:border-indigo-500"
-                  >
-                    {allSchoolSubjects.map((s) => (
-                      <option key={s._id} value={s._id} className="bg-slate-900 text-white">
-                        {s.name} {s.program?.name ? `(${s.program.name})` : ""}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {allSchoolSubjects.map((s) => {
+                      const alreadyEnrolled = isSubjectEnrolledInLevel(s._id, enrollClassLevel);
+                      const isSelected = enrollSubjectIds.includes(s._id);
+
+                      return (
+                        <div
+                          key={s._id}
+                          onClick={() => {
+                            if (!alreadyEnrolled) toggleSubjectSelect(s._id);
+                          }}
+                          className={`flex items-center justify-between p-3 rounded-xl border text-xs transition-all ${
+                            alreadyEnrolled
+                              ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
+                              : isSelected
+                              ? "bg-indigo-600/15 border-indigo-500/50 text-white cursor-pointer"
+                              : "bg-white/5 border-white/10 hover:border-white/20 text-slate-300 cursor-pointer"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={alreadyEnrolled}
+                              onChange={() => {
+                                if (!alreadyEnrolled) toggleSubjectSelect(s._id);
+                              }}
+                              className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-white/20 focus:ring-indigo-500 pointer-events-none"
+                            />
+                            <div>
+                              <span className="font-semibold text-white">{s.name}</span>
+                              {s.program?.name && (
+                                <span className="ml-2 text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                                  {s.program.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {alreadyEnrolled ? (
+                            <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                              Already Enrolled
+                            </span>
+                          ) : isSelected ? (
+                            <span className="text-[10px] font-semibold text-indigo-400">
+                              Selected
+                            </span>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 

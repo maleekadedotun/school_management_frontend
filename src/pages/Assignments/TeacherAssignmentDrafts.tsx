@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
@@ -56,7 +56,6 @@ export default function TeacherAssignmentDrafts() {
   );
   const { items: classLevels } = useAppSelector((state) => state.classLevels);
   const { items: subjects } = useAppSelector((state) => state.subjects);
-  const { items: programs } = useAppSelector((state) => state.programs);
 
   // Search & Filter state
   const [search, setSearch] = useState("");

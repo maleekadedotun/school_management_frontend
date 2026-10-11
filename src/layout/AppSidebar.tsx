@@ -84,6 +84,11 @@ const adminNavGroups: NavGroup[] = [
         icon: <GridIcon />,
         path: "/admin/dashboard",
       },
+      {
+        name: "Announcements",
+        icon: <PageIcon />,
+        path: "/admin/announcements",
+      },
     ],
   },
   {
@@ -120,6 +125,8 @@ const adminNavGroups: NavGroup[] = [
         subItems: [
           { name: "Programs", path: "/academic/programs" },
           { name: "Subjects", path: "/academic/subjects" },
+          { name: "Timetable Schedule", path: "/academic/timetable" },
+          { name: "Lesson Notes Review", path: "/admin/lesson-notes" },
         ],
       },
     ],
@@ -146,6 +153,11 @@ const adminNavGroups: NavGroup[] = [
         name: "Student Results",
         icon: <PageIcon />,
         path: "/admin/results",
+      },
+      {
+        name: "Term Report Cards",
+        icon: <FileIcon />,
+        path: "/admin/report-cards",
       },
       {
         name: "Assignments Portal",
@@ -197,6 +209,11 @@ const teacherNavGroups: NavGroup[] = [
         path: "/teacher/students",
       },
       {
+        name: "Teacher Timetable",
+        icon: <CalenderIcon />,
+        path: "/teacher/timetable",
+      },
+      {
         name: "Student Attendance",
         icon: <CalenderIcon />,
         path: "/teacher/attendance",
@@ -205,6 +222,11 @@ const teacherNavGroups: NavGroup[] = [
         name: "Weekly Class Reports",
         icon: <FileIcon />,
         path: "/teacher/weekly-reports",
+      },
+      {
+        name: "Teaching Resources",
+        icon: <BookIcon />,
+        path: "/teacher/resources",
       },
     ],
   },
@@ -237,8 +259,13 @@ const teacherNavGroups: NavGroup[] = [
         path: "/teacher/questions",
       },
       {
-        name: "Class Results",
-        icon: <TableIcon />,
+        name: "Term Report Cards",
+        icon: <FileIcon />,
+        path: "/teacher/report-cards",
+      },
+      {
+        name: "Record Exam & Test Scores",
+        icon: <TaskIcon />,
         path: "/teacher/results",
       },
     ],
@@ -353,6 +380,16 @@ const AppSidebar: React.FC = () => {
         title: "Academic Curriculum",
         items: [
           {
+            name: "Lesson Notes",
+            icon: <BookIcon />,
+            path: "/student/lesson-notes",
+          },
+          {
+            name: "My Timetable",
+            icon: <CalenderIcon />,
+            path: "/student/timetable",
+          },
+          {
             name: "Level Subjects",
             icon: <BookIcon />,
             badge: allEnrolledSubjects.length > 0 ? `${allEnrolledSubjects.length}` : undefined,
@@ -383,6 +420,11 @@ const AppSidebar: React.FC = () => {
             name: "Check Exam Results",
             icon: <PageIcon />,
             path: "/student/results",
+          },
+          {
+            name: "My Report Card",
+            icon: <FileIcon />,
+            path: "/student/report-card",
           },
         ],
       },
@@ -526,7 +568,7 @@ const AppSidebar: React.FC = () => {
     <aside
       className={cn(
         "fixed inset-s-0 top-0 z-50 flex h-screen flex-col border-e border-white/10 bg-[#0a0f1e] px-5 text-white transition-all duration-300 ease-in-out xl:translate-x-0 xl:rtl:translate-x-0",
-        isExpanded || isMobileOpen ? "w-72.5" : isHovered ? "w-72.5" : "w-22.5",
+        isExpanded || isMobileOpen ? "w-[290px] max-w-[85vw]" : isHovered ? "w-[290px]" : "w-[90px]",
         isMobileOpen ? "translate-x-0" : "-translate-x-full rtl:translate-x-full"
       )}
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
@@ -535,8 +577,8 @@ const AppSidebar: React.FC = () => {
       {/* Sidebar Header Brand Logo */}
       <div
         className={cn(
-          "flex py-7 items-center border-b border-white/10 mb-6",
-          !isExpanded && !isHovered ? "xl:justify-center" : "justify-start px-2"
+          "flex py-6 items-center justify-between border-b border-white/10 mb-6",
+          !isExpanded && !isHovered ? "xl:justify-center" : "px-2"
         )}
       >
         <Link to={dashboardHomePath} className="flex items-center gap-3">
@@ -557,6 +599,19 @@ const AppSidebar: React.FC = () => {
             </div>
           )}
         </Link>
+
+        {isMobileOpen && (
+          <button
+            type="button"
+            onClick={() => setIsMobileOpen(false)}
+            className="xl:hidden p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            aria-label="Close Sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Navigation List */}

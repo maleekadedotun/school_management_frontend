@@ -5,7 +5,6 @@ import {
   fetchAssignments,
   fetchTeacherAssignments,
   fetchStudentAssignments,
-  publishAssignment,
   createAssignment,
   updateAssignment,
   deleteAssignment,
@@ -218,7 +217,7 @@ export default function AssignmentsPortal() {
   }, [subjects, assignmentForm.program]);
 
   // Open Create Modal with auto-selected teacher program, class level, and subject
-  const handleOpenCreateModal = () => {
+  const _handleOpenCreateModal = () => {
     setEditingAssignment(null);
 
     let initialProgram = "";
@@ -285,9 +284,10 @@ export default function AssignmentsPortal() {
     });
     setShowCreateModal(true);
   };
+  void _handleOpenCreateModal;
 
   // Open Edit Modal
-  const handleOpenEditModal = (item: AssignmentItem) => {
+  const _handleOpenEditModal = (item: AssignmentItem) => {
     setEditingAssignment(item);
     setAssignmentForm({
       title: item.title,
@@ -301,7 +301,7 @@ export default function AssignmentsPortal() {
       dueTime: item.dueTime || "23:59",
       totalMarks: item.totalMarks || 100,
       passMark: item.passMark || 50,
-      status: item.status || "active",
+      status: (item.status === "published" ? "active" : item.status) as any || "active",
       attachmentUrl: item.attachment?.url || "",
       attachmentName: item.attachment?.filename || "",
       attachmentType: item.attachment?.fileType || "",
@@ -309,6 +309,7 @@ export default function AssignmentsPortal() {
     });
     setShowCreateModal(true);
   };
+  void _handleOpenEditModal;
 
   // Submit Create or Edit Assignment
   const handleSubmitAssignmentForm = async (e: React.FormEvent) => {

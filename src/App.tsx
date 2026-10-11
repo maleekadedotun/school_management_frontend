@@ -39,6 +39,22 @@ import TeacherWeeklyReports from "./pages/Teachers/TeacherWeeklyReports";
 import AssignmentsPortal from "./pages/Assignments/AssignmentsPortal";
 import TeacherAssignmentCreate from "./pages/Assignments/TeacherAssignmentCreate";
 import TeacherAssignmentDrafts from "./pages/Assignments/TeacherAssignmentDrafts";
+import TeacherResourcesLayout from "./layout/TeacherResourcesLayout";
+import TeacherResourcesHome from "./pages/Teachers/resources/TeacherResourcesHome";
+import LessonNotes from "./pages/Teachers/resources/LessonNotes";
+import TeacherTimetable from "./pages/Teachers/resources/TeacherTimetable";
+import LessonPlans from "./pages/Teachers/resources/LessonPlans";
+import TeacherSubjects from "./pages/Teachers/resources/TeacherSubjects";
+import TeachingMaterials from "./pages/Teachers/resources/TeachingMaterials";
+import AcademicCalendar from "./pages/Teachers/resources/AcademicCalendar";
+import AdminLessonNotesReview from "./pages/Admin/AdminLessonNotesReview";
+import StudentLessonNotes from "./pages/student/StudentLessonNotes";
+import TimetableManagement from "./pages/Academic/TimetableManagement";
+import StudentTimetable from "./pages/student/StudentTimetable";
+import AdminAnnouncements from "./pages/Admin/AdminAnnouncements";
+import TeacherReportCards from "./pages/Teachers/TeacherReportCards";
+import AdminReportCards from "./pages/Admin/AdminReportCards";
+import StudentReportCardView from "./pages/student/StudentReportCardView";
 import NotFound from "./pages/OtherPage/NotFound";
 import { Toaster } from "react-hot-toast";
 
@@ -107,10 +123,15 @@ export default function App() {
             <Route path="/academic/programs" element={<ProgramsList />} />
             <Route path="/academic/subjects" element={<SubjectsList />} />
             <Route path="/admin/results" element={<StudentResultsList />} />
+            <Route path="/admin/report-cards" element={<AdminReportCards />} />
             <Route path="/admin/teacher-exams" element={<TeacherExamsList />} />
             <Route path="/admin/questions" element={<QuestionsList />} />
             <Route path="/admin/class-reports" element={<AdminClassReports />} />
             <Route path="/admin/assignments" element={<AssignmentsPortal />} />
+            <Route path="/admin/lesson-notes" element={<AdminLessonNotesReview />} />
+            <Route path="/academic/timetable" element={<TimetableManagement />} />
+            <Route path="/admin/timetable" element={<TimetableManagement />} />
+            <Route path="/admin/announcements" element={<AdminAnnouncements />} />
           </Route>
 
           {/* Teacher Protected Dashboard Routes */}
@@ -123,6 +144,7 @@ export default function App() {
           >
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
             <Route path="/teacher/profile" element={<TeacherProfile />} />
+            <Route path="/teacher/timetable" element={<TeacherTimetable />} />
             <Route path="/teacher/exams" element={<TeacherExamsManagement />} />
             <Route path="/teacher/assignments" element={<AssignmentsPortal />} />
             <Route path="/teacher/assignments/drafts" element={<TeacherAssignmentDrafts />} />
@@ -130,9 +152,29 @@ export default function App() {
             <Route path="/teacher/assignments/edit/:id" element={<TeacherAssignmentCreate />} />
             <Route path="/teacher/questions" element={<TeacherQuestionsList />} />
             <Route path="/teacher/results" element={<TeacherStudentResults />} />
+            <Route path="/teacher/results/class" element={<TeacherReportCards />} />
+            <Route path="/teacher/class-results" element={<TeacherReportCards />} />
+            <Route path="/teacher/report-cards" element={<TeacherReportCards />} />
             <Route path="/teacher/students" element={<StudentsList />} />
             <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             <Route path="/teacher/weekly-reports" element={<TeacherWeeklyReports />} />
+          </Route>
+
+          {/* Teacher Resources Secondary Workspace Routes */}
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["teacher"]}>
+                <TeacherResourcesLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/teacher/resources" element={<TeacherResourcesHome />} />
+            <Route path="/teacher/resources/lesson-notes" element={<LessonNotes />} />
+            <Route path="/teacher/resources/timetable" element={<TeacherTimetable />} />
+            <Route path="/teacher/resources/lesson-plans" element={<LessonPlans />} />
+            <Route path="/teacher/resources/subjects" element={<TeacherSubjects />} />
+            <Route path="/teacher/resources/materials" element={<TeachingMaterials />} />
+            <Route path="/teacher/resources/calendar" element={<AcademicCalendar />} />
           </Route>
 
           {/* Student Protected Dashboard Routes */}
@@ -145,11 +187,15 @@ export default function App() {
           >
             <Route path="/student/dashboard" element={<StudentDashboard />} />
             <Route path="/student/results" element={<StudentDashboard initialTab="results" />} />
+            <Route path="/student/report-card" element={<StudentReportCardView />} />
+            <Route path="/student/report-cards" element={<StudentReportCardView />} />
+            <Route path="/student/timetable" element={<StudentTimetable />} />
             <Route path="/student/program" element={<StudentProgram />} />
             <Route path="/student/subjects" element={<StudentSubjects />} />
             <Route path="/student/exams" element={<StudentWriteExam />} />
             <Route path="/student/exams/:examId/write" element={<StudentWriteExam />} />
             <Route path="/student/assignments" element={<AssignmentsPortal />} />
+            <Route path="/student/lesson-notes" element={<StudentLessonNotes />} />
             <Route path="/student/profile" element={<StudentProfile />} />
             <Route path="/profile" element={<StudentProfile />} />
             <Route path="/academic/programs" element={<StudentProgram />} />

@@ -104,7 +104,7 @@ export default function TeacherDashboard() {
   const assignedClassLevelName =
     t?.classLevel?.name || t?.classLevel || (t?.subject?.name || t?.subject ? `${t?.subject?.name || t?.subject} (Subject)` : "Assigned Level");
 
-  // Filter students strictly in the assigned class level or subject
+  // Filter students strictly in the assigned class level offering the teacher subject alone
   const strictlyClassStudents = useMemo(() => {
     const list = teacherClassStudents || [];
     const teacherSubject = (t?.subject?.name || t?.subject || "").toString().trim().toLowerCase();
@@ -127,26 +127,35 @@ export default function TeacherDashboard() {
         }
       }
 
-      // 2. If student is assigned to this teacher directly and matches class (or teacher has no class restriction)
-      const assignedId = (s.assignedTeacher as any)?._id || s.assignedTeacher;
-      if (assignedId && (assignedId.toString() === teacherId?.toString() || assignedId.toString() === t?._id?.toString())) {
-        return true;
+      // 2. If teacher has a subject specified, student MUST be offering this teacher's subject alone
+      if (teacherSubject) {
+        const studentSub = (s.subject || "").toString().trim().toLowerCase();
+        const matchesDirectSub =
+          studentSub === teacherSubject ||
+          studentSub.includes(teacherSubject) ||
+          teacherSubject.includes(studentSub);
+
+        const matchesEnrolledSub =
+          Array.isArray((s as any).enrolledSubjects) &&
+          (s as any).enrolledSubjects.some((es: any) => {
+            const esSub = es?.subject;
+            const esName = typeof esSub === "object" ? (esSub?.name || "") : (es?.name || "");
+            const cleanEsName = esName.toString().trim().toLowerCase();
+            return (
+              cleanEsName === teacherSubject ||
+              cleanEsName.includes(teacherSubject) ||
+              teacherSubject.includes(cleanEsName)
+            );
+          });
+
+        if (!matchesDirectSub && !matchesEnrolledSub) {
+          return false;
+        }
       }
 
-      // 3. If student matches teacher subject
-      const studentSub = (s.subject || "").toString().trim().toLowerCase();
-      if (teacherSubject && studentSub && teacherSubject === studentSub) {
-        return true;
-      }
-
-      // 4. If teacher has a class level specified and no subject
-      if (teacherStr && !teacherSubject) {
-        return true;
-      }
-
-      return false;
+      return true;
     });
-  }, [teacherClassStudents, t?.classLevel, t?.subject, teacherId, t?._id]);
+  }, [teacherClassStudents, t?.classLevel, t?.subject]);
 
   // Filter students in the assigned class level for search
   const filteredStudents = useMemo(() => {
@@ -233,6 +242,14 @@ export default function TeacherDashboard() {
           {/* Quick Action CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <Link
+              to="/teacher/results?open=true"
+              className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 hover:from-emerald-300 hover:via-teal-300 hover:to-cyan-300 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/30 transition-all flex items-center justify-center gap-2 ring-2 ring-emerald-300/80 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span className="text-base">📝</span>
+              Record Exam & Test Scores
+            </Link>
+
+            <Link
               to="/teacher/exams"
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-bold text-sm shadow-xl shadow-emerald-500/25 transition-all flex items-center justify-center gap-2"
             >
@@ -264,6 +281,14 @@ export default function TeacherDashboard() {
             >
               <span>📝</span>
               Assignment Drafts
+            </Link>
+
+            <Link
+              to="/teacher/resources"
+              className="px-5 py-3 rounded-2xl bg-indigo-600/40 hover:bg-indigo-600/60 border border-indigo-400/30 text-white font-semibold text-sm transition-all flex items-center justify-center gap-2"
+            >
+              <span>📚</span>
+              Teaching Resources
             </Link>
           </div>
         </div>
@@ -356,23 +381,33 @@ export default function TeacherDashboard() {
             </p>
           </div>
 
-          {/* Student Search */}
-          <div className="relative w-full md:w-72">
-            <svg
-              className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          {/* Actions & Student Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+            <Link
+              to="/teacher/results?open=true"
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 shrink-0 ring-1 ring-emerald-300"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search by student name or ID..."
-              value={studentSearch}
-              onChange={(e) => setStudentSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-            />
+              <span>📝</span>
+              Record Exam & Test
+            </Link>
+
+            <div className="relative w-full sm:w-64">
+              <svg
+                className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search student name or ID..."
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              />
+            </div>
           </div>
         </div>
 
@@ -447,6 +482,14 @@ export default function TeacherDashboard() {
                         : "Active"}
                     </span>
                   </div>
+
+                  <Link
+                    to={`/teacher/results?open=true&studentId=${encodeURIComponent(student.StudentId || student.studentId || student._id)}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <span>📝</span> Record Exam & Test Score
+                  </Link>
                 </div>
               );
             })}
@@ -845,10 +888,16 @@ export default function TeacherDashboard() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-2">
+              <Link
+                to={`/teacher/results?open=true&studentId=${encodeURIComponent(selectedStudent.StudentId || selectedStudent.studentId || selectedStudent._id)}`}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 text-xs font-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>📝</span> Record Exam & Test Score
+              </Link>
               <button
                 onClick={() => setSelectedStudent(null)}
-                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-all"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-all cursor-pointer"
               >
                 Close
               </button>
