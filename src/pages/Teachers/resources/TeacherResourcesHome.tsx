@@ -17,10 +17,10 @@ export default function TeacherResourcesHome() {
   const teacher = useAppSelector((state) => state.teacherAuth.teacher);
 
   const teacherName = teacher?.name || "Teacher";
-  const teacherSubject =
-    typeof teacher?.subject === "object"
-      ? (teacher?.subject as any)?.name
-      : teacher?.subject || "Subject Instructor";
+  const teacherSubjectsList = (teacher?.subjects && Array.isArray(teacher.subjects) && teacher.subjects.length > 0)
+    ? teacher.subjects.map((s: any) => typeof s === "object" ? s.name : s).filter(Boolean)
+    : [teacher?.subject ? (typeof teacher.subject === "object" ? (teacher.subject as any).name : teacher.subject) : ""].filter(Boolean);
+  const teacherSubject = teacherSubjectsList.length > 0 ? teacherSubjectsList.join(", ") : "Subject Instructor";
   const teacherClass =
     typeof teacher?.classLevel === "object"
       ? (teacher?.classLevel as any)?.name

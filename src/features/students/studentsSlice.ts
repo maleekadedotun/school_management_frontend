@@ -492,6 +492,11 @@ const studentsSlice = createSlice({
         if (updatedStudent) {
           const idx = state.students.findIndex(s => s._id === updatedStudent._id);
           if (idx !== -1) state.students[idx] = { ...state.students[idx], ...updatedStudent };
+          const tIdx = state.teacherClassStudents.findIndex(s => s._id === updatedStudent._id);
+          if (tIdx !== -1) state.teacherClassStudents[tIdx] = { ...state.teacherClassStudents[tIdx], ...updatedStudent };
+          if (state.currentStudent?._id === updatedStudent._id) {
+            state.currentStudent = { ...state.currentStudent, ...updatedStudent };
+          }
         }
       })
       .addCase(suspendStudent.fulfilled, (state, action) => {
@@ -626,6 +631,8 @@ const studentsSlice = createSlice({
         localStorage.removeItem("adminToken");
         localStorage.removeItem("teacher");
         localStorage.removeItem("teacherToken");
+        localStorage.removeItem("parent");
+        localStorage.removeItem("parentToken");
         localStorage.removeItem("completed_exams_student");
 
         localStorage.setItem("studentToken", action.payload.token);

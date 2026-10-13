@@ -93,7 +93,7 @@ export default function TeacherStudentResults() {
     const subjectsMap = new Map<string, { id: string; name: string }>();
 
     // From student's enrolledSubjects
-    if (populatedStudent && Array.isArray(populatedStudent.enrolledSubjects)) {
+    if (populatedStudent && Array.isArray(populatedStudent.enrolledSubjects) && populatedStudent.enrolledSubjects.length > 0) {
       populatedStudent.enrolledSubjects.forEach((item: any) => {
         if (item?.subject) {
           const subObj = item.subject;
@@ -102,15 +102,9 @@ export default function TeacherStudentResults() {
           subjectsMap.set(id, { id, name });
         }
       });
-    }
-
-    // From student's direct subject field
-    if (populatedStudent?.subject) {
+    } else if (populatedStudent?.subject) {
       const sName = populatedStudent.subject.toString().trim();
-      const exists = Array.from(subjectsMap.values()).some((s) => s.name.toLowerCase() === sName.toLowerCase());
-      if (!exists) {
-        subjectsMap.set(sName, { id: sName, name: sName });
-      }
+      subjectsMap.set(sName, { id: sName, name: sName });
     }
 
     return Array.from(subjectsMap.values());
@@ -120,7 +114,7 @@ export default function TeacherStudentResults() {
   const autoPairSubjectAndExam = (student: any) => {
     const studentSubjects: Array<{ id: string; name: string }> = [];
 
-    if (Array.isArray(student?.enrolledSubjects)) {
+    if (Array.isArray(student?.enrolledSubjects) && student.enrolledSubjects.length > 0) {
       student.enrolledSubjects.forEach((item: any) => {
         if (item?.subject) {
           const subObj = item.subject;
@@ -129,8 +123,7 @@ export default function TeacherStudentResults() {
           studentSubjects.push({ id, name });
         }
       });
-    }
-    if (student?.subject) {
+    } else if (student?.subject) {
       const sName = student.subject.toString().trim();
       studentSubjects.push({ id: sName, name: sName });
     }

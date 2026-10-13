@@ -118,6 +118,8 @@ const authSlice = createSlice({
         localStorage.removeItem("teacherToken");
         localStorage.removeItem("student");
         localStorage.removeItem("studentToken");
+        localStorage.removeItem("parent");
+        localStorage.removeItem("parentToken");
 
         localStorage.setItem("token", action.payload.token);
         localStorage.setItem("adminToken", action.payload.token);

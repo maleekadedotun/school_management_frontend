@@ -4,7 +4,9 @@ import api from "../../services/api";
 export const fetchExams = createAsyncThunk("exams/fetchAll", async (_, { rejectWithValue }) => {
   try {
     const userRole = localStorage.getItem("userRole");
-    const isStudentRoute = typeof window !== "undefined" && window.location.pathname.startsWith("/student");
+    const isStudentRoute =
+      typeof window !== "undefined" &&
+      (window.location.pathname.startsWith("/student/") || window.location.pathname === "/student");
     const endpoint = (userRole === "student" || isStudentRoute) ? "/students/exams" : "/exams";
     const { data } = await api.get(endpoint);
     return data;

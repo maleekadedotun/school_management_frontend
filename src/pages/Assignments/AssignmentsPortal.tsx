@@ -68,7 +68,7 @@ export default function AssignmentsPortal() {
     (localStorage.getItem("studentToken") ? "student" : null) ||
     (localStorage.getItem("teacherToken") ? "teacher" : null);
 
-  const isStudentPath = location.pathname.startsWith("/student");
+  const isStudentPath = location.pathname.startsWith("/student/") || location.pathname === "/student";
 
   const isStudent =
     isStudentPath ||
@@ -79,7 +79,8 @@ export default function AssignmentsPortal() {
 
   const isTeacher =
     !isStudent &&
-    (location.pathname.startsWith("/teacher") ||
+    (location.pathname.startsWith("/teacher/") ||
+      location.pathname === "/teacher" ||
       teacherState.teacher?.role === "teacher" ||
       storedRole === "teacher");
 

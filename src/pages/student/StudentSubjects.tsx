@@ -59,9 +59,11 @@ export default function StudentSubjects() {
 
   // Enrollment Modal states
   const [showEnrollModal, setShowEnrollModal] = useState(false);
-  const [enrollClassLevel, setEnrollClassLevel] = useState<string>("Level 100");
+  const [enrollClassLevel, setEnrollClassLevel] = useState<string>("jss 1");
   const [enrollSubjectIds, setEnrollSubjectIds] = useState<string[]>([]);
   const [enrollFeedback, setEnrollFeedback] = useState<string | null>(null);
+  const [enrollFilterTab, setEnrollFilterTab] = useState<"all" | "core" | "program" | "class">("all");
+  const [enrollSearchQuery, setEnrollSearchQuery] = useState("");
 
   // Drop / Unenroll confirmation modal
   const [subjectToDrop, setSubjectToDrop] = useState<{ id: string; name: string; classLevel: string } | null>(null);
@@ -79,6 +81,76 @@ export default function StudentSubjects() {
       setActiveTab(selectedClassParam);
     }
   }, [selectedClassParam]);
+
+  // Helper to identify if subject belongs to student's program
+  const studentProgObj = typeof activeStudent?.program === "object" ? activeStudent.program : null;
+  const studentProgName = studentProgObj?.name || (typeof activeStudent?.program === "string" ? activeStudent.program : "");
+  const studentProgId = studentProgObj?._id || (typeof activeStudent?.program === "string" ? activeStudent.program : "");
+
+  const isSubjectInStudentProgram = (s: any) => {
+    if (!studentProgName && !studentProgId) return false;
+    const sProgId = typeof s.program === "object" ? s.program?._id?.toString() : s.program?.toString();
+    const sProgName = typeof s.program === "object" ? (s.program?.name || "").toLowerCase() : "";
+    return (
+      (studentProgId && sProgId === studentProgId.toString()) ||
+      (studentProgName && sProgName === studentProgName.toLowerCase())
+    );
+  };
+
+  // Helper: check if a subject is a Core subject (Math, English, or flagged as isCore)
+  const isSubjectCore = (s: any) => {
+    if (s?.isCore === true) return true;
+    const name = (typeof s === "string" ? s : s?.name || "").toLowerCase().trim();
+    return /^(math|mathematics|english|general math)/i.test(name);
+  };
+
+  const handleSelectAllCoreSubjects = () => {
+    const coreSubs = allSchoolSubjects
+      .filter((s) => (isSubjectCore(s) || isSubjectInStudentProgram(s)) && !isSubjectEnrolledInLevel(s._id, enrollClassLevel))
+      .map((s) => s._id);
+    const set = new Set([...enrollSubjectIds, ...coreSubs]);
+    setEnrollSubjectIds(Array.from(set));
+  };
+
+  const handleSelectAllProgramSubjects = () => {
+    const progSubs = allSchoolSubjects
+      .filter((s) => isSubjectInStudentProgram(s) && !isSubjectEnrolledInLevel(s._id, enrollClassLevel))
+      .map((s) => s._id);
+    const set = new Set([...enrollSubjectIds, ...progSubs]);
+    setEnrollSubjectIds(Array.from(set));
+  };
+
+  const handleSelectAllClassSubjects = () => {
+    const classDigits = (enrollClassLevel || "").match(/\d+/)?.[0];
+    const classClean = (enrollClassLevel || "").toLowerCase().trim();
+    const classSubs = allSchoolSubjects
+      .filter((s) => {
+        const sClassClean = (s.classLevel || "").toLowerCase().trim();
+        const sClassDigits = sClassClean.match(/\d+/)?.[0];
+        const isMatch = classDigits && sClassDigits ? classDigits === sClassDigits : sClassClean === classClean;
+        return isMatch && !isSubjectEnrolledInLevel(s._id, enrollClassLevel);
+      })
+      .map((s) => s._id);
+    const set = new Set([...enrollSubjectIds, ...classSubs]);
+    setEnrollSubjectIds(Array.from(set));
+  };
+
+  const handleSelectAllProgramAndClassSubjects = () => {
+    const classDigits = (enrollClassLevel || "").match(/\d+/)?.[0];
+    const classClean = (enrollClassLevel || "").toLowerCase().trim();
+    const coreSubs = allSchoolSubjects
+      .filter((s) => {
+        const inProg = isSubjectInStudentProgram(s);
+        const isCore = isSubjectCore(s);
+        const sClassClean = (s.classLevel || "").toLowerCase().trim();
+        const sClassDigits = sClassClean.match(/\d+/)?.[0];
+        const isMatch = classDigits && sClassDigits ? classDigits === sClassDigits : sClassClean === classClean;
+        return (inProg || isCore) && (isMatch || !sClassClean) && !isSubjectEnrolledInLevel(s._id, enrollClassLevel);
+      })
+      .map((s) => s._id);
+    const set = new Set([...enrollSubjectIds, ...coreSubs]);
+    setEnrollSubjectIds(Array.from(set));
+  };
 
   // Helper to reliably display human-readable subject name
   const getSubjectDisplayName = (sub: any): string => {
@@ -108,14 +180,43 @@ export default function StudentSubjects() {
     });
   };
 
+  // Filtered subjects list for enrollment modal
+  const filteredEnrollSubjects = useMemo(() => {
+    return allSchoolSubjects.filter((s: any) => {
+      if (enrollFilterTab === "core" && !isSubjectCore(s) && !isSubjectInStudentProgram(s)) return false;
+      if (enrollFilterTab === "program" && !isSubjectInStudentProgram(s)) return false;
+      if (enrollFilterTab === "class") {
+        const classDigits = (enrollClassLevel || "").match(/\d+/)?.[0];
+        const classClean = (enrollClassLevel || "").toLowerCase().trim();
+        const sClassClean = (s.classLevel || "").toLowerCase().trim();
+        const sClassDigits = sClassClean.match(/\d+/)?.[0];
+        const isMatch = classDigits && sClassDigits ? classDigits === sClassDigits : sClassClean === classClean;
+        if (!isMatch) return false;
+      }
+      if (enrollSearchQuery.trim()) {
+        const q = enrollSearchQuery.toLowerCase().trim();
+        const nameMatch = (s.name || "").toLowerCase().includes(q);
+        const codeMatch = (s.subjectCode || "").toLowerCase().includes(q);
+        const progMatch = (s.program?.name || "").toLowerCase().includes(q);
+        if (!nameMatch && !codeMatch && !progMatch) return false;
+      }
+      return true;
+    });
+  }, [allSchoolSubjects, enrollFilterTab, enrollSearchQuery, enrollClassLevel, studentProgId, studentProgName]);
 
   // Reset feedback on modal open
   const handleOpenEnrollModal = (defaultClass?: string) => {
     dispatch(resetEnrollState());
     setEnrollFeedback(null);
-    const targetClass = defaultClass || activeStudent?.currentClassLevel || "Level 100";
+    const targetClass = defaultClass || activeStudent?.currentClassLevel || "jss 1";
     setEnrollClassLevel(targetClass);
-    setEnrollSubjectIds([]);
+    // Pre-select unenrolled core subjects (Math, English, and student program subjects)
+    const availableCore = allSchoolSubjects
+      .filter((s) => (isSubjectCore(s) || isSubjectInStudentProgram(s)) && !isSubjectEnrolledInLevel(s._id, targetClass))
+      .map((s) => s._id);
+    setEnrollSubjectIds(availableCore);
+    setEnrollFilterTab("all");
+    setEnrollSearchQuery("");
     setShowEnrollModal(true);
   };
 
@@ -136,8 +237,8 @@ export default function StudentSubjects() {
     }
   };
 
-  const handleEnrollSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEnrollSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) e.preventDefault();
     if (enrollSubjectIds.length === 0) {
       setEnrollFeedback("Please select at least one subject to enroll.");
       return;
@@ -153,6 +254,8 @@ export default function StudentSubjects() {
 
     if (studentEnrollSubject.fulfilled.match(res)) {
       setEnrollFeedback("Subjects enrolled successfully!");
+      await dispatch(fetchStudentEnrolledSubjects());
+      await dispatch(fetchStudentProfile());
       setTimeout(() => {
         setShowEnrollModal(false);
         setEnrollFeedback(null);
@@ -171,6 +274,8 @@ export default function StudentSubjects() {
         classLevel: subjectToDrop.classLevel,
       })
     );
+    await dispatch(fetchStudentEnrolledSubjects());
+    await dispatch(fetchStudentProfile());
     setSubjectToDrop(null);
   };
 
@@ -246,11 +351,11 @@ export default function StudentSubjects() {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
                 <span>My Enrolled Subjects</span>
                 <span className="text-sm font-normal px-2.5 py-0.5 rounded-full bg-indigo-600/30 text-indigo-300 border border-indigo-400/30">
-                  100L to Final
+                  Curriculum Classes
                 </span>
               </h1>
               <p className="text-slate-300 text-sm sm:text-base mt-1 max-w-2xl leading-relaxed">
-                Explore your enrolled subjects and course curriculum systematically arranged under their respective class levels from Year 1 (100L) through your Final Year.
+                Explore your enrolled subjects and course curriculum systematically arranged under their respective class levels.
               </p>
             </div>
           </div>
@@ -284,7 +389,7 @@ export default function StudentSubjects() {
               <span>Current Level</span>
             </div>
             <div className="text-xl sm:text-2xl font-bold text-emerald-400 mt-1 truncate">
-              {activeStudent?.currentClassLevel || "Level 100"}
+              {activeStudent?.currentClassLevel || "jss 1"}
             </div>
           </div>
 
@@ -306,7 +411,7 @@ export default function StudentSubjects() {
             <div className="text-sm font-semibold text-white mt-1.5 truncate">
               {typeof activeStudent?.program === "object"
                 ? (activeStudent?.program as any)?.name
-                : activeStudent?.program || "Undergraduate Curriculum"}
+                : activeStudent?.program || "Academic Curriculum"}
             </div>
           </div>
         </div>
@@ -314,7 +419,7 @@ export default function StudentSubjects() {
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        {/* Class Level Tabs from 100L to Final */}
+        {/* Class Level Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
           <button
             onClick={() => {
@@ -327,7 +432,7 @@ export default function StudentSubjects() {
                 : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
             }`}
           >
-            All Classes (100L - Final)
+            All Classes
           </button>
 
           {enrolledSubjectsByClass.map((group) => {
@@ -547,6 +652,11 @@ export default function StudentSubjects() {
                               </div>
 
                               <div className="flex items-center gap-1.5">
+                                {isSubjectCore(sub) && (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    🌟 CORE
+                                  </span>
+                                )}
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-slate-300">
                                   {sub.duration || "1 Semester"}
                                 </span>
@@ -628,85 +738,247 @@ export default function StudentSubjects() {
 
       {/* Enroll Subject Modal */}
       {showEnrollModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-lg rounded-3xl bg-[#0f172a] border border-white/15 p-6 sm:p-8 space-y-6 shadow-2xl relative">
-            <button
-              onClick={() => setShowEnrollModal(false)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-            >
-              <HiOutlineXMark className="w-5 h-5" />
-            </button>
-
-            <div>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                Course Enrollment
-              </span>
-              <h2 className="text-xl font-bold text-white mt-2">Enroll in Subject</h2>
-              <p className="text-slate-400 text-xs sm:text-sm mt-1">
-                Select your academic tier (100L - Final) and choose a subject from the school catalog.
-              </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-3xl bg-[#0f172a] border border-white/15 shadow-2xl relative overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-white/10 flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    Course Enrollment
+                  </span>
+                  {studentProgName && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                      <HiOutlineSparkles className="w-3.5 h-3.5" />
+                      Program: {studentProgName}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold text-white">Enroll in Subjects</h2>
+                <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
+                  Select as many subjects as needed for your academic level and program curriculum.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEnrollModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
             </div>
 
-            {enrollFeedback && (
-              <div
-                className={`p-3.5 rounded-xl text-xs sm:text-sm font-medium ${
-                  enrollFeedback.includes("success")
-                    ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
-                    : "bg-red-500/15 border border-red-500/30 text-red-300"
-                }`}
-              >
-                {enrollFeedback}
-              </div>
-            )}
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar flex-1">
+              {enrollFeedback && (
+                <div
+                  className={`p-3.5 rounded-xl text-xs sm:text-sm font-medium ${
+                    enrollFeedback.includes("success")
+                      ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-300"
+                      : "bg-red-500/15 border border-red-500/30 text-red-300"
+                  }`}
+                >
+                  {enrollFeedback}
+                </div>
+              )}
 
-            <form onSubmit={handleEnrollSubmit} className="space-y-4">
+              {/* Class Level Selector */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Academic Class Level (100L to Final)
+                  Target Academic Class Level
                 </label>
                 <select
                   value={enrollClassLevel}
                   onChange={(e) => setEnrollClassLevel(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-sm focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
-                  <option value="Level 100" className="bg-slate-900 text-white">Level 100 (100L)</option>
-                  <option value="Level 200" className="bg-slate-900 text-white">Level 200 (200L)</option>
-                  <option value="Level 300" className="bg-slate-900 text-white">Level 300 (300L)</option>
-                  <option value="Level 400" className="bg-slate-900 text-white">Level 400 (400L / Final Year)</option>
-                  <option value="Final year 2027" className="bg-slate-900 text-white">Final Year (Graduating Class)</option>
+                  <option value="jss 1" className="bg-slate-900 text-white">JSS 1</option>
+                  <option value="JSS 2 Class" className="bg-slate-900 text-white">JSS 2</option>
+                  <option value="JSS 3 class" className="bg-slate-900 text-white">JSS 3</option>
                 </select>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-xs font-semibold text-slate-300">
-                    Select Subject(s) to Enroll
-                    {enrollSubjectIds.length > 0 && (
-                      <span className="ml-2 text-indigo-400 font-medium">
-                        ({enrollSubjectIds.length} selected)
-                      </span>
-                    )}
-                  </label>
-                  {allSchoolSubjects.length > 0 && (
+              {/* Quick Select Actions */}
+              <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <HiOutlineSparkles className="w-4 h-4 text-amber-400" />
+                    Quick Selection Tools
+                  </span>
+                  {enrollSubjectIds.length > 0 && (
                     <button
                       type="button"
-                      onClick={handleSelectAllAvailable}
-                      className="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                      onClick={() => setEnrollSubjectIds([])}
+                      className="text-[11px] text-red-400 hover:text-red-300 underline cursor-pointer"
                     >
-                      {enrollSubjectIds.length > 0 ? "Deselect All" : "Select All"}
+                      Clear Selection
                     </button>
                   )}
                 </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllCoreSubjects}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-medium transition cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  >
+                    <HiOutlineSparkles className="w-3.5 h-3.5 text-amber-400" />
+                    All Core Subjects (Math, English & Program)
+                  </button>
+                  {studentProgName && (
+                    <button
+                      type="button"
+                      onClick={handleSelectAllProgramAndClassSubjects}
+                      className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 border border-indigo-500/40 text-indigo-300 font-medium transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <HiOutlineSparkles className="w-3.5 h-3.5 text-indigo-400" />
+                      All Program & Level Core
+                    </button>
+                  )}
+                  {studentProgName && (
+                    <button
+                      type="button"
+                      onClick={handleSelectAllProgramSubjects}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-medium transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <HiOutlineAcademicCap className="w-3.5 h-3.5 text-emerald-400" />
+                      All {studentProgName} Subjects
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSelectAllClassSubjects}
+                    className="px-3 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-300 font-medium transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <HiOutlineBookOpen className="w-3.5 h-3.5 text-blue-400" />
+                    All for {enrollClassLevel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllAvailable}
+                    className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 font-medium transition cursor-pointer"
+                  >
+                    {enrollSubjectIds.length > 0 ? "Toggle All" : "Select All Available"}
+                  </button>
+                </div>
+              </div>
 
+              {/* Selected Subjects Badge Tray */}
+              {enrollSubjectIds.length > 0 && (
+                <div className="bg-indigo-500/10 border border-indigo-500/25 rounded-2xl p-3 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-indigo-300 flex items-center gap-1.5">
+                      <HiOutlineCheck className="w-4 h-4 text-emerald-400" />
+                      {enrollSubjectIds.length} Subject{enrollSubjectIds.length !== 1 ? "s" : ""} Selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setEnrollSubjectIds([])}
+                      className="text-[11px] text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1 custom-scrollbar">
+                    {enrollSubjectIds.map((sId) => {
+                      const sub = allSchoolSubjects.find((s) => s._id === sId);
+                      return (
+                        <span
+                          key={sId}
+                          className="inline-flex items-center gap-1 text-[11px] bg-indigo-600/30 text-indigo-200 border border-indigo-500/40 px-2.5 py-0.5 rounded-lg"
+                        >
+                          {sub?.name || "Subject"}
+                          <button
+                            type="button"
+                            onClick={() => toggleSubjectSelect(sId)}
+                            className="hover:text-red-300 ml-0.5 text-slate-400 cursor-pointer"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Search & Filter Bar */}
+              <div className="space-y-2.5">
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search subjects by name, code, or department..."
+                      value={enrollSearchQuery}
+                      onChange={(e) => setEnrollSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="flex gap-1 bg-white/5 p-1 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setEnrollFilterTab("all")}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        enrollFilterTab === "all"
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      All ({allSchoolSubjects.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEnrollFilterTab("core")}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
+                        enrollFilterTab === "core"
+                          ? "bg-amber-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      🌟 Core ({allSchoolSubjects.filter((s) => isSubjectCore(s) || isSubjectInStudentProgram(s)).length})
+                    </button>
+                    {studentProgName && (
+                      <button
+                        type="button"
+                        onClick={() => setEnrollFilterTab("program")}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
+                          enrollFilterTab === "program"
+                            ? "bg-indigo-600 text-white shadow-sm"
+                            : "text-slate-400 hover:text-white"
+                        }`}
+                      >
+                        ⭐ My Program ({allSchoolSubjects.filter(isSubjectInStudentProgram).length})
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEnrollFilterTab("class")}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        enrollFilterTab === "class"
+                          ? "bg-indigo-600 text-white shadow-sm"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      🏛️ {enrollClassLevel}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Subject Checklist */}
                 {subjectsLoading ? (
-                  <p className="text-slate-400 text-xs py-3">Loading course catalog...</p>
-                ) : allSchoolSubjects.length === 0 ? (
-                  <p className="text-slate-400 text-xs py-3">No subjects currently available in catalog.</p>
+                  <p className="text-slate-400 text-xs py-4 text-center">Loading course catalog...</p>
+                ) : filteredEnrollSubjects.length === 0 ? (
+                  <div className="text-center py-8 bg-white/[0.02] rounded-2xl border border-white/10">
+                    <HiOutlineBookOpen className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                    <p className="text-slate-300 text-xs font-medium">No subjects matched this filter</p>
+                    <p className="text-slate-500 text-[11px] mt-0.5">Try searching for another name or switch filter tabs</p>
+                  </div>
                 ) : (
-                  <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                    {allSchoolSubjects.map((s) => {
+                  <div className="max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                    {filteredEnrollSubjects.map((s) => {
                       const alreadyEnrolled = isSubjectEnrolledInLevel(s._id, enrollClassLevel);
                       const isSelected = enrollSubjectIds.includes(s._id);
+                      const inProgram = isSubjectInStudentProgram(s);
 
                       return (
                         <div
@@ -718,7 +990,7 @@ export default function StudentSubjects() {
                             alreadyEnrolled
                               ? "bg-white/[0.02] border-white/5 opacity-60 cursor-not-allowed"
                               : isSelected
-                              ? "bg-indigo-600/15 border-indigo-500/50 text-white cursor-pointer"
+                              ? "bg-indigo-600/15 border-indigo-500/50 text-white cursor-pointer shadow-sm"
                               : "bg-white/5 border-white/10 hover:border-white/20 text-slate-300 cursor-pointer"
                           }`}
                         >
@@ -733,43 +1005,79 @@ export default function StudentSubjects() {
                               className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-white/20 focus:ring-indigo-500 pointer-events-none"
                             />
                             <div>
-                              <span className="font-semibold text-white">{s.name}</span>
-                              {s.program?.name && (
-                                <span className="ml-2 text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
-                                  {s.program.name}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-white">{s.name}</span>
+                                {isSubjectCore(s) && (
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    🌟 CORE (COMPULSORY)
+                                  </span>
+                                )}
+                                {s.subjectCode && (
+                                  <span className="text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                                    {s.subjectCode}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                {s.program?.name && (
+                                  <span
+                                    className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                      inProgram
+                                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                                        : "bg-white/5 text-slate-400"
+                                    }`}
+                                  >
+                                    {inProgram && "✨ "}
+                                    {s.program.name}
+                                  </span>
+                                )}
+                                {s.classLevel && (
+                                  <span className="text-[10px] text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                                    {s.classLevel}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
-                          {alreadyEnrolled ? (
-                            <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                              Already Enrolled
-                            </span>
-                          ) : isSelected ? (
-                            <span className="text-[10px] font-semibold text-indigo-400">
-                              Selected
-                            </span>
-                          ) : null}
+                          <div className="flex items-center gap-2">
+                            {alreadyEnrolled ? (
+                              <span className="text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                Already Enrolled
+                              </span>
+                            ) : isSelected ? (
+                              <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/20 border border-indigo-500/40 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                                <HiOutlineCheck className="w-3 h-3" />
+                                Selected
+                              </span>
+                            ) : null}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 )}
               </div>
+            </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3">
+            {/* Modal Footer */}
+            <div className="p-5 border-t border-white/10 flex items-center justify-between bg-black/20">
+              <span className="text-xs text-slate-400">
+                {enrollSubjectIds.length} subject{enrollSubjectIds.length !== 1 ? "s" : ""} ready to enroll
+              </span>
+              <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setShowEnrollModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold cursor-pointer transition"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  disabled={enrollSubmitting || allSchoolSubjects.length === 0}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                  type="button"
+                  onClick={handleEnrollSubmit}
+                  disabled={enrollSubmitting || enrollSubjectIds.length === 0}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/30 disabled:opacity-50 flex items-center gap-2 cursor-pointer transition"
                 >
                   {enrollSubmitting ? (
                     <>
@@ -777,11 +1085,11 @@ export default function StudentSubjects() {
                       <span>Enrolling...</span>
                     </>
                   ) : (
-                    <span>Confirm & Enroll</span>
+                    <span>Confirm & Enroll ({enrollSubjectIds.length})</span>
                   )}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

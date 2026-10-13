@@ -2,6 +2,7 @@ import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { logout as adminLogout } from "@/features/auth/authSlice";
 import { logout as teacherLogout } from "@/features/teacherAuth/teacherAuthSlice";
 import { logout as studentLogout } from "@/features/students/studentsSlice";
+import { logoutParent } from "@/features/parentAuth/parentAuthSlice";
 import { clearAssignmentsState } from "@/features/assignments/assignmentsSlice";
 import { useLanguage } from "@/context/LanguageContext";
 import { useClickOutside } from "@/hooks/useClickOutside";
@@ -22,9 +23,41 @@ export default function UserDropdown() {
   const { admin } = useAppSelector((s) => s.auth);
   const { teacher } = useAppSelector((s) => s.teacherAuth);
   const { student, currentStudent } = useAppSelector((s) => s.students);
+  const { parent } = useAppSelector((s) => s.parentAuth);
 
-  const activeUser = admin || teacher || student || currentStudent;
-  const userRole = activeUser?.role || localStorage.getItem("userRole") || "admin";
+  const getStoredItem = (key: string) => {
+    try {
+      const item = localStorage.getItem(key);
+      return item && item !== "undefined" ? JSON.parse(item) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const pathRole = (window.location.pathname.startsWith("/parent/") || window.location.pathname === "/parent")
+    ? "parent"
+    : (window.location.pathname.startsWith("/student/") || window.location.pathname === "/student")
+    ? "student"
+    : (window.location.pathname.startsWith("/teacher/") || window.location.pathname === "/teacher")
+    ? "teacher"
+    : (window.location.pathname.startsWith("/admin/") || window.location.pathname === "/admin")
+    ? "admin"
+    : null;
+
+  const activeUser =
+    pathRole === "parent"
+      ? parent || getStoredItem("parent")
+      : pathRole === "student"
+      ? student || currentStudent || getStoredItem("student")
+      : pathRole === "teacher"
+      ? teacher || getStoredItem("teacher")
+      : admin || getStoredItem("admin") || parent || teacher || student || currentStudent;
+
+  const userRole =
+    pathRole ||
+    activeUser?.role ||
+    localStorage.getItem("userRole") ||
+    "admin";
 
   const { language: locale, setLanguage } = useLanguage();
   const currentLang = getLanguage(locale as Locale);
@@ -56,6 +89,7 @@ export default function UserDropdown() {
     dispatch(adminLogout());
     dispatch(teacherLogout());
     dispatch(studentLogout());
+    dispatch(logoutParent());
     dispatch(clearAssignmentsState());
     localStorage.clear();
 
@@ -63,6 +97,8 @@ export default function UserDropdown() {
       navigate("/student/login");
     } else if (roleToRedirect === "teacher") {
       navigate("/teacher/login");
+    } else if (roleToRedirect === "parent") {
+      navigate("/parent/login");
     } else {
       navigate("/admin/login");
     }

@@ -56,6 +56,15 @@ import TeacherReportCards from "./pages/Teachers/TeacherReportCards";
 import AdminReportCards from "./pages/Admin/AdminReportCards";
 import StudentReportCardView from "./pages/student/StudentReportCardView";
 import NotFound from "./pages/OtherPage/NotFound";
+import ParentLogin from "./pages/AuthPages/ParentLogin";
+import AdminFinanceDashboard from "./pages/Finance/AdminFinanceDashboard";
+import FeeStructureManagement from "./pages/Finance/FeeStructureManagement";
+import InvoiceManagement from "./pages/Finance/InvoiceManagement";
+import StudentInvoices from "./pages/Finance/StudentInvoices";
+import ParentInvoices from "./pages/Finance/ParentInvoices";
+import PaymentVerifyCallback from "./pages/Finance/PaymentVerifyCallback";
+import PaymentHistory from "./pages/Finance/PaymentHistory";
+import ParentsList from "./pages/Finance/ParentsList";
 import { Toaster } from "react-hot-toast";
 
 export default function App() {
@@ -72,6 +81,8 @@ export default function App() {
           <Route path="/admin/login" element={<SignIn />} />
           <Route path="/teacher/login" element={<TeacherLogin />} />
           <Route path="/student/login" element={<StudentLogin />} />
+          <Route path="/parent/login" element={<ParentLogin />} />
+          <Route path="/finance/payment-verify" element={<PaymentVerifyCallback />} />
           <Route path="/student/forgot-password" element={<StudentForgotPassword />} />
           <Route path="/student/reset-password" element={<StudentForgotPassword />} />
           <Route path="/student/reset-password/:token" element={<StudentForgotPassword />} />
@@ -115,7 +126,9 @@ export default function App() {
             }
           >
             <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="/admin/students" element={<StudentsList />} />
             <Route path="/teachers" element={<TeachersList />} />
+            <Route path="/admin/teachers" element={<TeachersList />} />
             <Route path="/academic/years" element={<AcademicYearsList />} />
             <Route path="/academic/terms" element={<AcademicTermsList />} />
             <Route path="/academic/class-levels" element={<ClassLevelsList />} />
@@ -132,6 +145,11 @@ export default function App() {
             <Route path="/academic/timetable" element={<TimetableManagement />} />
             <Route path="/admin/timetable" element={<TimetableManagement />} />
             <Route path="/admin/announcements" element={<AdminAnnouncements />} />
+            <Route path="/admin/finance" element={<AdminFinanceDashboard />} />
+            <Route path="/admin/finance/fee-structures" element={<FeeStructureManagement />} />
+            <Route path="/admin/finance/invoices" element={<InvoiceManagement />} />
+            <Route path="/admin/finance/transactions" element={<PaymentHistory />} />
+            <Route path="/admin/finance/parents" element={<ParentsList />} />
           </Route>
 
           {/* Teacher Protected Dashboard Routes */}
@@ -198,8 +216,21 @@ export default function App() {
             <Route path="/student/lesson-notes" element={<StudentLessonNotes />} />
             <Route path="/student/profile" element={<StudentProfile />} />
             <Route path="/profile" element={<StudentProfile />} />
-            <Route path="/academic/programs" element={<StudentProgram />} />
-            <Route path="/academic/subjects" element={<Navigate to="/student/subjects" replace />} />
+            <Route path="/student/invoices" element={<StudentInvoices />} />
+            <Route path="/student/payment-history" element={<PaymentHistory />} />
+          </Route>
+
+          {/* Parent Protected Dashboard Routes */}
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={["parent"]}>
+                <AppLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/parent/dashboard" element={<Navigate to="/parent/invoices" replace />} />
+            <Route path="/parent/invoices" element={<ParentInvoices />} />
+            <Route path="/parent/payment-history" element={<PaymentHistory />} />
           </Route>
 
           {/* Fallback */}

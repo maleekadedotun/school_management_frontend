@@ -12,6 +12,11 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
+const isParentPortalPath = (path: string) => path.startsWith("/parent/") || path === "/parent";
+const isTeacherPortalPath = (path: string) => path.startsWith("/teacher/") || path === "/teacher";
+const isStudentPortalPath = (path: string) => path.startsWith("/student/") || path === "/student";
+const isAdminPortalPath = (path: string) => path.startsWith("/admin/") || path === "/admin";
+
 // Inject token on every request
 api.interceptors.request.use((config) => {
   const currentPath = window.location.pathname;
@@ -20,9 +25,16 @@ api.interceptors.request.use((config) => {
 
   let token: string | null = null;
 
-  // 1. Explicit teacher context (URL endpoint or current route)
+  // 1. Explicit Parent context (portal route, parent API endpoints, or role)
   if (
-    currentPath.startsWith("/teacher") ||
+    isParentPortalPath(currentPath) ||
+    url.includes("/parents") ||
+    url.includes("/invoices/parent") ||
+    userRole === "parent"
+  ) {
+    token = localStorage.getItem("parentToken") || localStorage.getItem("token");
+  } else if (
+    isTeacherPortalPath(currentPath) ||
     url.includes("/teachers") ||
     url.includes("/students/teacher") ||
     url.includes("/exam-results/teacher") ||
@@ -31,16 +43,18 @@ api.interceptors.request.use((config) => {
   ) {
     token = localStorage.getItem("teacherToken") || localStorage.getItem("token");
   } else if (
-    currentPath.startsWith("/student") ||
+    isStudentPortalPath(currentPath) ||
     url.includes("/students/exams") ||
     url.includes("/students/profile") ||
     url.includes("/timetables/student") ||
     url.includes("/report-cards/student") ||
-    userRole === "student"
+    (userRole === "student" && !isAdminPortalPath(currentPath) && currentPath !== "/students")
   ) {
     token = localStorage.getItem("studentToken") || localStorage.getItem("token");
   } else if (
-    currentPath.startsWith("/admin") ||
+    isAdminPortalPath(currentPath) ||
+    currentPath === "/students" ||
+    currentPath === "/teachers" ||
     url.includes("/admin") ||
     userRole === "admin"
   ) {
@@ -48,8 +62,9 @@ api.interceptors.request.use((config) => {
   } else {
     token =
       localStorage.getItem("token") ||
-      localStorage.getItem("teacherToken") ||
-      localStorage.getItem("studentToken");
+      localStorage.getItem("parentToken") ||
+      localStorage.getItem("studentToken") ||
+      localStorage.getItem("teacherToken");
   }
 
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -64,14 +79,26 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isLoginEndpoint) {
       const userRole = localStorage.getItem("userRole");
       const currentPath = window.location.pathname;
+      const requestUrl = error.config?.url || "";
 
-      if (currentPath.startsWith("/student") || userRole === "student") {
+      // Safeguard: If user is on /parent portal, ignore 401 from mismatched background calls (e.g. /students/profile)
+      if (isParentPortalPath(currentPath) && (requestUrl.includes("/students") || requestUrl.includes("/teachers"))) {
+        return Promise.reject(error);
+      }
+
+      if (isParentPortalPath(currentPath) || (userRole === "parent" && !isAdminPortalPath(currentPath))) {
+        localStorage.removeItem("parentToken");
+        localStorage.removeItem("parent");
+        if (currentPath !== "/parent/login") {
+          window.location.href = "/parent/login";
+        }
+      } else if (isStudentPortalPath(currentPath) || (userRole === "student" && !isAdminPortalPath(currentPath) && currentPath !== "/students")) {
         localStorage.removeItem("studentToken");
         localStorage.removeItem("student");
         if (currentPath !== "/student/login") {
           window.location.href = "/student/login";
         }
-      } else if (currentPath.startsWith("/teacher") || userRole === "teacher") {
+      } else if (isTeacherPortalPath(currentPath) || (userRole === "teacher" && !isAdminPortalPath(currentPath) && currentPath !== "/teachers")) {
         localStorage.removeItem("teacherToken");
         localStorage.removeItem("teacher");
         if (currentPath !== "/teacher/login") {

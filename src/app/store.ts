@@ -20,11 +20,14 @@ import lessonNotesReducer from "../features/lessonNotes/lessonNotesSlice";
 import timetableReducer from "../features/timetable/timetableSlice";
 import announcementsReducer from "../features/announcements/announcementsSlice";
 import reportCardsReducer from "../features/reportCards/reportCardsSlice";
+import financeReducer from "../features/finance/financeSlice";
+import parentAuthReducer from "../features/parentAuth/parentAuthSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     teacherAuth: teacherAuthReducer,
+    parentAuth: parentAuthReducer,
     students: studentsReducer,
     teachers: teachersReducer,
     academicYears: academicYearsReducer,
@@ -44,6 +47,7 @@ export const store = configureStore({
     timetable: timetableReducer,
     announcements: announcementsReducer,
     reportCards: reportCardsReducer,
+    finance: financeReducer,
   },
 });
 

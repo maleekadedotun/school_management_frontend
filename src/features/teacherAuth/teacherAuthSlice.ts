@@ -59,6 +59,18 @@ export const fetchTeacherProfile = createAsyncThunk(
   }
 );
 
+export const fetchTeacherMySubjects = createAsyncThunk(
+  'teacherAuth/mySubjects',
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get('/teachers/my-subjects');
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch assigned subjects');
+    }
+  }
+);
+
 export const updateTeacherProfile = createAsyncThunk(
   'teacherAuth/updateProfile',
   async (payload: { name?: string; email?: string; password?: string }, { rejectWithValue }) => {
@@ -135,6 +147,8 @@ const teacherAuthSlice = createSlice({
         localStorage.removeItem('adminToken');
         localStorage.removeItem('student');
         localStorage.removeItem('studentToken');
+        localStorage.removeItem('parent');
+        localStorage.removeItem('parentToken');
 
         localStorage.setItem('teacherToken', action.payload.token);
         localStorage.setItem('token', action.payload.token);
@@ -151,6 +165,13 @@ const teacherAuthSlice = createSlice({
       .addCase(fetchTeacherProfile.fulfilled, (state, action) => {
         state.teacher = action.payload.data || action.payload;
         if (state.teacher) {
+          localStorage.setItem('teacher', JSON.stringify(state.teacher));
+        }
+      })
+      .addCase(fetchTeacherMySubjects.fulfilled, (state, action) => {
+        const subjects = action.payload.data || action.payload;
+        if (state.teacher && Array.isArray(subjects)) {
+          state.teacher = { ...state.teacher, subjects };
           localStorage.setItem('teacher', JSON.stringify(state.teacher));
         }
       })

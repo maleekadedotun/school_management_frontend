@@ -177,12 +177,61 @@ const adminNavGroups: NavGroup[] = [
     ],
   },
   {
+    title: "Finance & Bursary",
+    items: [
+      {
+        name: "Finance Overview",
+        icon: <GridIcon />,
+        path: "/admin/finance",
+      },
+      {
+        name: "Fee Structures",
+        icon: <TableIcon />,
+        path: "/admin/finance/fee-structures",
+      },
+      {
+        name: "Student Invoices",
+        icon: <FileIcon />,
+        path: "/admin/finance/invoices",
+      },
+      {
+        name: "Transactions Ledger",
+        icon: <TaskIcon />,
+        path: "/admin/finance/transactions",
+      },
+      {
+        name: "Parents Directory",
+        icon: <UserCircleIcon />,
+        path: "/admin/finance/parents",
+      },
+    ],
+  },
+  {
     title: "System & Settings",
     items: [
       {
         name: "Admin Profile",
         icon: <UserCircleIcon />,
         path: "/profile",
+      },
+    ],
+  },
+];
+
+// Parent Specific Sidebar Groups
+const parentNavGroups: NavGroup[] = [
+  {
+    title: "Parent Portal",
+    items: [
+      {
+        name: "Children Fees & Invoices",
+        icon: <GridIcon />,
+        path: "/parent/invoices",
+      },
+      {
+        name: "Transactions Ledger",
+        icon: <TaskIcon />,
+        path: "/admin/finance/transactions",
       },
     ],
   },
@@ -292,6 +341,7 @@ const AppSidebar: React.FC = () => {
   const authState = useAppSelector((state) => state.auth);
   const teacherState = useAppSelector((state) => state.teacherAuth);
   const studentState = useAppSelector((state) => state.students);
+  const parentState = useAppSelector((state) => state.parentAuth);
   const { enrolledSubjectsByClass, allEnrolledSubjects } = studentState;
 
   // Safely resolve active role
@@ -311,22 +361,40 @@ const AppSidebar: React.FC = () => {
     studentState.student ||
     studentState.currentStudent ||
     getUserFromStorage("student");
+  const parentObj = parentState?.parent || getUserFromStorage("parent");
 
-  const storedRole = localStorage.getItem("userRole") || localStorage.getItem("teacherRole") || localStorage.getItem("studentRole");
+  // Prioritize route-based role context
+  const pathRole = (location.pathname.startsWith("/parent/") || location.pathname === "/parent")
+    ? "parent"
+    : (location.pathname.startsWith("/student/") || location.pathname === "/student")
+    ? "student"
+    : (location.pathname.startsWith("/teacher/") || location.pathname === "/teacher")
+    ? "teacher"
+    : (location.pathname.startsWith("/admin/") || location.pathname === "/admin")
+    ? "admin"
+    : null;
+
+  const storedRole =
+    localStorage.getItem("userRole") ||
+    localStorage.getItem("teacherRole") ||
+    localStorage.getItem("studentRole");
+
   const userRole =
-    adminObj?.role ||
-    teacherObj?.role ||
-    studentObj?.role ||
+    pathRole ||
     storedRole ||
-    (adminObj ? "admin" : teacherObj ? "teacher" : studentObj ? "student" : "admin");
+    (parentObj ? "parent" : null) ||
+    (studentObj ? "student" : null) ||
+    (teacherObj ? "teacher" : null) ||
+    (adminObj ? "admin" : null) ||
+    "admin";
 
-  // Fetch enrolled subjects & student profile if logged-in user is a student
+  // Fetch enrolled subjects & student profile ONLY if logged-in user is a student AND currently in student portal
   useEffect(() => {
-    if (userRole === "student") {
+    if (userRole === "student" && (location.pathname.startsWith("/student/") || location.pathname === "/student")) {
       dispatch(fetchStudentEnrolledSubjects());
       dispatch(fetchStudentProfile());
     }
-  }, [userRole, dispatch]);
+  }, [userRole, location.pathname, dispatch]);
 
   // Construct dynamic student navigation groups arranged from 100L to Final
   const dynamicStudentNavGroups: NavGroup[] = useMemo(() => {
@@ -429,6 +497,16 @@ const AppSidebar: React.FC = () => {
         ],
       },
       {
+        title: "Fees & Bursary",
+        items: [
+          {
+            name: "My Invoices & Fees",
+            icon: <FileIcon />,
+            path: "/student/invoices",
+          },
+        ],
+      },
+      {
         title: "Account",
         items: [
           {
@@ -447,6 +525,8 @@ const AppSidebar: React.FC = () => {
       ? teacherNavGroups
       : userRole === "student"
       ? dynamicStudentNavGroups
+      : userRole === "parent"
+      ? parentNavGroups
       : adminNavGroups;
 
   const dashboardHomePath =
@@ -454,6 +534,8 @@ const AppSidebar: React.FC = () => {
       ? "/teacher/dashboard"
       : userRole === "student"
       ? "/student/dashboard"
+      : userRole === "parent"
+      ? "/parent/invoices"
       : "/admin/dashboard";
 
   const portalLabel =
@@ -461,6 +543,8 @@ const AppSidebar: React.FC = () => {
       ? "Teacher Portal"
       : userRole === "student"
       ? "Student Portal"
+      : userRole === "parent"
+      ? "Parent Portal"
       : "Admin Control";
 
   const [openSubmenu, setOpenSubmenu] = useState<{

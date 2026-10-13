@@ -74,9 +74,9 @@ export default function LandingPage() {
             <p className="text-slate-400 text-sm mt-2">Choose your role to log into your workspace</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-left max-w-7xl mx-auto">
             {/* Student Card */}
-            <div className="group relative bg-white/5 backdrop-blur-xl border border-indigo-500/20 hover:border-indigo-500/50 rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1.5 shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between">
+            <div className="group relative bg-white/5 backdrop-blur-xl border border-indigo-500/20 hover:border-indigo-500/50 rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1.5 shadow-xl hover:shadow-indigo-500/10 flex flex-col justify-between">
               <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl group-hover:bg-indigo-500/20 transition-all pointer-events-none" />
               
               <div>
@@ -89,7 +89,7 @@ export default function LandingPage() {
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">Student Portal</h3>
                 <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                  Access course materials, view exam schedules, check your grades, and track your academic progress in real time.
+                  Access course materials, pay fees online, view exam schedules, check your grades, and download report cards.
                 </p>
               </div>
 
@@ -104,8 +104,35 @@ export default function LandingPage() {
               </Link>
             </div>
 
+            {/* Parent Card */}
+            <div className="group relative bg-white/5 backdrop-blur-xl border border-purple-500/20 hover:border-purple-500/50 rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1.5 shadow-xl hover:shadow-purple-500/10 flex flex-col justify-between">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all pointer-events-none" />
+
+              <div>
+                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Parent Portal</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                  Track your children's billing, pay term school fees with Paystack, and print official bursary receipts.
+                </p>
+              </div>
+
+              <Link
+                to="/parent/login"
+                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>Parent Login</span>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </Link>
+            </div>
+
             {/* Teacher Card */}
-            <div className="group relative bg-white/5 backdrop-blur-xl border border-emerald-500/20 hover:border-emerald-500/50 rounded-3xl p-8 transition-all duration-300 hover:-translate-y-1.5 shadow-xl hover:shadow-emerald-500/10 flex flex-col justify-between">
+            <div className="group relative bg-white/5 backdrop-blur-xl border border-emerald-500/20 hover:border-emerald-500/50 rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1.5 shadow-xl hover:shadow-emerald-500/10 flex flex-col justify-between">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all pointer-events-none" />
 
               <div>

@@ -17,13 +17,49 @@ const AppHeader: React.FC = () => {
   const { admin } = useAppSelector((s) => s.auth);
   const { teacher } = useAppSelector((s) => s.teacherAuth);
   const { student, currentStudent } = useAppSelector((s) => s.students);
-  const activeUser = admin || teacher || student || currentStudent;
-  const userRole = activeUser?.role || localStorage.getItem("userRole") || "admin";
+  const { parent } = useAppSelector((s) => s.parentAuth);
+
+  const getStoredItem = (key: string) => {
+    try {
+      const item = localStorage.getItem(key);
+      return item && item !== "undefined" ? JSON.parse(item) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const pathRole = (window.location.pathname.startsWith("/parent/") || window.location.pathname === "/parent")
+    ? "parent"
+    : (window.location.pathname.startsWith("/student/") || window.location.pathname === "/student")
+    ? "student"
+    : (window.location.pathname.startsWith("/teacher/") || window.location.pathname === "/teacher")
+    ? "teacher"
+    : (window.location.pathname.startsWith("/admin/") || window.location.pathname === "/admin")
+    ? "admin"
+    : null;
+
+  const activeUser =
+    pathRole === "parent"
+      ? parent || getStoredItem("parent")
+      : pathRole === "student"
+      ? student || currentStudent || getStoredItem("student")
+      : pathRole === "teacher"
+      ? teacher || getStoredItem("teacher")
+      : admin || getStoredItem("admin") || parent || teacher || student || currentStudent;
+
+  const userRole =
+    pathRole ||
+    activeUser?.role ||
+    localStorage.getItem("userRole") ||
+    "admin";
+
   const homePath =
     userRole === "teacher"
       ? "/teacher/dashboard"
       : userRole === "student"
       ? "/student/dashboard"
+      : userRole === "parent"
+      ? "/parent/invoices"
       : "/admin/dashboard";
 
   const handleToggle = () => {

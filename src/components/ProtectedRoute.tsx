@@ -101,15 +101,18 @@ const ProtectedRoute = ({
   const authState = useAppSelector((state) => state.auth);
   const teacherState = useAppSelector((state) => state.teacherAuth);
   const studentState = useAppSelector((state) => state.students);
+  const parentState = useAppSelector((state) => state.parentAuth);
 
   // Active session resolution
   const adminObj = authState.admin || getUserFromStorage("admin");
   const teacherObj = teacherState.teacher || getUserFromStorage("teacher");
   const studentObj = studentState.student || studentState.currentStudent || getUserFromStorage("student");
+  const parentObj = parentState?.parent || getUserFromStorage("parent");
 
   const adminToken = authState.token || localStorage.getItem("token");
   const teacherToken = teacherState.token || localStorage.getItem("teacherToken");
   const studentToken = studentState.token || localStorage.getItem("studentToken");
+  const parentToken = parentState?.token || localStorage.getItem("parentToken");
 
   const storedUserRole = localStorage.getItem("userRole");
 
@@ -117,6 +120,7 @@ const ProtectedRoute = ({
   const hasTeacherSession = Boolean(teacherToken && teacherObj);
   const hasAdminSession = Boolean(adminToken && adminObj);
   const hasStudentSession = Boolean(studentToken && studentObj);
+  const hasParentSession = Boolean(parentToken && parentObj);
 
   let token: string | null = null;
   let user: User | null = null;
@@ -124,22 +128,28 @@ const ProtectedRoute = ({
 
   // 1. Check if route is specifically scoped to a single role
   if (allowedRoles.length === 1 && allowedRoles[0] === "teacher") {
-    if (hasTeacherSession || storedUserRole === "teacher") {
+    if (hasTeacherSession || storedUserRole === "teacher" || teacherToken) {
       token = teacherToken || localStorage.getItem("token");
       user = teacherObj || { role: "teacher" };
       userRole = "teacher";
     }
   } else if (allowedRoles.length === 1 && allowedRoles[0] === "admin") {
-    if (hasAdminSession || storedUserRole === "admin") {
+    if (hasAdminSession || storedUserRole === "admin" || adminToken) {
       token = adminToken || localStorage.getItem("token");
       user = adminObj || { role: "admin" };
       userRole = "admin";
     }
   } else if (allowedRoles.length === 1 && allowedRoles[0] === "student") {
-    if (hasStudentSession || storedUserRole === "student") {
+    if (hasStudentSession || storedUserRole === "student" || studentToken) {
       token = studentToken || localStorage.getItem("token");
       user = studentObj || { role: "student" };
       userRole = "student";
+    }
+  } else if (allowedRoles.length === 1 && allowedRoles[0] === "parent") {
+    if (hasParentSession || storedUserRole === "parent" || parentToken) {
+      token = parentToken || localStorage.getItem("parentToken");
+      user = parentObj || { role: "parent" };
+      userRole = "parent";
     }
   }
 
@@ -153,10 +163,18 @@ const ProtectedRoute = ({
       token = studentToken || localStorage.getItem("token");
       user = studentObj || { role: "student" };
       userRole = "student";
+    } else if (storedUserRole === "parent" && (hasParentSession || parentToken)) {
+      token = parentToken || localStorage.getItem("parentToken");
+      user = parentObj || { role: "parent" };
+      userRole = "parent";
     } else if (storedUserRole === "admin" && (hasAdminSession || adminToken)) {
       token = adminToken || localStorage.getItem("token");
       user = adminObj || { role: "admin" };
       userRole = "admin";
+    } else if (hasParentSession && allowedRoles.includes("parent")) {
+      token = parentToken;
+      user = parentObj;
+      userRole = "parent";
     } else if (hasTeacherSession && allowedRoles.includes("teacher")) {
       token = teacherToken;
       user = teacherObj;
@@ -169,6 +187,10 @@ const ProtectedRoute = ({
       token = studentToken;
       user = studentObj;
       userRole = "student";
+    } else if (hasParentSession) {
+      token = parentToken;
+      user = parentObj;
+      userRole = "parent";
     } else if (hasTeacherSession) {
       token = teacherToken;
       user = teacherObj;
@@ -188,7 +210,17 @@ const ProtectedRoute = ({
    * NOT AUTHENTICATED
    */
   if (!token || !user) {
-    if (allowedRoles.includes("student")) {
+    if (allowedRoles.includes("parent") || location.pathname.startsWith("/parent/") || location.pathname === "/parent") {
+      return (
+        <Navigate
+          to="/parent/login"
+          state={{ from: location }}
+          replace
+        />
+      );
+    }
+
+    if (allowedRoles.includes("student") || location.pathname.startsWith("/student/") || location.pathname === "/student") {
       return (
         <Navigate
           to="/student/login"
@@ -198,7 +230,7 @@ const ProtectedRoute = ({
       );
     }
 
-    if (allowedRoles.includes("teacher")) {
+    if (allowedRoles.includes("teacher") || location.pathname.startsWith("/teacher/") || location.pathname === "/teacher") {
       return (
         <Navigate
           to="/teacher/login"
@@ -234,6 +266,10 @@ const ProtectedRoute = ({
 
     if (userRole === "student") {
       return <Navigate to="/student/dashboard" replace />;
+    }
+
+    if (userRole === "parent") {
+      return <Navigate to="/parent/invoices" replace />;
     }
 
     return <Navigate to="/" replace />;

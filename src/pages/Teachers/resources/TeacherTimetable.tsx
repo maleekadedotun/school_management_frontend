@@ -1,30 +1,20 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "../../../app/hooks";
-import {
-  fetchTeacherSchedule,
-  createTimetableSlot,
-  updateTimetableSlot,
-  deleteTimetableSlot,
-} from "../../../features/timetable/timetableSlice";
-import type { TimetableSlot } from "../../../features/timetable/timetableSlice";
+import { fetchTeacherSchedule } from "../../../features/timetable/timetableSlice";
 import { fetchPrograms } from "../../../features/programs/programsSlice";
 import { fetchSubjects } from "../../../features/subjects/subjectsSlice";
 import {
   FiClock,
-  FiPlus,
-  FiEdit2,
-  FiTrash2,
   FiMapPin,
   FiLayers,
   FiCalendar,
   FiPrinter,
-  FiX,
   FiCheckCircle,
   FiUser,
   FiStar,
   FiGrid,
+  FiLock,
 } from "react-icons/fi";
-import toast from "react-hot-toast";
 
 export const ALL_DAYS = [
   "Monday",
@@ -51,9 +41,7 @@ const PERIOD_TIMES = [
 export default function TeacherTimetable() {
   const dispatch = useAppDispatch();
   const teacher = useAppSelector((state) => state.teacherAuth.teacher);
-  const { teacherSchedule, actionLoading } = useAppSelector((state) => state.timetable);
-  const { items: programs } = useAppSelector((state) => state.programs);
-  const { items: subjects } = useAppSelector((state) => state.subjects);
+  const { teacherSchedule } = useAppSelector((state) => state.timetable);
 
   // Selected class filter for viewing full class schedule
   const [selectedClass, setSelectedClass] = useState<string>("All Classes");
@@ -63,10 +51,6 @@ export default function TeacherTimetable() {
 
   // Mobile active day tab
   const [activeMobileDay, setActiveMobileDay] = useState<DayType>("Monday");
-
-  // Modal State for Add / Edit slot
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
 
   // Initial load
   useEffect(() => {
@@ -82,7 +66,6 @@ export default function TeacherTimetable() {
   // Sync selectedClass with backend's returned default if needed
   useEffect(() => {
     if ((!selectedClass || selectedClass === "All Classes") && teacherSchedule?.selectedClass) {
-      // Keep "All Classes" or sync if backend specific
       if (teacherSchedule.selectedClass !== "All Classes") {
         setSelectedClass(teacherSchedule.selectedClass);
       }
@@ -121,111 +104,6 @@ export default function TeacherTimetable() {
     return classTimetableSlots;
   }, [displayMode, myTeachingSlots, classTimetableSlots]);
 
-  // Form data for slot modal
-  const initialForm = {
-    program: programs[0]?._id || "",
-    classLevel: (selectedClass !== "All Classes" ? selectedClass : "") || (typeof teacher?.classLevel === "object" ? (teacher?.classLevel as any)?.name : teacher?.classLevel) || "jss 1",
-    subject: typeof teacher?.subject === "object" ? (teacher?.subject as any)?._id || "" : "",
-    teacher: teacher?._id || "",
-    day: "Monday" as DayType,
-    periodNumber: 1,
-    startTime: "08:00 AM",
-    endTime: "08:45 AM",
-    room: "Room 102",
-    notes: "",
-  };
-
-  const [formData, setFormData] = useState(initialForm);
-
-  const handleOpenAdd = (day?: DayType, period?: number) => {
-    setEditingSlotId(null);
-    const targetPeriod = period || 1;
-    const matched = PERIOD_TIMES.find((p) => p.period === targetPeriod);
-    setFormData({
-      ...initialForm,
-      program: programs[0]?._id || "",
-      classLevel: (selectedClass !== "All Classes" ? selectedClass : "") || initialForm.classLevel,
-      day: day || activeMobileDay,
-      periodNumber: targetPeriod,
-      startTime: matched?.start || "08:00 AM",
-      endTime: matched?.end || "08:45 AM",
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleOpenEdit = (slot: TimetableSlot) => {
-    setEditingSlotId(slot._id);
-    setFormData({
-      program: slot.program?._id || slot.program || programs[0]?._id || "",
-      classLevel: slot.classLevel,
-      subject: slot.subject?._id || slot.subject || "",
-      teacher: slot.teacher?._id || slot.teacher || teacher?._id || "",
-      day: slot.day as any,
-      periodNumber: slot.periodNumber,
-      startTime: slot.startTime,
-      endTime: slot.endTime,
-      room: slot.room,
-      notes: slot.notes || "",
-    });
-    setIsModalOpen(true);
-  };
-
-  const handlePeriodChange = (periodNum: number) => {
-    const matched = PERIOD_TIMES.find((p) => p.period === periodNum);
-    setFormData((prev) => ({
-      ...prev,
-      periodNumber: periodNum,
-      ...(matched ? { startTime: matched.start, endTime: matched.end } : {}),
-    }));
-  };
-
-  const handleSaveSlot = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.subject || !formData.classLevel) {
-      toast.error("Subject and Class Level are required");
-      return;
-    }
-
-    try {
-      if (editingSlotId) {
-        await dispatch(
-          updateTimetableSlot({
-            id: editingSlotId,
-            data: formData,
-          })
-        ).unwrap();
-        toast.success("Period updated successfully");
-      } else {
-        await dispatch(createTimetableSlot(formData)).unwrap();
-        toast.success("New class period scheduled");
-      }
-      setIsModalOpen(false);
-      const classParam =
-        selectedClass && selectedClass !== "All Classes"
-          ? { classLevel: selectedClass }
-          : { classLevel: "All" };
-      dispatch(fetchTeacherSchedule(classParam));
-    } catch (err: any) {
-      toast.error(err || "Schedule conflict or save failure");
-    }
-  };
-
-  const handleDeleteSlot = async (id: string) => {
-    if (window.confirm("Remove this period from the timetable?")) {
-      try {
-        await dispatch(deleteTimetableSlot(id)).unwrap();
-        toast.success("Period removed");
-        const classParam =
-          selectedClass && selectedClass !== "All Classes"
-            ? { classLevel: selectedClass }
-            : { classLevel: "All" };
-        dispatch(fetchTeacherSchedule(classParam));
-      } catch (err: any) {
-        toast.error(err || "Failed to remove period");
-      }
-    }
-  };
-
   // Stats calculation
   const totalMyWeeklyPeriods = myTeachingSlots.length;
   const distinctClassesTaught = useMemo(() => {
@@ -253,6 +131,12 @@ export default function TeacherTimetable() {
         </div>
 
         <div className="flex items-center gap-3 self-start sm:self-auto">
+          {/* Read-only Admin indicator */}
+          <span className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/80 border border-slate-700/60 text-slate-300 text-xs font-semibold">
+            <FiLock className="w-3.5 h-3.5 text-amber-400" />
+            <span>Admin-Managed Schedule</span>
+          </span>
+
           <button
             type="button"
             onClick={() => window.print()}
@@ -260,15 +144,6 @@ export default function TeacherTimetable() {
           >
             <FiPrinter className="w-4 h-4" />
             <span className="hidden sm:inline">Print Timetable</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleOpenAdd()}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold shadow-md shadow-indigo-600/30 active:scale-95 transition cursor-pointer"
-          >
-            <FiPlus className="w-4 h-4" />
-            <span>Add Class Period</span>
           </button>
         </div>
       </div>
@@ -420,13 +295,6 @@ export default function TeacherTimetable() {
           {activeSlots.filter((s) => s.day === activeMobileDay).length === 0 ? (
             <div className="p-8 text-center bg-[#0e1628] border border-slate-800 rounded-2xl text-slate-400 text-xs">
               No classes scheduled on {activeMobileDay}.
-              <button
-                type="button"
-                onClick={() => handleOpenAdd(activeMobileDay)}
-                className="mt-3 block mx-auto text-indigo-400 hover:underline font-semibold"
-              >
-                + Add a period on {activeMobileDay}
-              </button>
             </div>
           ) : (
             activeSlots
@@ -484,25 +352,6 @@ export default function TeacherTimetable() {
                       {slot.notes && (
                         <p className="text-[11px] text-slate-400 italic pt-1">{slot.notes}</p>
                       )}
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(slot)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
-                        title="Edit Period"
-                      >
-                        <FiEdit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSlot(slot._id)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition"
-                        title="Delete Period"
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
                 );
@@ -571,14 +420,14 @@ export default function TeacherTimetable() {
                         return (
                           <td
                             key={day}
-                            className="py-2.5 px-3 border-r border-slate-800 last:border-r-0 align-top relative group min-w-[170px]"
+                            className="py-2.5 px-3 border-r border-slate-800 last:border-r-0 align-top relative min-w-[170px]"
                           >
                             {slot ? (
                               <div
-                                className={`p-3 rounded-2xl shadow-xs transition-all space-y-1 relative group/card ${
+                                className={`p-3 rounded-2xl shadow-xs transition-all space-y-1 relative ${
                                   isMyClass
                                     ? "bg-amber-500/10 border-2 border-amber-500/80 text-white"
-                                    : "bg-slate-900/90 border border-slate-700/60 hover:border-indigo-500/50"
+                                    : "bg-slate-900/90 border border-slate-700/60"
                                 }`}
                               >
                                 <div className="flex items-center justify-between">
@@ -615,36 +464,13 @@ export default function TeacherTimetable() {
                                     {slot.notes}
                                   </div>
                                 )}
-
-                                {/* Action overlay */}
-                                <div className="absolute top-1 right-1 hidden group-hover/card:flex items-center gap-0.5 bg-slate-950/90 rounded-lg p-0.5 border border-slate-700">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenEdit(slot)}
-                                    className="p-1 rounded text-slate-400 hover:text-white"
-                                    title="Edit"
-                                  >
-                                    <FiEdit2 className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteSlot(slot._id)}
-                                    className="p-1 rounded text-slate-400 hover:text-rose-400"
-                                    title="Delete"
-                                  >
-                                    <FiTrash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
                               </div>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAdd(day, period)}
-                                className="w-full h-full min-h-[64px] rounded-xl border border-dashed border-slate-800 hover:border-slate-600 hover:bg-slate-800/20 transition flex items-center justify-center text-slate-600 hover:text-slate-300 text-xs"
-                                title={`Add period on ${day} Period ${period}`}
+                              <div
+                                className="w-full h-full min-h-[56px] rounded-xl border border-dashed border-slate-800/60 flex items-center justify-center text-slate-700 text-xs select-none"
                               >
-                                <FiPlus className="w-4 h-4 opacity-50 hover:opacity-100" />
-                              </button>
+                                <span>—</span>
+                              </div>
                             )}
                           </td>
                         );
@@ -657,130 +483,6 @@ export default function TeacherTimetable() {
           </table>
         </div>
       </div>
-
-      {/* Add / Edit Period Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-[#0f172a] border border-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-4 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-lg font-bold text-white">
-                {editingSlotId ? "Edit Class Period" : "Schedule Class Period"}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-white"
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSlot} className="space-y-4 text-xs sm:text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Day</label>
-                  <select
-                    value={formData.day}
-                    onChange={(e) => setFormData({ ...formData, day: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:border-indigo-500 outline-none text-xs"
-                  >
-                    {ALL_DAYS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Period</label>
-                  <select
-                    value={formData.periodNumber}
-                    onChange={(e) => handlePeriodChange(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:border-indigo-500 outline-none text-xs"
-                  >
-                    {PERIOD_TIMES.map((p) => (
-                      <option key={p.period} value={p.period}>
-                        Period {p.period} ({p.label.split(" - ")[0]})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Subject</label>
-                <select
-                  required
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:border-indigo-500 outline-none text-xs"
-                >
-                  <option value="" disabled>Select Subject</option>
-                  {subjects.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Class / Stream</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.classLevel}
-                    onChange={(e) => setFormData({ ...formData, classLevel: e.target.value })}
-                    placeholder="e.g. JSS 2A"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:border-indigo-500 outline-none text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">Room</label>
-                  <input
-                    type="text"
-                    value={formData.room}
-                    onChange={(e) => setFormData({ ...formData, room: e.target.value })}
-                    placeholder="e.g. Room 102"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:border-indigo-500 outline-none text-xs"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">Lesson Focus / Notes</label>
-                <input
-                  type="text"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="e.g. Weekly Quiz & Review"
-                  className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-900 text-white focus:border-indigo-500 outline-none text-xs"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold shadow-md shadow-indigo-600/30 active:scale-95 transition"
-                >
-                  {actionLoading ? "Saving..." : editingSlotId ? "Update Period" : "Schedule Period"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
