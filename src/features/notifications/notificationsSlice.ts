@@ -3,15 +3,15 @@ import api from "../../services/api";
 
 export interface NotificationItem {
   _id: string;
-  recipient: string;
+  recipient: any;
   recipientModel?: string;
-  recipientRole: "admin" | "teacher" | "student";
+  recipientRole: "admin" | "teacher" | "student" | "parent";
   sender?: string;
   senderModel?: string;
   senderName?: string;
   title: string;
   message: string;
-  type: "weekly_report_submitted" | "weekly_report_read" | "exam_result" | "general";
+  type: "weekly_report_submitted" | "weekly_report_read" | "exam_result" | "assignment" | "general";
   relatedId?: string;
   link?: string;
   isRead: boolean;

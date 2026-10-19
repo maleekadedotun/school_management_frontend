@@ -44,9 +44,45 @@ export interface AssignmentItem {
   submissions?: any[];
   mySubmission?: AssignmentSubmissionItem | null;
   hasSubmitted?: boolean;
-  submissionStatus?: "pending" | "submitted" | "graded" | "late";
+  submissionStatus?: "pending" | "submitted" | "graded" | "late" | "overdue";
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ParentAssignmentsData {
+  children: {
+    _id: string;
+    name: string;
+    StudentId: string;
+    currentClassLevel: string;
+  }[];
+  activeChild: {
+    _id: string;
+    name: string;
+    StudentId: string;
+    currentClassLevel: string;
+  } | null;
+  assignments: (AssignmentItem & {
+    child: {
+      _id: string;
+      name: string;
+      StudentId: string;
+      currentClassLevel: string;
+    };
+    submission: AssignmentSubmissionItem | null;
+    hasSubmitted: boolean;
+    submissionStatus: "pending" | "submitted" | "graded" | "late" | "overdue";
+    isReadOnly?: boolean;
+    canSubmit?: boolean;
+  })[];
+  stats: {
+    total: number;
+    pending: number;
+    submitted: number;
+    graded: number;
+    late: number;
+    averageScore: number;
+  };
 }
 
 interface AssignmentsState {
@@ -55,6 +91,7 @@ interface AssignmentsState {
   currentAssignment: AssignmentItem | null;
   submissions: AssignmentSubmissionItem[];
   studentSubmissions: AssignmentSubmissionItem[];
+  parentData: ParentAssignmentsData | null;
   loading: boolean;
   actionLoading: boolean;
   error: string | null;
@@ -67,6 +104,7 @@ const initialState: AssignmentsState = {
   currentAssignment: null,
   submissions: [],
   studentSubmissions: [],
+  parentData: null,
   loading: false,
   actionLoading: false,
   error: null,
@@ -105,6 +143,20 @@ export const fetchStudentAssignments = createAsyncThunk(
       return data;
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || "Failed to fetch student assignments");
+    }
+  }
+);
+
+export const fetchParentChildrenAssignments = createAsyncThunk(
+  "assignments/fetchParentChildren",
+  async (params: Record<string, any> | undefined, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get("/assignments/parent/children-assignments", { params });
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || "Failed to fetch student assignments for parent"
+      );
     }
   }
 );
@@ -468,6 +520,21 @@ const assignmentsSlice = createSlice({
         state.studentSubmissions = action.payload.data || [];
       })
       .addCase(fetchStudentSubmissions.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
+
+    // Fetch parent children assignments
+    builder
+      .addCase(fetchParentChildrenAssignments.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchParentChildrenAssignments.fulfilled, (state, action) => {
+        state.loading = false;
+        state.parentData = action.payload.data || null;
+      })
+      .addCase(fetchParentChildrenAssignments.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

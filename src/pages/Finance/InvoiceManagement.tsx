@@ -261,13 +261,13 @@ export default function InvoiceManagement() {
                       {inv.classLevel}
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-gray-900 dark:text-white">
-                      ₦{(inv.totalAmount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ₦{(((inv.totalAmount ?? inv.totalAmountDue ?? inv.subtotal ?? 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-3.5 px-4 text-emerald-600 dark:text-emerald-400 font-semibold">
-                      ₦{(inv.amountPaid / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ₦{(((inv.amountPaid || 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-3.5 px-4 text-rose-600 dark:text-rose-400 font-bold">
-                      ₦{(inv.balanceAmount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      ₦{(((inv.balanceAmount ?? inv.balanceDue ?? 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-3.5 px-4 text-xs text-gray-500">
                       {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "—"}

@@ -59,7 +59,7 @@ const AppHeader: React.FC = () => {
       : userRole === "student"
       ? "/student/dashboard"
       : userRole === "parent"
-      ? "/parent/invoices"
+      ? "/parent/dashboard"
       : "/admin/dashboard";
 
   const handleToggle = () => {

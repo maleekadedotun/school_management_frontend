@@ -25,7 +25,7 @@ export default function StudentsList() {
     storedRole === "teacher" ||
     (!authState.admin && !!localStorage.getItem("teacherToken"));
 
-  const { students, teacherClassStudents, teacherClassLevel, loading, error } = useAppSelector((s) => s.students);
+  const { students, teacherClassStudents, teacherClassLevel, teacherProgram, loading, error } = useAppSelector((s) => s.students);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -180,11 +180,7 @@ export default function StudentsList() {
     if (coreMath) coreMap.set(coreMath._id || coreMath.name, coreMath);
     if (coreEnglish) coreMap.set(coreEnglish._id || coreEnglish.name, coreEnglish);
 
-    // Also include program subjects (curriculum core for this program)
-    const progBase = programClassSubjects.length > 0 ? programClassSubjects : allProgramSubjects;
-    progBase.forEach((s: any) => {
-      coreMap.set(s._id || s.name, s);
-    });
+    // Only compulsory subjects (Mathematics & English, plus explicit isCore) belong in coreSubjects
 
     // Also include any subjects explicitly flagged as isCore in database
     allSubjects.filter((s: any) => s.isCore).forEach((s: any) => {
@@ -634,8 +630,18 @@ export default function StudentsList() {
         }
       }
 
-      // 2. If teacher has a subject specified, student MUST be offering this teacher's subject alone
-      if (teacherSubject) {
+      // 2. If teacher has a program specified (via class teacher assignment or profile), student MUST belong to this program!
+      const targetProg = (teacherProgram || (currentTeacher?.program?.name || currentTeacher?.program) || "").toString().trim().toLowerCase();
+      if (targetProg) {
+        const progObj = typeof s.program === "object" && s.program !== null ? (s.program as any) : null;
+        const studentProgName = (progObj?.name || (typeof s.program === "string" ? s.program : "")).toString().trim().toLowerCase();
+        if (studentProgName && !studentProgName.includes(targetProg) && !targetProg.includes(studentProgName)) {
+          return false;
+        }
+      }
+
+      // 3. If teacher is NOT assigned to a program, restrict to teacher's subject
+      if (teacherSubject && !targetProg) {
         const studentSub = (s.subject || "").toString().trim().toLowerCase();
         const matchesDirectSub =
           studentSub === teacherSubject ||
@@ -662,7 +668,7 @@ export default function StudentsList() {
 
       return true;
     });
-  }, [isTeacher, students, teacherClassStudents, targetClassLevel, teacherSubject]);
+  }, [isTeacher, students, teacherClassStudents, targetClassLevel, teacherSubject, teacherProgram, currentTeacher]);
 
   const rawList: Student[] = teacherScopedList;
 
@@ -684,8 +690,20 @@ export default function StudentsList() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanClass = (form.classLevels || "").trim();
+    if (!cleanClass) {
+      alert("Please select a class level before registering the student.");
+      return;
+    }
     setSubmitting(true);
-    await dispatch(registerStudent({ ...form, classLevels: [form.classLevels] }));
+    await dispatch(
+      registerStudent({
+        ...form,
+        classLevels: [cleanClass],
+        currentClassLevel: cleanClass,
+        classLevel: cleanClass,
+      })
+    );
     await dispatch(fetchAllStudents());
     if (isTeacher) {
       await dispatch(fetchTeacherClassStudents());
@@ -1386,19 +1404,7 @@ export default function StudentsList() {
                     value={editForm.classLevels}
                     onChange={(e) => {
                       const newClass = e.target.value;
-                      if (editForm.program) {
-                        const { programClassSubjects } = categorizeStudentSubjects(
-                          editForm.program,
-                          newClass,
-                          programs,
-                          subjects
-                        );
-                        const newNames = programClassSubjects.map((s: any) => s.name || s);
-                        const combined = Array.from(new Set([...editForm.subjects, ...newNames]));
-                        setEditForm({ ...editForm, classLevels: newClass, subjects: combined });
-                      } else {
-                        setEditForm({ ...editForm, classLevels: newClass });
-                      }
+                      setEditForm({ ...editForm, classLevels: newClass });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-[#0f1629] border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500"
                   >
@@ -1437,15 +1443,14 @@ export default function StudentsList() {
                     value={editForm.program}
                     onChange={(e) => {
                       const newProg = e.target.value;
-                      const { coreSubjects, programClassSubjects, allProgramSubjects } = categorizeStudentSubjects(
+                      const { coreSubjects } = categorizeStudentSubjects(
                         newProg,
                         editForm.classLevels,
                         programs,
                         subjects
                       );
-                      const toSelect = coreSubjects.length > 0 ? coreSubjects : (programClassSubjects.length > 0 ? programClassSubjects : allProgramSubjects);
-                      const newNames = toSelect.map((s: any) => s.name || s);
-                      const combined = Array.from(new Set([...editForm.subjects, ...newNames]));
+                      const compulsoryNames = coreSubjects.map((s: any) => s.name || s);
+                      const combined = Array.from(new Set([...editForm.subjects, ...compulsoryNames]));
                       setEditForm({
                         ...editForm,
                         program: newProg,
@@ -1602,20 +1607,18 @@ export default function StudentsList() {
                     value={form.program}
                     onChange={(e) => {
                       const newProg = e.target.value;
-                      const { coreSubjects, programClassSubjects, allProgramSubjects } = categorizeStudentSubjects(
+                      const { coreSubjects } = categorizeStudentSubjects(
                         newProg,
                         form.classLevels,
                         programs,
                         subjects
                       );
-                      const toAdd = coreSubjects.length > 0 ? coreSubjects : (programClassSubjects.length > 0 ? programClassSubjects : allProgramSubjects);
-                      const newNames = toAdd.map((s: any) => s.name || s);
-                      const combined = Array.from(new Set([...form.subjects, ...newNames]));
+                      const compulsoryNames = coreSubjects.map((s: any) => s.name || s);
                       setForm({
                         ...form,
                         program: newProg,
-                        subjects: combined,
-                        subject: combined[0] || form.subject,
+                        subjects: compulsoryNames,
+                        subject: compulsoryNames[0] || "",
                       });
                     }}
                     className="w-full px-3 py-2.5 rounded-xl bg-[#0f1629] border border-white/10 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
@@ -1629,34 +1632,38 @@ export default function StudentsList() {
                   </select>
                   {form.program && (
                     <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-                      <span>✨ Subjects for this program & class are automatically selected below.</span>
+                      <span>✨ Compulsory subjects (Mathematics & English) are automatically selected below.</span>
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Class Level</label>
+                  <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                    Class Level <span className="text-rose-400">*</span>
+                  </label>
                   <select
                     id="student-classLevel"
+                    required
                     value={form.classLevels}
                     onChange={(e) => {
                       const newClass = e.target.value;
-                      if (form.program) {
-                        const { programClassSubjects } = categorizeStudentSubjects(
-                          form.program,
-                          newClass,
-                          programs,
-                          subjects
-                        );
-                        const newNames = programClassSubjects.map((s: any) => s.name || s);
-                        const combined = Array.from(new Set([...form.subjects, ...newNames]));
-                        setForm({ ...form, classLevels: newClass, subjects: combined });
-                      } else {
-                        setForm({ ...form, classLevels: newClass });
-                      }
+                      const { coreSubjects } = categorizeStudentSubjects(
+                        form.program,
+                        newClass,
+                        programs,
+                        subjects
+                      );
+                      const compulsoryNames = coreSubjects.map((s: any) => s.name || s);
+                      setForm({
+                        ...form,
+                        classLevels: newClass,
+                        subjects: compulsoryNames.length > 0 ? compulsoryNames : form.subjects,
+                        subject: compulsoryNames[0] || form.subject,
+                      });
                     }}
                     className="w-full px-3 py-2.5 rounded-xl bg-[#0f1629] border border-white/10 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
                   >
+                    <option value="">Select Class Level...</option>
                     {classLevels.length > 0 ? (
                       classLevels.map((l: any) => (
                         <option key={l._id || l.name} value={l.name}>

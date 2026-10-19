@@ -53,14 +53,53 @@ export interface AttendanceStats {
   }>;
 }
 
+export interface AttendanceStudentSummary {
+  student: any;
+  summary: {
+    totalSessions: number;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    excusedCount: number;
+    attendanceRate: number;
+  };
+  presentDays: any[];
+  absentDays: any[];
+  lateDays: any[];
+  excusedDays: any[];
+  allRecords: any[];
+}
+
+export interface AttendanceParentData {
+  children: any[];
+  activeChild: any;
+  summary: {
+    totalSessions: number;
+    presentCount: number;
+    absentCount: number;
+    lateCount: number;
+    excusedCount: number;
+    attendanceRate: number;
+  };
+  presentDays: any[];
+  absentDays: any[];
+  lateDays: any[];
+  excusedDays: any[];
+  allRecords: any[];
+}
+
 interface AttendanceState {
   currentSession: AttendanceDoc | null;
   history: AttendanceDoc[];
   stats: AttendanceStats | null;
+  studentSummary: AttendanceStudentSummary | null;
+  parentAttendanceData: AttendanceParentData | null;
   loading: boolean;
   submitting: boolean;
   historyLoading: boolean;
   statsLoading: boolean;
+  studentSummaryLoading: boolean;
+  parentDataLoading: boolean;
   error: string | null;
   submitSuccess: boolean;
   submitMessage: string | null;
@@ -70,10 +109,14 @@ const initialState: AttendanceState = {
   currentSession: null,
   history: [],
   stats: null,
+  studentSummary: null,
+  parentAttendanceData: null,
   loading: false,
   submitting: false,
   historyLoading: false,
   statsLoading: false,
+  studentSummaryLoading: false,
+  parentDataLoading: false,
   error: null,
   submitSuccess: false,
   submitMessage: null,
@@ -173,6 +216,40 @@ export const deleteAttendance = createAsyncThunk(
   }
 );
 
+// Fetch Student's Personal Attendance Summary (Read-Only)
+export const fetchStudentAttendanceSummary = createAsyncThunk(
+  "attendance/fetchStudentSummary",
+  async (studentId: string | void, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get("/attendance/student/my-attendance", {
+        params: studentId ? { studentId } : {},
+      });
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to fetch student attendance summary"
+      );
+    }
+  }
+);
+
+// Fetch Parent's Child Attendance Summary (Read-Only)
+export const fetchParentChildAttendanceSummary = createAsyncThunk(
+  "attendance/fetchParentChildSummary",
+  async (studentId: string | void, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get("/attendance/parent/child-attendance", {
+        params: studentId ? { studentId } : {},
+      });
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to fetch child attendance summary"
+      );
+    }
+  }
+);
+
 const attendanceSlice = createSlice({
   name: "attendance",
   initialState,
@@ -256,6 +333,36 @@ const attendanceSlice = createSlice({
         state.currentSession = null;
       }
     });
+
+    // Student Attendance Summary
+    builder
+      .addCase(fetchStudentAttendanceSummary.pending, (state) => {
+        state.studentSummaryLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchStudentAttendanceSummary.fulfilled, (state, action) => {
+        state.studentSummaryLoading = false;
+        state.studentSummary = action.payload.data || null;
+      })
+      .addCase(fetchStudentAttendanceSummary.rejected, (state, action) => {
+        state.studentSummaryLoading = false;
+        state.error = action.payload as string;
+      });
+
+    // Parent Child Attendance Summary
+    builder
+      .addCase(fetchParentChildAttendanceSummary.pending, (state) => {
+        state.parentDataLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchParentChildAttendanceSummary.fulfilled, (state, action) => {
+        state.parentDataLoading = false;
+        state.parentAttendanceData = action.payload.data || null;
+      })
+      .addCase(fetchParentChildAttendanceSummary.rejected, (state, action) => {
+        state.parentDataLoading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 

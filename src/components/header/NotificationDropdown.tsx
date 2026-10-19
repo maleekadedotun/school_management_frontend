@@ -14,6 +14,7 @@ import {
   HiOutlineCheckCircle,
   HiOutlineEye,
   HiOutlineXMark,
+  HiOutlineClipboardDocumentList,
 } from "react-icons/hi2";
 
 export default function NotificationDropdown() {
@@ -51,7 +52,31 @@ export default function NotificationDropdown() {
     }
     closeDropdown();
     if (notif.link) {
-      navigate(notif.link);
+      const isParent =
+        window.location.pathname.startsWith("/parent") ||
+        localStorage.getItem("userRole") === "parent";
+      if (isParent) {
+        if (notif.type === "assignment" || notif.link.includes("/assignments")) {
+          navigate("/parent/assignments");
+        } else if (
+          notif.type === "exam_result" ||
+          notif.link.includes("/exam-result") ||
+          notif.link.includes("/exams") ||
+          notif.link.includes("/results")
+        ) {
+          navigate("/parent/results");
+        } else if (notif.link.includes("/report-card")) {
+          navigate("/parent/report-card");
+        } else if (notif.link.includes("/attendance")) {
+          navigate("/parent/attendance");
+        } else if (notif.link.includes("/invoice") || notif.link.includes("/fee")) {
+          navigate("/parent/invoices");
+        } else {
+          navigate(notif.link);
+        }
+      } else {
+        navigate(notif.link);
+      }
     }
   };
 
@@ -156,6 +181,9 @@ export default function NotificationDropdown() {
               } else if (notif.type === "exam_result") {
                 iconBg = "bg-violet-50 dark:bg-violet-950/60 text-violet-600 dark:text-violet-400";
                 IconComp = HiOutlineCheckCircle;
+              } else if (notif.type === "assignment") {
+                iconBg = "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400";
+                IconComp = HiOutlineClipboardDocumentList;
               }
 
               return (
@@ -201,11 +229,18 @@ export default function NotificationDropdown() {
                         {notif.message}
                       </p>
 
-                      {notif.senderName && notif.senderName !== "System" && (
-                        <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 block mt-1">
-                          From: {notif.senderName}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {notif.senderName && notif.senderName !== "System" && (
+                          <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400">
+                            From: {notif.senderName}
+                          </span>
+                        )}
+                        {typeof notif.recipient === "object" && notif.recipient?.name && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                            Student: {notif.recipient.name}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {isUnread && (

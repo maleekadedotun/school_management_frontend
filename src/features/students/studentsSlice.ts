@@ -63,6 +63,8 @@ interface AuthState {
   teacherClassStudents: Student[];
   teacherClassLevel: string | null;
   teacherSubject: string | null;
+  teacherProgram: string | null;
+  teacherProgramId: string | null;
   currentStudent: Student | null;
   total: number;
   loading: boolean;
@@ -109,6 +111,8 @@ const initialState: AuthState = {
   teacherClassStudents: [],
   teacherClassLevel: null,
   teacherSubject: null,
+  teacherProgram: null,
+  teacherProgramId: null,
   currentStudent: null,
   total: 0,
 
@@ -477,6 +481,8 @@ const studentsSlice = createSlice({
         state.teacherClassStudents = action.payload.data || [];
         state.teacherClassLevel = action.payload.teacherClassLevel || null;
         state.teacherSubject = action.payload.teacherSubject || null;
+        state.teacherProgram = action.payload.teacherProgram || null;
+        state.teacherProgramId = action.payload.teacherProgramId || null;
       })
       .addCase(fetchTeacherClassStudents.rejected, (state, action) => {
         state.loading = false;

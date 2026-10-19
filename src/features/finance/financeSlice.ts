@@ -72,10 +72,13 @@ export interface StudentInvoice {
   classLevel: string;
   itemsSnapshot: InvoiceItemSnapshot[];
   subtotalAmount: number; // in Kobo
+  subtotal?: number;
   discountAmount: number; // in Kobo
   totalAmount: number; // in Kobo
+  totalAmountDue?: number;
   amountPaid: number; // in Kobo
   balanceAmount: number; // in Kobo
+  balanceDue?: number;
   currency: string;
   issueDate: string;
   dueDate: string;

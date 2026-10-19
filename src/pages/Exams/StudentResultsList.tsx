@@ -95,12 +95,16 @@ export default function StudentResultsList() {
         programName.includes(query);
 
       // Program / Department match
-      const progId = item.program?._id || item.student?.program?._id || "";
-      const progName = item.program?.name || item.student?.program?.name || "";
+      const progId = item.program?._id || item.student?.program?._id || item.exam?.program?._id || "";
+      const progName = item.program?.name || item.student?.program?.name || item.exam?.program?.name || "";
+      const stuProgId = item.student?.program?._id || "";
+      const stuProgName = item.student?.program?.name || "";
       const matchesProgram =
         selectedProgram === "all" ||
         progId === selectedProgram ||
-        progName.toLowerCase() === selectedProgram.toLowerCase();
+        stuProgId === selectedProgram ||
+        progName.toLowerCase() === selectedProgram.toLowerCase() ||
+        stuProgName.toLowerCase() === selectedProgram.toLowerCase();
 
       // Status match (Passed / Failed)
       const matchesStatus = statusFilter === "all" || item.status === statusFilter;

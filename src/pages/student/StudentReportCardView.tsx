@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   fetchStudentPublishedReportCards,
   fetchStudentTermReportCard,
 } from "../../features/reportCards/reportCardsSlice";
+import { fetchParentDashboard } from "../../features/parentAuth/parentAuthSlice";
 import { ReportCardDocument } from "../../components/reportCard/ReportCardDocument";
 import {
   HiOutlineLockClosed,
@@ -12,42 +14,119 @@ import {
   HiOutlineCalendar,
   HiOutlineAcademicCap,
   HiOutlineCheckCircle,
+  HiOutlineUser,
+  HiOutlineArrowLeft,
 } from "react-icons/hi2";
 
 export default function StudentReportCardView() {
   const dispatch = useAppDispatch();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const {
     studentPublishedCards,
     studentActiveReportCard,
     studentLoading,
   } = useAppSelector((state) => state.reportCards);
 
+  const { parent, dashboardData } = useAppSelector((state) => state.parentAuth);
+
+  const isParent = useMemo(() => {
+    return (
+      location.pathname.startsWith("/parent") ||
+      localStorage.getItem("userRole") === "parent" ||
+      Boolean(parent)
+    );
+  }, [location.pathname, parent]);
+
+  const children = useMemo(() => {
+    const list = dashboardData?.children || parent?.children || [];
+    return list;
+  }, [dashboardData, parent]);
+
+  const [selectedChildId, setSelectedChildId] = useState<string>(() => {
+    return searchParams.get("studentId") || "";
+  });
+
   const [selectedTermId, setSelectedTermId] = useState<string>("");
 
+  // If parent and no children data yet, fetch parent dashboard
   useEffect(() => {
-    dispatch(fetchStudentPublishedReportCards());
-  }, [dispatch]);
+    if (isParent && (!children || children.length === 0)) {
+      dispatch(fetchParentDashboard());
+    }
+  }, [isParent, children, dispatch]);
+
+  // If parent and no selected child, pick the first one
+  useEffect(() => {
+    if (isParent && children.length > 0 && !selectedChildId) {
+      const firstId = children[0]._id;
+      setSelectedChildId(firstId);
+    }
+  }, [isParent, children, selectedChildId]);
+
+  // Fetch published cards whenever selectedChildId (for parents) or on mount (for students)
+  useEffect(() => {
+    if (isParent) {
+      if (selectedChildId) {
+        dispatch(fetchStudentPublishedReportCards({ studentId: selectedChildId }));
+      }
+    } else {
+      dispatch(fetchStudentPublishedReportCards());
+    }
+  }, [dispatch, isParent, selectedChildId]);
 
   // When published cards load, default to the most recent one
   useEffect(() => {
-    if (studentPublishedCards.length > 0 && !selectedTermId) {
+    if (studentPublishedCards.length > 0) {
       const first = studentPublishedCards[0];
       const termId = first.academicTerm?._id || "";
       setSelectedTermId(termId);
+      dispatch(
+        fetchStudentTermReportCard({
+          termId,
+          studentId: isParent ? selectedChildId : undefined,
+        })
+      );
+    } else {
+      setSelectedTermId("");
     }
-  }, [studentPublishedCards, selectedTermId]);
+  }, [studentPublishedCards, isParent, selectedChildId, dispatch]);
+
+  const handleSelectChild = (childId: string) => {
+    setSelectedChildId(childId);
+    setSelectedTermId("");
+    setSearchParams({ studentId: childId });
+    dispatch(fetchStudentPublishedReportCards({ studentId: childId }));
+  };
 
   const handleSelectTerm = (termId: string) => {
     setSelectedTermId(termId);
-    dispatch(fetchStudentTermReportCard({ termId }));
+    dispatch(
+      fetchStudentTermReportCard({
+        termId,
+        studentId: isParent ? selectedChildId : undefined,
+      })
+    );
   };
 
   const handleRefresh = () => {
-    dispatch(fetchStudentPublishedReportCards());
+    dispatch(
+      fetchStudentPublishedReportCards(
+        isParent && selectedChildId ? { studentId: selectedChildId } : undefined
+      )
+    );
     if (selectedTermId) {
-      dispatch(fetchStudentTermReportCard({ termId: selectedTermId }));
+      dispatch(
+        fetchStudentTermReportCard({
+          termId: selectedTermId,
+          studentId: isParent ? selectedChildId : undefined,
+        })
+      );
     }
   };
+
+  const activeChildObj = children.find((c) => c._id === selectedChildId);
 
   return (
     <div className="min-h-screen pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -57,28 +136,76 @@ export default function StudentReportCardView() {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 mb-2">
               <HiOutlineSparkles className="w-3.5 h-3.5 text-indigo-500" />
-              Academic Evaluation & Records
+              {isParent ? "Parent Observer • Academic Evaluation" : "Academic Evaluation & Records"}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              My Term Report Card
+              {isParent
+                ? `${activeChildObj?.name ? `${activeChildObj.name}'s` : "Student"} Term Report Card`
+                : "My Term Report Card"}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Access and download your verified term report cards, subject scores, and teacher endorsements.
+              {isParent
+                ? "Official verified academic term evaluations, scores, teacher endorsements, and promotions."
+                : "Access and download your verified term report cards, subject scores, and teacher endorsements."}
             </p>
           </div>
 
           <div className="flex items-center gap-3">
+            {isParent && (
+              <Link
+                to="/parent/dashboard"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                <HiOutlineArrowLeft className="w-4 h-4" />
+                Back to Dashboard
+              </Link>
+            )}
             <button
               onClick={handleRefresh}
               disabled={studentLoading}
               type="button"
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
             >
               <HiOutlineArrowPath className={`w-4 h-4 ${studentLoading ? "animate-spin" : ""}`} />
               Refresh
             </button>
           </div>
         </div>
+
+        {/* Multi-Child Selector for Parents */}
+        {isParent && children.length > 0 && (
+          <div className="mt-6 p-3 bg-slate-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <HiOutlineUser className="w-4 h-4 text-indigo-500" />
+              <span>Select Child:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {children.map((c) => {
+                const isSelected = selectedChildId === c._id;
+                return (
+                  <button
+                    key={c._id}
+                    onClick={() => handleSelectChild(c._id)}
+                    type="button"
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20 ring-2 ring-indigo-500/40"
+                        : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-gray-200 dark:border-slate-700"
+                    }`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>{c.name}</span>
+                    {c.currentClassLevel && (
+                      <span className="text-[10px] opacity-75">
+                        ({c.currentClassLevel})
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Term Switcher (if multiple published terms exist) */}
         {studentPublishedCards.length > 1 && (
@@ -94,7 +221,7 @@ export default function StudentReportCardView() {
                   key={card._id}
                   onClick={() => handleSelectTerm(termId)}
                   type="button"
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
                     isSelected
                       ? "bg-indigo-600 text-white shadow-sm"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
@@ -125,7 +252,9 @@ export default function StudentReportCardView() {
             Report Card Not Published Yet
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-3 max-w-lg mx-auto leading-relaxed">
-            Your official term report card is currently undergoing verification and administrative review. In accordance with school policy, results are only accessible after full principal approval and publication.
+            {isParent
+              ? `The official report card for ${activeChildObj?.name || "this student"} is currently undergoing compilation and administrative review. Results become available immediately upon principal approval and publication.`
+              : "Your official term report card is currently undergoing verification and administrative review. In accordance with school policy, results are only accessible after full principal approval and publication."}
           </p>
 
           <div className="mt-8 p-4 rounded-xl bg-gray-50 dark:bg-gray-900/60 border border-gray-200 dark:border-gray-800 text-left text-xs text-gray-500 dark:text-gray-400 space-y-2">
@@ -140,7 +269,7 @@ export default function StudentReportCardView() {
               <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse ml-1 mr-1" /> 2. Class rankings calculated & submitted to administration
             </div>
             <div className="flex items-center gap-2 text-gray-400">
-              <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-700 ml-1 mr-1" /> 3. Principal approval & official release to students
+              <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-700 ml-1 mr-1" /> 3. Principal approval & official release to students and parents
             </div>
           </div>
 
@@ -148,7 +277,7 @@ export default function StudentReportCardView() {
             <button
               onClick={handleRefresh}
               type="button"
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition"
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition cursor-pointer"
             >
               <HiOutlineArrowPath className="w-4 h-4" />
               Check Again
@@ -162,7 +291,7 @@ export default function StudentReportCardView() {
         </div>
       ) : (
         <div className="text-center py-16 text-gray-400">
-          Please select an academic term above to view your report card.
+          Please select an academic term above to view the report card.
         </div>
       )}
     </div>

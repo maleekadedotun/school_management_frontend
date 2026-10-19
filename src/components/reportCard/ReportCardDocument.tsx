@@ -48,6 +48,63 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
     published,
   } = reportCard;
 
+  // 1. Resolve Class Teacher Signature Info
+  const teacherSignerName =
+    (typeof reportCard.submittedBy === "object" && reportCard.submittedBy?.name) ||
+    (typeof reportCard.resubmittedBy === "object" && reportCard.resubmittedBy?.name) ||
+    reportCard.reviewHistory?.find((h) => h.action === "submitted" || h.action === "resubmitted")?.performerName ||
+    (typeof (reportCard as any).classTeacher === "object" && (reportCard as any).classTeacher?.name) ||
+    (typeof (reportCard as any).classTeacher === "string" ? (reportCard as any).classTeacher : null) ||
+    (reportCard.status && !["draft", "calculated"].includes(reportCard.status) ? "Class Teacher" : null);
+
+  const teacherSignDate = reportCard.submittedAt || reportCard.resubmittedAt
+    ? new Date(reportCard.submittedAt || reportCard.resubmittedAt!).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : reportCard.reviewHistory?.find((h) => h.action === "submitted" || h.action === "resubmitted")?.timestamp
+    ? new Date(
+        reportCard.reviewHistory.find((h) => h.action === "submitted" || h.action === "resubmitted")!.timestamp
+      ).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+    : reportCard.updatedAt
+    ? new Date(reportCard.updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+    : null;
+
+  const isTeacherSigned = Boolean(
+    teacherSignerName &&
+    (reportCard.submittedBy || (reportCard.status && !["draft", "calculated"].includes(reportCard.status)))
+  );
+
+  // 2. Resolve Principal / Administrator Signature Info
+  const adminSignerName =
+    (typeof reportCard.approvedBy === "object" && reportCard.approvedBy?.name) ||
+    (typeof reportCard.publishedBy === "object" && reportCard.publishedBy?.name) ||
+    reportCard.reviewHistory?.find((h) => h.action === "approved" || h.action === "published")?.performerName ||
+    (reportCard.published || reportCard.status === "approved" || reportCard.status === "published"
+      ? "School Principal"
+      : null);
+
+  const adminSignDate = reportCard.approvedAt || reportCard.publishedAt
+    ? new Date(reportCard.approvedAt || reportCard.publishedAt!).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : reportCard.reviewHistory?.find((h) => h.action === "approved" || h.action === "published")?.timestamp
+    ? new Date(
+        reportCard.reviewHistory.find((h) => h.action === "approved" || h.action === "published")!.timestamp
+      ).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+    : null;
+
+  const isAdminSigned = Boolean(
+    reportCard.published ||
+    reportCard.status === "approved" ||
+    reportCard.status === "published" ||
+    reportCard.approvedBy ||
+    reportCard.publishedBy
+  );
+
   const handlePrint = () => {
     if (onPrint) {
       onPrint();
@@ -422,26 +479,85 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
         </div>
 
         {/* Signatures & Seal Section */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-10 mt-6 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-500 dark:text-gray-400">
-          <div>
-            <div className="border-b border-gray-400 dark:border-gray-600 w-3/4 mx-auto mb-2 h-8 flex items-end justify-center font-serif italic text-indigo-600 dark:text-indigo-400">
-              Teacher's Signature
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pt-10 mt-6 border-t border-gray-200 dark:border-gray-800 text-center text-xs text-gray-500 dark:text-gray-400 items-end">
+          {/* Class Teacher Signature */}
+          <div className="flex flex-col items-center">
+            <div className="border-b-2 border-gray-400 dark:border-gray-600 w-4/5 mx-auto mb-2 min-h-16 flex flex-col items-center justify-end pb-1.5">
+              {isTeacherSigned ? (
+                <div className="space-y-0.5 animate-fadeIn">
+                  <span
+                    className="block text-xl sm:text-2xl font-serif italic font-bold tracking-wide text-indigo-700 dark:text-indigo-400 select-none transform -rotate-2"
+                    style={{ fontFamily: "'Dancing Script', 'Caveat', 'Great Vibes', 'Segoe Script', cursive, Georgia, serif" }}
+                  >
+                    {teacherSignerName || "Class Teacher"}
+                  </span>
+                  <div className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
+                    <span>✓</span>
+                    <span>Digitally Signed {teacherSignDate ? `• ${teacherSignDate}` : ""}</span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500 text-xs italic pb-1">
+                  Pending Teacher Submission
+                </span>
+              )}
             </div>
-            <p className="font-medium">Class Teacher</p>
+            <p className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+              {teacherSignerName || "Class Form Teacher"}
+            </p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Class Teacher</p>
           </div>
 
-          <div className="hidden sm:block">
-            <div className="w-16 h-16 mx-auto rounded-full border-2 border-dashed border-indigo-300 dark:border-indigo-700 flex items-center justify-center text-[10px] uppercase font-bold text-indigo-400">
-              Official Seal
-            </div>
-            <p className="font-medium mt-1">School Stamp</p>
+          {/* Institutional Stamp & Seal */}
+          <div className="hidden sm:flex flex-col items-center justify-center">
+            {isAdminSigned ? (
+              <div className="relative w-20 h-20 rounded-full border-2 border-double border-indigo-600 dark:border-indigo-400 flex flex-col items-center justify-center p-1 text-center bg-indigo-50/50 dark:bg-indigo-950/40 transform -rotate-6 shadow-sm">
+                <div className="w-full h-full rounded-full border border-dashed border-indigo-400 dark:border-indigo-500 flex flex-col items-center justify-center p-0.5">
+                  <span className="text-[7.5px] font-black uppercase tracking-tight text-indigo-800 dark:text-indigo-300 leading-none">
+                    OFFICIAL
+                  </span>
+                  <span className="text-base leading-none my-0.5">🎓</span>
+                  <span className="text-[6.5px] font-black uppercase tracking-tighter text-emerald-700 dark:text-emerald-400 font-mono leading-none">
+                    ★ VERIFIED ★
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-700 flex items-center justify-center text-[10px] uppercase font-bold text-gray-400">
+                School Stamp
+              </div>
+            )}
+            <p className="font-semibold text-[11px] text-gray-600 dark:text-gray-400 mt-2">
+              {isAdminSigned ? "Official School Stamp" : "School Stamp"}
+            </p>
           </div>
 
-          <div>
-            <div className="border-b border-gray-400 dark:border-gray-600 w-3/4 mx-auto mb-2 h-8 flex items-end justify-center font-serif italic text-indigo-600 dark:text-indigo-400">
-              Principal's Signature
+          {/* Principal / Admin Signature */}
+          <div className="flex flex-col items-center">
+            <div className="border-b-2 border-gray-400 dark:border-gray-600 w-4/5 mx-auto mb-2 min-h-16 flex flex-col items-center justify-end pb-1.5">
+              {isAdminSigned ? (
+                <div className="space-y-0.5 animate-fadeIn">
+                  <span
+                    className="block text-xl sm:text-2xl font-serif italic font-bold tracking-wide text-purple-700 dark:text-purple-400 select-none transform -rotate-1"
+                    style={{ fontFamily: "'Dancing Script', 'Caveat', 'Great Vibes', 'Segoe Script', cursive, Georgia, serif" }}
+                  >
+                    {adminSignerName || "School Principal"}
+                  </span>
+                  <div className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
+                    <span>✓</span>
+                    <span>Approved & Endorsed {adminSignDate ? `• ${adminSignDate}` : ""}</span>
+                  </div>
+                </div>
+              ) : (
+                <span className="text-gray-400 dark:text-gray-500 text-xs italic pb-1">
+                  Pending Admin Approval
+                </span>
+              )}
             </div>
-            <p className="font-medium">School Principal</p>
+            <p className="font-bold text-gray-900 dark:text-gray-100 text-xs">
+              {adminSignerName || "School Principal"}
+            </p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400">Principal / Administrator</p>
           </div>
         </div>
       </div>

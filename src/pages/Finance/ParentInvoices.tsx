@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   fetchParentChildrenInvoices,
@@ -131,12 +132,20 @@ export default function ParentInvoices() {
               Welcome, {parent?.name || "Parent"} • {children.length} Linked Child(ren)
             </p>
           </div>
-          <button
-            onClick={() => setShowLinkModal(true)}
-            className="px-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold rounded-xl text-xs transition duration-200 border border-white/20 self-start md:self-auto flex items-center gap-1.5"
-          >
-            <span>+</span> Link Another Child
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+            <Link
+              to="/parent/transactions"
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold rounded-xl text-xs transition duration-200 border border-white/20 flex items-center gap-1.5"
+            >
+              <span>📋</span> Transactions Ledger
+            </Link>
+            <button
+              onClick={() => setShowLinkModal(true)}
+              className="px-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold rounded-xl text-xs transition duration-200 border border-white/20 flex items-center gap-1.5"
+            >
+              <span>+</span> Link Another Child
+            </button>
+          </div>
         </div>
       </div>
 
@@ -282,19 +291,19 @@ export default function ParentInvoices() {
                     <div className="flex justify-between text-gray-500">
                       <span>Total Invoiced:</span>
                       <span className="font-semibold text-gray-900 dark:text-white">
-                        ₦{(inv.totalAmount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        ₦{(((inv.totalAmount ?? inv.totalAmountDue ?? inv.subtotal ?? 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
                       <span>Total Paid:</span>
                       <span>
-                        ₦{(inv.amountPaid / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        ₦{(((inv.amountPaid || 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm font-extrabold text-rose-600 dark:text-rose-400 pt-1.5 border-t border-gray-200 dark:border-gray-600">
                       <span>Balance Due:</span>
                       <span>
-                        ₦{(inv.balanceAmount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        ₦{(((inv.balanceAmount ?? inv.balanceDue ?? 0) / 100)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </span>
                     </div>
                   </div>

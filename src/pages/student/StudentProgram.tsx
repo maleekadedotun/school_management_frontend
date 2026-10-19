@@ -43,15 +43,43 @@ const StudentProgram: React.FC = () => {
   const programDuration = rawProgram?.duration || "4 Academic Years (8 Semesters)";
   const programCode = rawProgram?.code || "SE-2026-ENG";
 
+  const rawClass = (currentStudentObj?.currentClassLevel || "").toLowerCase();
+  const isJSS =
+    rawClass.includes("jss") ||
+    rawClass.includes("js ") ||
+    rawClass.startsWith("js") ||
+    rawClass.includes("junior");
+  const isSSS =
+    !isJSS && (
+      rawClass.includes("sss") ||
+      rawClass.includes("ss ") ||
+      rawClass.startsWith("ss") ||
+      rawClass.includes("senior")
+    );
+
+  const defaultTrackGroups = isJSS
+    ? [
+        { classLevel: "jss 1", shortCode: "JSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "JSS 2 Class", shortCode: "JSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "JSS 3 class", shortCode: "JSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+      ]
+    : isSSS
+    ? [
+        { classLevel: "sss 1", shortCode: "SSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "sss 2", shortCode: "SSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "sss 3", shortCode: "SSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+      ]
+    : [
+        { classLevel: "Level 100", shortCode: "Level 100", isCurrent: false, isCompleted: true, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "Level 200", shortCode: "Level 200", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "Level 300", shortCode: "Level 300", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "Level 400", shortCode: "Level 400", isCurrent: true, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+      ];
+
   const classGroups =
     enrolledSubjectsByClass && enrolledSubjectsByClass.length > 0
       ? enrolledSubjectsByClass
-      : [
-          { classLevel: "Level 100", shortCode: "100L", isCurrent: false, isCompleted: true, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "Level 200", shortCode: "200L", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "Level 300", shortCode: "300L", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "Level 400", shortCode: "400L / Final", isCurrent: true, isCompleted: false, isFinal: true, count: 0, subjects: [] },
-        ];
+      : defaultTrackGroups;
 
   return (
     <div className="min-h-screen bg-[#070b14] text-slate-100 p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
@@ -128,7 +156,7 @@ const StudentProgram: React.FC = () => {
                 Academic Levels
               </span>
               <span className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
-                🏛️ 100L – 400L Track
+                🏛️ {classGroups.map((g) => g.shortCode).join(" – ") || "Academic Track"}
               </span>
             </div>
 
@@ -257,7 +285,7 @@ const StudentProgram: React.FC = () => {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold uppercase tracking-wider text-indigo-400">
-                        Year {idx + 1}
+                        {isJSS || isSSS ? group.shortCode : `Year ${idx + 1}`}
                       </span>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                         {group.count} {group.count === 1 ? "Subject" : "Subjects"}
@@ -269,10 +297,25 @@ const StudentProgram: React.FC = () => {
                     </h3>
 
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      {idx === 0 && "Foundational sciences, core computing principles, problem-solving, and general studies."}
-                      {idx === 1 && "Intermediate data structures, computer architecture, discrete mathematics, and database engines."}
-                      {idx === 2 && "Software design paradigms, operating systems, networks, and advanced engineering labs."}
-                      {idx >= 3 && "Advanced elective specializations, distributed architectures, and final capstone thesis."}
+                      {isJSS
+                        ? idx === 0
+                          ? "Junior Secondary Year 1 foundation subjects, core arithmetic, sciences, and languages."
+                          : idx === 1
+                          ? "Junior Secondary Year 2 intermediate curriculum, practical sciences, and introductory computing."
+                          : "Junior Secondary Year 3 final preparations for the Basic Education Certificate Examination (BECE)."
+                        : isSSS
+                        ? idx === 0
+                          ? "Senior Secondary Year 1 foundational disciplines, chosen field electives, and core sciences."
+                          : idx === 1
+                          ? "Senior Secondary Year 2 specialized departmental curriculum and comprehensive coursework."
+                          : "Senior Secondary Year 3 capstone preparations for the Senior School Certificate Examination (SSCE)."
+                        : idx === 0
+                        ? "Foundational sciences, core computing principles, problem-solving, and general studies."
+                        : idx === 1
+                        ? "Intermediate data structures, computer architecture, discrete mathematics, and database engines."
+                        : idx === 2
+                        ? "Software design paradigms, operating systems, networks, and advanced engineering labs."
+                        : "Advanced elective specializations, distributed architectures, and final capstone thesis."}
                     </p>
                   </div>
 

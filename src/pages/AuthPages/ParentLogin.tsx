@@ -35,7 +35,7 @@ export default function ParentLogin() {
     const res = await dispatch(loginParent(loginForm));
     if (loginParent.fulfilled.match(res)) {
       toast.success("Welcome back! Signed in successfully.");
-      navigate("/parent/invoices");
+      navigate("/parent/dashboard");
     } else {
       toast.error((res.payload as string) || "Invalid email or password");
     }

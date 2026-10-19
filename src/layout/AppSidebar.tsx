@@ -104,6 +104,11 @@ const adminNavGroups: NavGroup[] = [
         icon: <ListIcon />,
         path: "/teachers",
       },
+      {
+        name: "Class Teachers",
+        icon: <UserCircleIcon />,
+        path: "/admin/class-teachers",
+      },
     ],
   },
   {
@@ -224,14 +229,39 @@ const parentNavGroups: NavGroup[] = [
     title: "Parent Portal",
     items: [
       {
-        name: "Children Fees & Invoices",
+        name: "Dashboard",
         icon: <GridIcon />,
+        path: "/parent/dashboard",
+      },
+      {
+        name: "Children Results",
+        icon: <TaskIcon />,
+        path: "/parent/results",
+      },
+      {
+        name: "Term Report Cards",
+        icon: <FileIcon />,
+        path: "/parent/report-card",
+      },
+      {
+        name: "Student Assignment",
+        icon: <TaskIcon />,
+        path: "/parent/assignments",
+      },
+      {
+        name: "Children Fees & Invoices",
+        icon: <TableIcon />,
         path: "/parent/invoices",
       },
       {
+        name: "Children Attendance",
+        icon: <CalenderIcon />,
+        path: "/parent/attendance",
+      },
+      {
         name: "Transactions Ledger",
-        icon: <TaskIcon />,
-        path: "/admin/finance/transactions",
+        icon: <PageIcon />,
+        path: "/parent/transactions",
       },
     ],
   },
@@ -246,6 +276,21 @@ const teacherNavGroups: NavGroup[] = [
         name: "Teacher Dashboard",
         icon: <GridIcon />,
         path: "/teacher/dashboard",
+      },
+    ],
+  },
+  {
+    title: "Class Teacher",
+    items: [
+      {
+        name: "My Class Results",
+        icon: <TableIcon />,
+        path: "/teacher/class-results",
+      },
+      {
+        name: "Class Students",
+        icon: <UserCircleIcon />,
+        path: "/teacher/students",
       },
     ],
   },
@@ -396,22 +441,63 @@ const AppSidebar: React.FC = () => {
     }
   }, [userRole, location.pathname, dispatch]);
 
-  // Construct dynamic student navigation groups arranged from 100L to Final
+  // Construct dynamic student navigation groups arranged by educational track (JSS, SSS, or Tertiary)
   const dynamicStudentNavGroups: NavGroup[] = useMemo(() => {
+    const rawClass = (studentObj?.currentClassLevel || "").toLowerCase();
+    const classHist = (
+      Array.isArray(studentObj?.classLevels)
+        ? studentObj.classLevels
+        : studentObj?.classLevels
+        ? [studentObj.classLevels]
+        : []
+    ).map((l: any) =>
+      (typeof l === "object" ? l?.name || "" : l?.toString() || "").toLowerCase()
+    );
+
+    const isJSS =
+      rawClass.includes("jss") ||
+      rawClass.includes("js ") ||
+      rawClass.startsWith("js") ||
+      rawClass.includes("junior") ||
+      classHist.some((l: string) => l.includes("jss") || l.includes("junior"));
+
+    const isSSS =
+      !isJSS && (
+        rawClass.includes("sss") ||
+        rawClass.includes("ss ") ||
+        rawClass.startsWith("ss") ||
+        rawClass.includes("senior") ||
+        classHist.some((l: string) => l.includes("sss") || l.includes("senior"))
+      );
+
+    const defaultTrackGroups = isJSS
+      ? [
+          { classLevel: "jss 1", shortCode: "JSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+          { classLevel: "JSS 2 Class", shortCode: "JSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+          { classLevel: "JSS 3 class", shortCode: "JSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+        ]
+      : isSSS
+      ? [
+          { classLevel: "sss 1", shortCode: "SSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+          { classLevel: "sss 2", shortCode: "SSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+          { classLevel: "sss 3", shortCode: "SSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+        ]
+      : [
+          { classLevel: "Level 100", shortCode: "Level 100", isCurrent: false, isCompleted: true, isFinal: false, count: 0, subjects: [] },
+          { classLevel: "Level 200", shortCode: "Level 200", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+          { classLevel: "Level 300", shortCode: "Level 300", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
+          { classLevel: "Level 400", shortCode: "Level 400", isCurrent: true, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+        ];
+
     const classGroups =
       enrolledSubjectsByClass && enrolledSubjectsByClass.length > 0
         ? enrolledSubjectsByClass
-        : [
-            { classLevel: "Level 100", shortCode: "100L", isCurrent: false, isCompleted: true, isFinal: false, count: 0, subjects: [] },
-            { classLevel: "Level 200", shortCode: "200L", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-            { classLevel: "Level 300", shortCode: "300L", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-            { classLevel: "Level 400", shortCode: "400L / Final", isCurrent: true, isCompleted: false, isFinal: true, count: 0, subjects: [] },
-          ];
+        : defaultTrackGroups;
 
-    // Each level's subjects in one file, all grouped inside a folder
-    const levelFiles: SubItem[] = [
+    // Each class's subjects in one file, all grouped inside a folder
+    const classFiles: SubItem[] = [
       {
-        name: "All Levels Overview",
+        name: "All Classes Overview",
         path: "/student/subjects",
         badge: allEnrolledSubjects.length > 0 ? allEnrolledSubjects.length : undefined,
         icon: <TableIcon className="w-4 h-4 text-indigo-400" />,
@@ -458,16 +544,21 @@ const AppSidebar: React.FC = () => {
             path: "/student/timetable",
           },
           {
-            name: "Level Subjects",
+            name: "Class Subjects",
             icon: <BookIcon />,
             badge: allEnrolledSubjects.length > 0 ? `${allEnrolledSubjects.length}` : undefined,
-            subItems: levelFiles,
+            subItems: classFiles,
           },
           {
             name: "My Program",
             icon: <PageIcon />,
             path: "/student/program",
             badge: "Active",
+          },
+          {
+            name: "My Attendance",
+            icon: <CalenderIcon />,
+            path: "/student/attendance",
           },
         ],
       },

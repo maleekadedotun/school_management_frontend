@@ -21,14 +21,16 @@ export default function AnnouncementMarquee() {
   const student = useAppSelector(
     (state) => state.students.profile || state.students.student || state.students.currentStudent
   );
+  const parent = useAppSelector((state) => state.parentAuth.parent);
 
   // Active role
   const userRole = useMemo(() => {
     if (admin) return "admin";
     if (teacher) return "teacher";
     if (student) return "student";
+    if (parent) return "parent";
     return localStorage.getItem("userRole") || "general";
-  }, [admin, teacher, student]);
+  }, [admin, teacher, student, parent]);
 
   const [isPaused, setIsPaused] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
@@ -61,6 +63,11 @@ export default function AnnouncementMarquee() {
         return {
           label: "Students Notice",
           cls: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+        };
+      case "parent":
+        return {
+          label: "Parents Notice",
+          cls: "bg-sky-500/20 text-sky-300 border-sky-500/30",
         };
       case "general":
       default:

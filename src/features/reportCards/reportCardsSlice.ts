@@ -42,18 +42,46 @@ export interface ReportCardItem {
   overallGrade: string;
   overallRemark: string;
   teacherComment: string;
+  program?: { _id: string; name: string; code?: string } | null;
   principalComment: string;
   promoted: boolean;
   promotionStatus: "Promoted" | "Promoted on Trial" | "Repeat" | "Pending" | string;
-  status: "draft" | "calculated" | "submitted" | "approved" | "published" | "rejected";
+  status:
+    | "draft"
+    | "saved"
+    | "calculated"
+    | "submitted"
+    | "submitted_to_admin"
+    | "approved"
+    | "published"
+    | "rejected"
+    | "returned_for_correction"
+    | "resubmitted"
+    | string;
+  isComplete?: boolean;
   published: boolean;
   publishedAt?: string;
   publishedBy?: { _id: string; name: string };
   approvedBy?: { _id: string; name: string };
   approvedAt?: string;
-  submittedBy?: { _id: string; name: string };
+  submittedBy?: { _id: string; name: string; teacherId?: string };
   submittedAt?: string;
   rejectionReason?: string;
+  rejectedBy?: { _id: string; name: string } | null;
+  rejectedAt?: string | null;
+  resubmittedBy?: { _id: string; name: string; teacherId?: string } | null;
+  resubmittedAt?: string | null;
+  reviewHistory?: Array<{
+    _id?: string;
+    action: string;
+    performedBy?: any;
+    performerModel?: string;
+    performerName?: string;
+    timestamp: string;
+    reason?: string;
+    previousStatus?: string;
+    newStatus?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }
@@ -117,6 +145,8 @@ export interface ClassSubjectSheetData {
 export interface AdminReportCardOverviewItem {
   classLevelId: string;
   className: string;
+  programId?: string | null;
+  programName?: string;
   academicYearId: string;
   academicYearName: string;
   academicTermId: string;
@@ -162,6 +192,7 @@ export interface ClassOverviewData {
   classLevel: any;
   academicYear: any;
   academicTerm: any;
+  program?: any;
   students: ClassOverviewStudentItem[];
   summary: {
     totalStudents: number;
@@ -195,6 +226,7 @@ interface ReportCardsState {
   loadingSheet: boolean;
   loadingProgress: boolean;
   savingSubjectResults: boolean;
+  activeReviewHistory: any | null;
 
   error: string | null;
   successMessage: string | null;
@@ -208,6 +240,7 @@ const initialState: ReportCardsState = {
   selectedReportCard: null,
   studentPublishedCards: [],
   studentActiveReportCard: null,
+  activeReviewHistory: null,
 
   subjectSheetData: null,
   subjectsProgressData: null,
@@ -231,13 +264,13 @@ const initialState: ReportCardsState = {
 export const fetchClassResultsOverview = createAsyncThunk(
   "reportCards/fetchClassResultsOverview",
   async (
-    payload: { classLevelId: string; academicYearId: string; academicTermId: string },
+    payload: { classLevelId: string; academicYearId: string; academicTermId: string; programId?: string },
     { rejectWithValue }
   ) => {
     try {
-      const { classLevelId, academicYearId, academicTermId } = payload;
+      const { classLevelId, academicYearId, academicTermId, programId } = payload;
       const res = await api.get(`/report-cards/class/${classLevelId}/overview`, {
-        params: { academicYearId, academicTermId },
+        params: { academicYearId, academicTermId, ...(programId ? { programId } : {}) },
       });
       return res.data?.data;
     } catch (err: any) {
@@ -269,13 +302,13 @@ export const fetchStudentFullReport = createAsyncThunk(
 export const fetchClassSubjectSheet = createAsyncThunk(
   "reportCards/fetchClassSubjectSheet",
   async (
-    payload: { classLevelId: string; academicYearId: string; academicTermId: string; subjectId: string },
+    payload: { classLevelId: string; academicYearId: string; academicTermId: string; subjectId: string; programId?: string },
     { rejectWithValue }
   ) => {
     try {
-      const { classLevelId, academicYearId, academicTermId, subjectId } = payload;
+      const { classLevelId, academicYearId, academicTermId, subjectId, programId } = payload;
       const res = await api.get(`/report-cards/class/${classLevelId}/subject-sheet`, {
-        params: { academicYearId, academicTermId, subjectId },
+        params: { academicYearId, academicTermId, subjectId, ...(programId ? { programId } : {}) },
       });
       return res.data?.data;
     } catch (err: any) {
@@ -288,13 +321,13 @@ export const fetchClassSubjectSheet = createAsyncThunk(
 export const fetchClassSubjectsProgress = createAsyncThunk(
   "reportCards/fetchClassSubjectsProgress",
   async (
-    payload: { classLevelId: string; academicYearId: string; academicTermId: string },
+    payload: { classLevelId: string; academicYearId: string; academicTermId: string; programId?: string },
     { rejectWithValue }
   ) => {
     try {
-      const { classLevelId, academicYearId, academicTermId } = payload;
+      const { classLevelId, academicYearId, academicTermId, programId } = payload;
       const res = await api.get(`/report-cards/class/${classLevelId}/subjects-progress`, {
-        params: { academicYearId, academicTermId },
+        params: { academicYearId, academicTermId, ...(programId ? { programId } : {}) },
       });
       return res.data?.data;
     } catch (err: any) {
@@ -330,7 +363,7 @@ export const calculateClassReportCards = createAsyncThunk(
   "reportCards/calculateClass",
 
   async (
-    payload: { classLevelId: string; academicYearId: string; academicTermId: string },
+    payload: { classLevelId: string; academicYearId: string; academicTermId: string; programId?: string },
     { rejectWithValue }
   ) => {
     try {
@@ -346,13 +379,13 @@ export const calculateClassReportCards = createAsyncThunk(
 export const fetchClassReportCards = createAsyncThunk(
   "reportCards/fetchClassResults",
   async (
-    params: { classLevelId: string; academicYearId?: string; academicTermId?: string },
+    params: { classLevelId: string; academicYearId?: string; academicTermId?: string; programId?: string },
     { rejectWithValue }
   ) => {
     try {
-      const { classLevelId, academicYearId, academicTermId } = params;
+      const { classLevelId, academicYearId, academicTermId, programId } = params;
       const res = await api.get(`/report-cards/class/${classLevelId}`, {
-        params: { academicYearId, academicTermId },
+        params: { academicYearId, academicTermId, ...(programId ? { programId } : {}) },
       });
       return res.data?.data || [];
     } catch (err: any) {
@@ -361,11 +394,18 @@ export const fetchClassReportCards = createAsyncThunk(
   }
 );
 
-// 3. Teacher submit class results to Admin
+// 3. Teacher submit class results to Admin (Batch or Single)
 export const submitClassReportCards = createAsyncThunk(
   "reportCards/submitClass",
   async (
-    payload: { classLevelId: string; academicYearId: string; academicTermId: string },
+    payload: {
+      classLevelId?: string;
+      academicYearId?: string;
+      academicTermId?: string;
+      reportCardId?: string;
+      studentId?: string;
+      programId?: string;
+    },
     { rejectWithValue }
   ) => {
     try {
@@ -373,6 +413,51 @@ export const submitClassReportCards = createAsyncThunk(
       return res.data;
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || "Failed to submit results to admin");
+    }
+  }
+);
+
+// Submit individual student result to Admin
+export const submitIndividualReportCard = createAsyncThunk(
+  "reportCards/submitIndividual",
+  async (
+    payload: {
+      reportCardId?: string;
+      studentId?: string;
+      classLevelId?: string;
+      academicYearId?: string;
+      academicTermId?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await api.post("/report-cards/class/submit", payload);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to submit student result to admin");
+    }
+  }
+);
+
+// Teacher resubmit corrected results to Admin
+export const resubmitClassReportCards = createAsyncThunk(
+  "reportCards/resubmitClass",
+  async (
+    payload: {
+      reportCardId?: string;
+      studentId?: string;
+      classLevelId?: string;
+      academicYearId?: string;
+      academicTermId?: string;
+      programId?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await api.post("/report-cards/class/resubmit", payload);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to resubmit corrected results");
     }
   }
 );
@@ -404,7 +489,7 @@ export const updateTeacherComment = createAsyncThunk(
 // 5. Admin overview of all classes/terms
 export const fetchAdminReportCardOverview = createAsyncThunk(
   "reportCards/fetchAdminOverview",
-  async (params: { academicYearId?: string; academicTermId?: string } = {}, { rejectWithValue }) => {
+  async (params: { academicYearId?: string; academicTermId?: string; programId?: string } = {}, { rejectWithValue }) => {
     try {
       const res = await api.get("/report-cards/admin/overview", { params });
       return res.data?.data || [];
@@ -418,7 +503,14 @@ export const fetchAdminReportCardOverview = createAsyncThunk(
 export const approveClassReportCards = createAsyncThunk(
   "reportCards/approveClass",
   async (
-    payload: { classLevelId?: string; academicYearId?: string; academicTermId?: string; reportCardId?: string },
+    payload: {
+      classLevelId?: string;
+      academicYearId?: string;
+      academicTermId?: string;
+      programId?: string;
+      reportCardId?: string;
+      studentId?: string;
+    },
     { rejectWithValue }
   ) => {
     try {
@@ -430,11 +522,19 @@ export const approveClassReportCards = createAsyncThunk(
   }
 );
 
-// 7. Admin reject class or single card
+// 7. Admin reject class or single card with mandatory reason
 export const rejectClassReportCards = createAsyncThunk(
   "reportCards/rejectClass",
   async (
-    payload: { classLevelId?: string; academicYearId?: string; academicTermId?: string; reportCardId?: string; rejectionReason?: string },
+    payload: {
+      classLevelId?: string;
+      academicYearId?: string;
+      academicTermId?: string;
+      programId?: string;
+      reportCardId?: string;
+      studentId?: string;
+      rejectionReason: string;
+    },
     { rejectWithValue }
   ) => {
     try {
@@ -450,7 +550,15 @@ export const rejectClassReportCards = createAsyncThunk(
 export const publishClassReportCards = createAsyncThunk(
   "reportCards/publishClass",
   async (
-    payload: { classLevelId?: string; academicYearId?: string; academicTermId?: string; reportCardId?: string; publish: boolean },
+    payload: {
+      classLevelId?: string;
+      academicYearId?: string;
+      academicTermId?: string;
+      programId?: string;
+      reportCardId?: string;
+      studentId?: string;
+      publish: boolean;
+    },
     { rejectWithValue }
   ) => {
     try {
@@ -478,30 +586,35 @@ export const updateAdminComment = createAsyncThunk(
   }
 );
 
-// 10. Student get all published report cards
+// 10. Student or Parent get all published report cards
 export const fetchStudentPublishedReportCards = createAsyncThunk(
   "reportCards/fetchStudentPublished",
-  async (_, { rejectWithValue }) => {
+  async (params: { studentId?: string } | undefined, { rejectWithValue }) => {
     try {
-      const res = await api.get("/report-cards/student/my-report-cards");
+      const res = await api.get("/report-cards/student/my-report-cards", {
+        params: params?.studentId ? { studentId: params.studentId } : undefined,
+      });
       return res.data?.data || [];
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Failed to retrieve your published report cards");
+      return rejectWithValue(err.response?.data?.message || "Failed to retrieve published report cards");
     }
   }
 );
 
-// 11. Student view specific term report card
+// 11. Student or Parent view specific term report card
 export const fetchStudentTermReportCard = createAsyncThunk(
   "reportCards/fetchStudentTermReportCard",
-  async (params: { termId: string; academicYearId?: string }, { rejectWithValue }) => {
+  async (params: { termId: string; academicYearId?: string; studentId?: string }, { rejectWithValue }) => {
     try {
       const res = await api.get(`/report-cards/student/term/${params.termId}`, {
-        params: { academicYearId: params.academicYearId },
+        params: {
+          academicYearId: params.academicYearId,
+          ...(params.studentId ? { studentId: params.studentId } : {}),
+        },
       });
       return res.data?.data;
     } catch (err: any) {
-      return rejectWithValue(err.response?.data?.message || "Your report card has not been published yet.");
+      return rejectWithValue(err.response?.data?.message || "Report card has not been published yet.");
     }
   }
 );
@@ -515,6 +628,19 @@ export const fetchSingleReportCardById = createAsyncThunk(
       return res.data?.data;
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || "Failed to load report card details");
+    }
+  }
+);
+
+// 13. Fetch Review & Publication Audit History by Report Card ID
+export const fetchReportCardHistory = createAsyncThunk(
+  "reportCards/fetchHistory",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/report-cards/${id}/history`);
+      return res.data?.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to load review history");
     }
   }
 );
@@ -539,6 +665,9 @@ const reportCardsSlice = createSlice({
     clearClassOverviewData(state) {
       state.classOverviewData = null;
       state.activeFullReportCard = null;
+    },
+    clearReviewHistory(state) {
+      state.activeReviewHistory = null;
     },
   },
   extraReducers: (builder) => {
@@ -808,6 +937,22 @@ const reportCardsSlice = createSlice({
         state.loadingFullReport = false;
         state.error = action.payload as string;
       });
+
+    // fetchReportCardHistory
+    builder
+      .addCase(fetchReportCardHistory.pending, (state) => {
+        state.actionLoading = true;
+        state.activeReviewHistory = null;
+        state.error = null;
+      })
+      .addCase(fetchReportCardHistory.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.activeReviewHistory = action.payload;
+      })
+      .addCase(fetchReportCardHistory.rejected, (state, action) => {
+        state.actionLoading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
@@ -817,6 +962,7 @@ export const {
   clearSelectedReportCard,
   setActiveFullReportCard,
   clearClassOverviewData,
+  clearReviewHistory,
 } = reportCardsSlice.actions;
 
 export default reportCardsSlice.reducer;

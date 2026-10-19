@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchPaymentTransactions } from "../../features/finance/financeSlice";
 import PaymentReceiptModal from "./PaymentReceiptModal";
 
 export default function PaymentHistory() {
   const dispatch = useAppDispatch();
+  const location = useLocation();
+  const isParent = location.pathname.startsWith("/parent");
+  const isStudent = location.pathname.startsWith("/student");
   const { transactions, loading } = useAppSelector((state) => state.finance);
 
   const [search, setSearch] = useState("");
@@ -61,11 +65,39 @@ export default function PaymentHistory() {
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            {isParent ? (
+              <Link
+                to="/parent/invoices"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 transition"
+              >
+                ← Back to Children Invoices
+              </Link>
+            ) : isStudent ? (
+              <Link
+                to="/student/invoices"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 transition"
+              >
+                ← Back to My Invoices
+              </Link>
+            ) : (
+              <Link
+                to="/admin/finance"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 flex items-center gap-1 transition"
+              >
+                ← Back to Finance Overview
+              </Link>
+            )}
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Payment Transactions Ledger
           </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Complete audit trail of all online Paystack card, bank transfer, and USSD transactions
+            {isParent
+              ? "Verified Paystack receipts and transaction audit history for your children's fee payments"
+              : isStudent
+              ? "Your official Paystack payment receipts and verified fee transaction records"
+              : "Complete audit trail of all online Paystack card, bank transfer, and USSD transactions"}
           </p>
         </div>
       </div>
@@ -112,8 +144,24 @@ export default function PaymentHistory() {
         {loading ? (
           <div className="py-16 text-center text-gray-400 text-sm">Loading transactions...</div>
         ) : filteredTransactions.length === 0 ? (
-          <div className="py-16 text-center text-gray-400 text-sm">
-            No transactions found matching your search.
+          <div className="py-16 text-center text-gray-400 text-sm max-w-md mx-auto space-y-2">
+            <div className="text-3xl">📋</div>
+            <div className="font-semibold text-gray-700 dark:text-gray-300">
+              {search || statusFilter
+                ? "No transactions match your current search filters."
+                : isParent
+                ? "No payment transactions recorded yet for your linked children."
+                : isStudent
+                ? "No payment transactions recorded yet on your student account."
+                : "No payment transactions recorded yet."}
+            </div>
+            <p className="text-xs text-gray-400">
+              {isParent
+                ? "When you complete online payments for school fees using Paystack, verified transactions and official receipts will appear here."
+                : isStudent
+                ? "When invoices are paid via Paystack, the verified receipts will automatically be archived here."
+                : "All verified Paystack payments made by parents and students will show up here."}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">

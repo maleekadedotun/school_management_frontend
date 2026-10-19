@@ -9,6 +9,7 @@ import StudentLogin from "./pages/student/studentLogin";
 import Dashboard from "./pages/Dashboard/AdminDashboard";
 import TeacherDashboard from "./pages/Dashboard/TeacherDashboard";
 import StudentDashboard from "./pages/Dashboard/StudentDashboard";
+import ParentDashboard from "./pages/Dashboard/ParentDashboard";
 import StudentSubjects from "./pages/student/StudentSubjects";
 import StudentWriteExam from "./pages/student/StudentWriteExam";
 import StudentProgram from "./pages/student/StudentProgram";
@@ -54,6 +55,7 @@ import StudentTimetable from "./pages/student/StudentTimetable";
 import AdminAnnouncements from "./pages/Admin/AdminAnnouncements";
 import TeacherReportCards from "./pages/Teachers/TeacherReportCards";
 import AdminReportCards from "./pages/Admin/AdminReportCards";
+import ClassTeacherAssignment from "./pages/Admin/ClassTeacherAssignment";
 import StudentReportCardView from "./pages/student/StudentReportCardView";
 import NotFound from "./pages/OtherPage/NotFound";
 import ParentLogin from "./pages/AuthPages/ParentLogin";
@@ -65,6 +67,9 @@ import ParentInvoices from "./pages/Finance/ParentInvoices";
 import PaymentVerifyCallback from "./pages/Finance/PaymentVerifyCallback";
 import PaymentHistory from "./pages/Finance/PaymentHistory";
 import ParentsList from "./pages/Finance/ParentsList";
+import ParentAttendance from "./pages/parent/ParentAttendance";
+import ParentAssignments from "./pages/parent/ParentAssignments";
+import StudentAttendance from "./pages/student/StudentAttendance";
 import { Toaster } from "react-hot-toast";
 
 export default function App() {
@@ -129,6 +134,7 @@ export default function App() {
             <Route path="/admin/students" element={<StudentsList />} />
             <Route path="/teachers" element={<TeachersList />} />
             <Route path="/admin/teachers" element={<TeachersList />} />
+            <Route path="/admin/class-teachers" element={<ClassTeacherAssignment />} />
             <Route path="/academic/years" element={<AcademicYearsList />} />
             <Route path="/academic/terms" element={<AcademicTermsList />} />
             <Route path="/academic/class-levels" element={<ClassLevelsList />} />
@@ -216,6 +222,7 @@ export default function App() {
             <Route path="/student/lesson-notes" element={<StudentLessonNotes />} />
             <Route path="/student/profile" element={<StudentProfile />} />
             <Route path="/profile" element={<StudentProfile />} />
+            <Route path="/student/attendance" element={<StudentAttendance />} />
             <Route path="/student/invoices" element={<StudentInvoices />} />
             <Route path="/student/payment-history" element={<PaymentHistory />} />
           </Route>
@@ -228,9 +235,16 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/parent/dashboard" element={<Navigate to="/parent/invoices" replace />} />
+            <Route path="/parent/dashboard" element={<ParentDashboard />} />
+            <Route path="/parent/results" element={<ParentDashboard initialTab="exams" />} />
+            <Route path="/parent/report-card" element={<StudentReportCardView />} />
+            <Route path="/parent/report-cards" element={<StudentReportCardView />} />
+            <Route path="/parent/assignments" element={<ParentAssignments />} />
             <Route path="/parent/invoices" element={<ParentInvoices />} />
+            <Route path="/parent/attendance" element={<ParentAttendance />} />
+            <Route path="/parent/transactions" element={<PaymentHistory />} />
             <Route path="/parent/payment-history" element={<PaymentHistory />} />
+            <Route path="/parent/finance/transactions" element={<PaymentHistory />} />
           </Route>
 
           {/* Fallback */}

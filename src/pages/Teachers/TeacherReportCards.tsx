@@ -6,6 +6,7 @@ import {
   calculateClassReportCards,
   fetchClassReportCards,
   submitClassReportCards,
+  resubmitClassReportCards,
   updateTeacherComment,
   fetchClassSubjectSheet,
   fetchClassSubjectsProgress,
@@ -14,7 +15,7 @@ import {
   fetchStudentFullReport,
   type ReportCardItem,
 } from "../../features/reportCards/reportCardsSlice";
-
+import { fetchMyClassTeacherAssignments } from "../../features/classTeachers/classTeachersSlice";
 import { fetchTeacherClassStudents } from "../../features/students/studentsSlice";
 import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice";
 import { fetchAcademicYears } from "../../features/academicYears/academicYearsSlice";
@@ -120,6 +121,7 @@ export default function TeacherReportCards() {
   const { items: classLevels } = useAppSelector((state) => state.classLevels);
   const { items: allSubjects } = useAppSelector((state) => state.subjects);
   const { teacher: authTeacher } = useAppSelector((state) => state.teacherAuth);
+  const { myAssignments } = useAppSelector((state) => state.classTeachers);
   const { teacherClassStudents, teacherSubject: stateTeacherSubject } = useAppSelector((state) => state.students);
   const currentTeacher = authTeacher as any;
   const teacherAssignedSubjectNames = useMemo<string[]>(() => {
@@ -183,8 +185,24 @@ export default function TeacherReportCards() {
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [selectedClass, setSelectedClass] = useState<string>("");
+  const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [hasInitializedAssignment, setHasInitializedAssignment] = useState<boolean>(false);
+
+  // Active assigned program name (from assignment, overview, or teacher profile)
+  const assignedProgramName = useMemo(() => {
+    if (selectedProgram) {
+      const match = myAssignments?.find(
+        (a: any) => (a.program?._id || a.program) === selectedProgram
+      );
+      if (match?.program?.name) return match.program.name;
+    }
+    if (classOverviewData?.program?.name) return classOverviewData.program.name;
+    const active = myAssignments?.find((a: any) => a.isActive);
+    if (active?.program?.name) return active.program.name;
+    return (currentTeacher?.program?.name || currentTeacher?.program || "");
+  }, [selectedProgram, myAssignments, classOverviewData, currentTeacher]);
 
   // Sheet Rows state
   const [sheetRows, setSheetRows] = useState<SheetRowItem[]>([]);
@@ -234,6 +252,7 @@ export default function TeacherReportCards() {
     dispatch(fetchTeacherClassStudents());
     dispatch(fetchTeacherProfile());
     dispatch(fetchSubjects());
+    dispatch(fetchMyClassTeacherAssignments());
   }, [dispatch]);
 
 
@@ -482,6 +501,15 @@ export default function TeacherReportCards() {
             classLevelId: selectedClass,
             academicYearId: selectedYear,
             academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+        dispatch(
+          fetchClassResultsOverview({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
           })
         );
         dispatch(
@@ -489,6 +517,7 @@ export default function TeacherReportCards() {
             classLevelId: selectedClass,
             academicYearId: selectedYear,
             academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
           })
         );
       }
@@ -519,8 +548,24 @@ export default function TeacherReportCards() {
   }, [academicTerms, selectedTerm]);
 
   useEffect(() => {
-    if (classLevels.length > 0 && !selectedClass) {
-      // If teacher has assigned classLevel, find it
+    if (myAssignments && myAssignments.length > 0 && !hasInitializedAssignment) {
+      const active = myAssignments.find((a) => a.isActive) || myAssignments[0];
+      if (active?.classLevel?._id) {
+        setSelectedClass(active.classLevel._id);
+        if (active.program?._id) {
+          setSelectedProgram(active.program._id);
+        }
+        if (active.academicYear?._id) {
+          setSelectedYear(active.academicYear._id);
+        }
+        if (active.academicTerm?._id) {
+          setSelectedTerm(active.academicTerm._id);
+        }
+        setHasInitializedAssignment(true);
+        return;
+      }
+    } else if (classLevels.length > 0 && !selectedClass && !hasInitializedAssignment) {
+      // Fallback: If teacher has legacy assigned classLevel, find it
       if (teacher?.classLevel) {
         const found = classLevels.find(
           (c) => c._id === teacher.classLevel || c.name === teacher.classLevel
@@ -532,7 +577,21 @@ export default function TeacherReportCards() {
       }
       setSelectedClass(classLevels[0]._id);
     }
-  }, [classLevels, selectedClass, teacher]);
+  }, [myAssignments, classLevels, selectedClass, teacher, hasInitializedAssignment]);
+
+  // Fallback: If teacher has program in profile and none is selected yet, match it
+  useEffect(() => {
+    if (!selectedProgram && teacher?.program) {
+      const pStr = (teacher.program?.name || teacher.program || "").toString().trim().toLowerCase();
+      const match = myAssignments?.find((a: any) => {
+        const aProg = (a.program?.name || a.program || "").toString().trim().toLowerCase();
+        return aProg === pStr;
+      });
+      if (match?.program?._id) {
+        setSelectedProgram(match.program._id);
+      }
+    }
+  }, [teacher, selectedProgram, myAssignments]);
 
   // Load existing results when selection changes
   useEffect(() => {
@@ -542,6 +601,7 @@ export default function TeacherReportCards() {
           classLevelId: selectedClass,
           academicYearId: selectedYear,
           academicTermId: selectedTerm,
+          programId: selectedProgram || undefined,
         })
       );
       dispatch(
@@ -549,6 +609,7 @@ export default function TeacherReportCards() {
           classLevelId: selectedClass,
           academicYearId: selectedYear,
           academicTermId: selectedTerm,
+          programId: selectedProgram || undefined,
         })
       );
       dispatch(
@@ -556,10 +617,11 @@ export default function TeacherReportCards() {
           classLevelId: selectedClass,
           academicYearId: selectedYear,
           academicTermId: selectedTerm,
+          programId: selectedProgram || undefined,
         })
       );
     }
-  }, [dispatch, selectedClass, selectedYear, selectedTerm]);
+  }, [dispatch, selectedClass, selectedYear, selectedTerm, selectedProgram]);
 
   // Load single student full report when selected student changes
   useEffect(() => {
@@ -689,10 +751,11 @@ export default function TeacherReportCards() {
           academicYearId: selectedYear,
           academicTermId: selectedTerm,
           subjectId: selectedSubject,
+          programId: selectedProgram || undefined,
         })
       );
     }
-  }, [dispatch, selectedClass, selectedYear, selectedTerm, selectedSubject]);
+  }, [dispatch, selectedClass, selectedYear, selectedTerm, selectedSubject, selectedProgram]);
 
   // Synchronize incoming subjectSheetData into sheetRows (ONLY students offering the subject)
   useEffect(() => {
@@ -884,6 +947,7 @@ export default function TeacherReportCards() {
         classLevelId: selectedClass,
         academicYearId: selectedYear,
         academicTermId: selectedTerm,
+        programId: selectedProgram || undefined,
       })
     );
     if (calculateClassReportCards.fulfilled.match(res)) {
@@ -899,10 +963,24 @@ export default function TeacherReportCards() {
       setAlertMsg({ text: "Please calculate class results before submitting to Admin.", type: "error" });
       return;
     }
-    const confirm = window.confirm(
-      `Submit all ${classReportCards.length} student report cards to Admin for review?`
-    );
-    if (!confirm) return;
+
+    const incompleteStudents = classReportCards.filter((c: any) => c.isComplete === false);
+    const completeCount = classReportCards.length - incompleteStudents.length;
+
+    if (incompleteStudents.length > 0) {
+      const proceed = window.confirm(
+        `Notice: ${incompleteStudents.length} of ${classReportCards.length} students have incomplete subject scores.\n\n` +
+        `Submitting will send only the ${completeCount} complete results to Admin for review. Incomplete report cards remain draft until required subject scores are entered.\n\n` +
+        `Proceed to submit the ${completeCount} complete results to Admin?`
+      );
+      if (!proceed) return;
+    } else {
+      const confirm = window.confirm(
+        `Submit all ${classReportCards.length} complete student report cards to Admin for review & official approval?\n\n` +
+        `Note: Submitting sends results to Admin for approval. They will not be visible to students or parents until approved by Admin.`
+      );
+      if (!confirm) return;
+    }
 
     setAlertMsg(null);
     const res = await dispatch(
@@ -910,12 +988,124 @@ export default function TeacherReportCards() {
         classLevelId: selectedClass,
         academicYearId: selectedYear,
         academicTermId: selectedTerm,
+        programId: selectedProgram || undefined,
       })
     );
     if (submitClassReportCards.fulfilled.match(res)) {
-      setAlertMsg({ text: res.payload?.message || "Successfully submitted to admin!", type: "success" });
+      setAlertMsg({
+        text: res.payload?.message || "Class results submitted successfully to Admin for approval!",
+        type: "success",
+      });
+      dispatch(fetchClassReportCards({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
+      dispatch(fetchClassResultsOverview({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
     } else {
       setAlertMsg({ text: (res.payload as string) || "Failed to submit results.", type: "error" });
+    }
+  };
+
+  const handleResubmitToAdmin = async () => {
+    if (!selectedClass || !selectedYear || !selectedTerm) return;
+
+    const confirm = window.confirm(
+      `Resubmit all corrected student results in this class to Admin for review?\n\n` +
+      `Admin will review the updated scores against previous rejection feedback.`
+    );
+    if (!confirm) return;
+
+    setAlertMsg(null);
+    const res = await dispatch(
+      resubmitClassReportCards({
+        classLevelId: selectedClass,
+        academicYearId: selectedYear,
+        academicTermId: selectedTerm,
+        programId: selectedProgram || undefined,
+      })
+    );
+    if (resubmitClassReportCards.fulfilled.match(res)) {
+      setAlertMsg({
+        text: res.payload?.message || "Corrected class results resubmitted to Admin successfully!",
+        type: "success",
+      });
+      dispatch(fetchClassReportCards({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
+      dispatch(fetchClassResultsOverview({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
+    } else {
+      setAlertMsg({ text: (res.payload as string) || "Failed to resubmit corrected results.", type: "error" });
+    }
+  };
+
+  const handleSubmitIndividual = async (studentOrCard: any) => {
+    const studentName = studentOrCard?.student?.name || "this student";
+    const reportCardId = studentOrCard?._id || studentOrCard?.reportCard?._id;
+    const studentId = studentOrCard?.student?._id || studentOrCard?.student;
+
+    if (studentOrCard.isFullySubmitted === false || studentOrCard.isComplete === false) {
+      const missing = studentOrCard.pendingSubjects?.join(", ") || "required subjects";
+      setAlertMsg({
+        text: `Cannot submit incomplete result for ${studentName}. Missing scores in: ${missing}.`,
+        type: "error",
+      });
+      return;
+    }
+
+    const confirm = window.confirm(
+      `Submit ${studentName}'s complete report card to Admin for approval?\n\n` +
+      `Note: Class teacher submission sends the result for Admin review. It will not be publicly visible until Admin approves and publishes.`
+    );
+    if (!confirm) return;
+
+    setAlertMsg(null);
+    const res = await dispatch(
+      submitClassReportCards({
+        reportCardId,
+        studentId,
+        classLevelId: selectedClass,
+        academicYearId: selectedYear,
+        academicTermId: selectedTerm,
+        programId: selectedProgram || undefined,
+      })
+    );
+    if (submitClassReportCards.fulfilled.match(res)) {
+      setAlertMsg({
+        text: res.payload?.message || `${studentName}'s result submitted to Admin successfully!`,
+        type: "success",
+      });
+      dispatch(fetchClassReportCards({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
+      dispatch(fetchClassResultsOverview({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
+    } else {
+      setAlertMsg({ text: (res.payload as string) || "Failed to submit result.", type: "error" });
+    }
+  };
+
+  const handleResubmitIndividual = async (studentOrCard: any) => {
+    const studentName = studentOrCard?.student?.name || "this student";
+    const reportCardId = studentOrCard?._id || studentOrCard?.reportCard?._id;
+    const studentId = studentOrCard?.student?._id || studentOrCard?.student;
+
+    const confirm = window.confirm(
+      `Resubmit ${studentName}'s corrected result to Admin for review?`
+    );
+    if (!confirm) return;
+
+    setAlertMsg(null);
+    const res = await dispatch(
+      resubmitClassReportCards({
+        reportCardId,
+        studentId,
+        classLevelId: selectedClass,
+        academicYearId: selectedYear,
+        academicTermId: selectedTerm,
+        programId: selectedProgram || undefined,
+      })
+    );
+    if (resubmitClassReportCards.fulfilled.match(res)) {
+      setAlertMsg({
+        text: res.payload?.message || `${studentName}'s corrected result resubmitted to Admin!`,
+        type: "success",
+      });
+      dispatch(fetchClassReportCards({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
+      dispatch(fetchClassResultsOverview({ classLevelId: selectedClass, academicYearId: selectedYear, academicTermId: selectedTerm, programId: selectedProgram || undefined }));
+    } else {
+      setAlertMsg({ text: (res.payload as string) || "Failed to resubmit corrected result.", type: "error" });
     }
   };
 
@@ -1049,9 +1239,17 @@ export default function TeacherReportCards() {
       <div className="pt-6 pb-6 border-b border-gray-200 dark:border-gray-800 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 mb-2">
-              <HiOutlineSparkles className="w-3.5 h-3.5" />
-              Academic Term Evaluation
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                <HiOutlineSparkles className="w-3.5 h-3.5" />
+                Academic Term Evaluation
+              </div>
+              {assignedProgramName && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                  <span>🌸</span>
+                  <span>Assigned Program: <strong>{assignedProgramName}</strong></span>
+                </div>
+              )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
               Class Term Report Cards & Ranking
@@ -1079,6 +1277,15 @@ export default function TeacherReportCards() {
                       classLevelId: selectedClass,
                       academicYearId: selectedYear,
                       academicTermId: selectedTerm,
+                      programId: selectedProgram || undefined,
+                    })
+                  );
+                  dispatch(
+                    fetchClassResultsOverview({
+                      classLevelId: selectedClass,
+                      academicYearId: selectedYear,
+                      academicTermId: selectedTerm,
+                      programId: selectedProgram || undefined,
                     })
                   );
                 }
@@ -1223,19 +1430,54 @@ export default function TeacherReportCards() {
           {/* Class Level */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Class Level:
+              Assigned Class Level:
+              {myAssignments && myAssignments.length > 0 && (
+                <span className="ml-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
+                  ({myAssignments.length} Assigned)
+                </span>
+              )}
             </label>
             <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
+              value={selectedProgram ? `${selectedClass}:::${selectedProgram}` : selectedClass}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.includes(":::")) {
+                  const [cId, pId] = val.split(":::");
+                  setSelectedClass(cId);
+                  setSelectedProgram(pId || "");
+                } else {
+                  setSelectedClass(val);
+                  const match = myAssignments?.find((a: any) => {
+                    const cId = (a.classLevel && typeof a.classLevel === "object" ? a.classLevel._id : a.classLevel)?.toString();
+                    return cId === val;
+                  });
+                  const progId = match?.program && typeof match.program === "object"
+                    ? (match.program._id as string)
+                    : (match?.program?.toString() || "");
+                  setSelectedProgram(progId);
+                }
+              }}
               className="w-full px-3.5 py-2.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white"
             >
               <option value="">Select Class Level</option>
-              {classLevels.map((cl) => (
-                <option key={cl._id} value={cl._id}>
-                  {cl.name}
-                </option>
-              ))}
+              {myAssignments && myAssignments.length > 0
+                ? myAssignments.map((a) => {
+                    const cId = ((a.classLevel && typeof a.classLevel === "object" ? a.classLevel._id : a.classLevel) || "").toString();
+                    const pId = ((a.program && typeof a.program === "object" ? a.program._id : a.program) || "").toString();
+                    const cName = ((a.classLevel && typeof a.classLevel === "object" ? a.classLevel.name : a.classLevel) || "Class").toString();
+                    const pName = ((a.program && typeof a.program === "object" ? a.program.name : a.program) || "").toString();
+                    const keyVal = pId ? `${cId}:::${pId}` : cId;
+                    return (
+                      <option key={a._id || keyVal} value={keyVal}>
+                        {cName} {pName ? `(${pName})` : ""} {!a.isActive ? "[Inactive]" : ""}
+                      </option>
+                    );
+                  })
+                : classLevels.map((cl) => (
+                    <option key={cl._id} value={cl._id}>
+                      {cl.name}
+                    </option>
+                  ))}
             </select>
           </div>
 
@@ -1353,16 +1595,36 @@ export default function TeacherReportCards() {
                 </button>
 
                 {classReportCards.length > 0 &&
-                  (classStatus === "calculated" || classStatus === "rejected" || classStatus === "draft") && (
+                  (classStatus === "rejected" || classStatus === "returned_for_correction") && (
+                    <button
+                      onClick={handleResubmitToAdmin}
+                      disabled={submitting}
+                      type="button"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                    >
+                      <HiOutlinePaperAirplane className={`w-4 h-4 ${submitting ? "animate-spin" : ""}`} />
+                      {submitting ? "Resubmitting..." : "Resubmit Corrected Results to Admin"}
+                    </button>
+                  )}
+
+                {classReportCards.length > 0 &&
+                  (classStatus === "calculated" || classStatus === "draft") && (
                     <button
                       onClick={handleSubmitToAdmin}
                       disabled={submitting}
                       type="button"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition disabled:opacity-50 cursor-pointer"
                     >
                       <HiOutlinePaperAirplane className={`w-4 h-4 ${submitting ? "animate-spin" : ""}`} />
-                      {submitting ? "Submitting..." : "Submit to Admin"}
+                      {submitting ? "Submitting..." : "Submit All Results to Admin"}
                     </button>
+                  )}
+
+                {classReportCards.length > 0 &&
+                  (classStatus === "submitted" || classStatus === "submitted_to_admin") && (
+                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                      <HiOutlineClock className="w-4 h-4" /> Submitted to Admin (Under Review)
+                    </span>
                   )}
               </>
             ) : (
@@ -2116,6 +2378,7 @@ export default function TeacherReportCards() {
                                 <HiOutlineEye className="w-3.5 h-3.5" />
                                 Review
                               </button>
+
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2132,6 +2395,39 @@ export default function TeacherReportCards() {
                               >
                                 <HiOutlinePencilSquare className="w-4 h-4" />
                               </button>
+
+                              {/* Submit or Resubmit Result to Admin */}
+                              {item.reportCard?.status === "returned_for_correction" || item.reportCard?.status === "rejected" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResubmitIndividual(item)}
+                                  disabled={submitting}
+                                  title="Resubmit Corrected Result to Admin"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-bold text-xs transition cursor-pointer"
+                                >
+                                  <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
+                                  Resubmit
+                                </button>
+                              ) : item.reportCard?.status === "submitted_to_admin" || item.reportCard?.status === "submitted" ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                                  Submitted
+                                </span>
+                              ) : item.reportCard?.published ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                  Published
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSubmitIndividual(item)}
+                                  disabled={submitting || !isComplete}
+                                  title={!isComplete ? "Scores incomplete. Cannot submit to admin." : "Submit Result to Admin"}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs disabled:opacity-40 transition cursor-pointer"
+                                >
+                                  <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
+                                  Submit
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2270,10 +2566,10 @@ export default function TeacherReportCards() {
                     </div>
                   </div>
 
-                  {/* Submission Status Badge */}
-                  <div className="flex items-center gap-3">
+                  {/* Review & Submission Status & Actions */}
+                  <div className="flex flex-wrap items-center gap-2.5">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-extrabold uppercase tracking-wider border shadow-sm ${
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider border shadow-sm ${
                         activeFullReportCard.progress?.isFullySubmitted
                           ? "bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
                           : "bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300"
@@ -2281,17 +2577,64 @@ export default function TeacherReportCards() {
                     >
                       {activeFullReportCard.progress?.isFullySubmitted ? (
                         <>
-                          <HiOutlineCheckCircle className="w-4 h-4 text-emerald-500" /> Fully Submitted
+                          <HiOutlineCheckCircle className="w-4 h-4 text-emerald-500" /> Complete
                         </>
                       ) : (
                         <>
                           <HiOutlineClock className="w-4 h-4 text-amber-500" />
-                          {activeFullReportCard.progress?.pendingSubjectsCount} Pending Subjects
+                          {activeFullReportCard.progress?.pendingSubjectsCount} Pending
                         </>
                       )}
                     </span>
+
+                    {/* Single Student Submit / Resubmit to Admin */}
+                    {activeFullReportCard.status === "returned_for_correction" || activeFullReportCard.status === "rejected" ? (
+                      <button
+                        type="button"
+                        onClick={() => handleResubmitIndividual(activeFullReportCard)}
+                        disabled={submitting}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 shadow-sm transition disabled:opacity-50 cursor-pointer"
+                      >
+                        <HiOutlinePaperAirplane className="w-4 h-4" />
+                        {submitting ? "Resubmitting..." : "Resubmit to Admin"}
+                      </button>
+                    ) : activeFullReportCard.status === "submitted_to_admin" || activeFullReportCard.status === "submitted" ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <HiOutlineClock className="w-4 h-4" /> Submitted to Admin
+                      </span>
+                    ) : activeFullReportCard.published ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
+                        <HiOutlineCheckCircle className="w-4 h-4" /> Published
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSubmitIndividual(activeFullReportCard)}
+                        disabled={submitting || !activeFullReportCard.progress?.isFullySubmitted}
+                        title={!activeFullReportCard.progress?.isFullySubmitted ? "Incomplete subject scores. Cannot submit." : "Submit this student's result to Admin"}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm disabled:opacity-40 transition cursor-pointer"
+                      >
+                        <HiOutlinePaperAirplane className="w-4 h-4" />
+                        {submitting ? "Submitting..." : "Submit Result to Admin"}
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* If individual student returned for correction, show prominent rejection reason */}
+                {(activeFullReportCard.status === "returned_for_correction" || activeFullReportCard.status === "rejected") &&
+                  activeFullReportCard.rejectionReason && (
+                    <div className="mt-4 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-300 flex items-start gap-3">
+                      <HiOutlineExclamationCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block">Administrator Correction Feedback:</span>
+                        <p className="mt-1">"{activeFullReportCard.rejectionReason}"</p>
+                        <p className="mt-1.5 text-rose-700 dark:text-rose-400 font-semibold">
+                          Please verify subject scores with respective teachers, then click "Resubmit to Admin" above.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                 {/* Progress summary banner */}
                 <div className="pt-6">

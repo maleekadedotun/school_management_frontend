@@ -159,15 +159,115 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     return { text: "Good Evening", icon: "🌙" };
   }, []);
 
-  // Level Progression Logic
-  const levelOrder = ["Level 100", "Level 200", "Level 300", "Level 400"];
+  // Level Progression Logic (JSS 1-3, SSS 1-3, or Level 100-400)
   const currentLevelStr = (activeStudent?.currentClassLevel || "Level 100").trim();
-  const currentLevelIndex = useMemo(() => {
-    const idx = levelOrder.findIndex(
-      (lvl) => lvl.toLowerCase() === currentLevelStr.toLowerCase()
+
+  const progressionData = useMemo(() => {
+    const rawClass = currentLevelStr.toLowerCase();
+    const rawHistory = Array.isArray(activeStudent?.classLevels)
+      ? activeStudent.classLevels
+      : activeStudent?.classLevels
+      ? [activeStudent.classLevels]
+      : [];
+    const classLevelsHistory = rawHistory.map((l: any) =>
+      (typeof l === "object" ? l?.name || "" : l?.toString() || "").toLowerCase()
     );
-    return idx !== -1 ? idx : 0;
-  }, [currentLevelStr]);
+
+    // 1. Check for JSS Track (Junior Secondary: JSS 1, JSS 2, JSS 3, Graduation)
+    const isJSS =
+      rawClass.includes("jss") ||
+      rawClass.includes("js ") ||
+      rawClass.startsWith("js") ||
+      rawClass.includes("junior") ||
+      classLevelsHistory.some((l: string) => l.includes("jss") || l.includes("junior"));
+
+    // 2. Check for SSS Track (Senior Secondary: SSS 1, SSS 2, SSS 3, Graduation)
+    const isSSS =
+      !isJSS && (
+        rawClass.includes("sss") ||
+        rawClass.includes("ss ") ||
+        rawClass.startsWith("ss") ||
+        rawClass.includes("senior") ||
+        classLevelsHistory.some((l: string) => l.includes("sss") || l.includes("senior"))
+      );
+
+    if (isJSS) {
+      const steps = [
+        { level: "JSS 1", label: "Junior Secondary 1", step: 0 },
+        { level: "JSS 2", label: "Junior Secondary 2", step: 1 },
+        { level: "JSS 3", label: "Junior Secondary 3", step: 2 },
+        { level: "Graduation", label: "Junior Grad / BECE", step: 3 },
+      ];
+
+      let currentStep = 0;
+      if (rawClass.includes("3") || rawClass.includes("three")) {
+        currentStep = 2;
+      } else if (rawClass.includes("2") || rawClass.includes("two")) {
+        currentStep = 1;
+      } else {
+        currentStep = 0;
+      }
+
+      return {
+        trackName: "Junior Secondary Progression",
+        subtitle: "Promote through JSS 1, JSS 2, and JSS 3 towards Basic Education Certificate & Graduation.",
+        steps,
+        currentStep,
+      };
+    }
+
+    if (isSSS) {
+      const steps = [
+        { level: "SSS 1", label: "Senior Secondary 1", step: 0 },
+        { level: "SSS 2", label: "Senior Secondary 2", step: 1 },
+        { level: "SSS 3", label: "Senior Secondary 3", step: 2 },
+        { level: "Graduation", label: "Senior Grad / SSCE", step: 3 },
+      ];
+
+      let currentStep = 0;
+      if (rawClass.includes("3") || rawClass.includes("three")) {
+        currentStep = 2;
+      } else if (rawClass.includes("2") || rawClass.includes("two")) {
+        currentStep = 1;
+      } else {
+        currentStep = 0;
+      }
+
+      return {
+        trackName: "Senior Secondary Progression",
+        subtitle: "Advance through SSS 1, SSS 2, and SSS 3 towards Senior Secondary Certificate & Graduation.",
+        steps,
+        currentStep,
+      };
+    }
+
+    // Default: Tertiary Track (Level 100 - 400 + Graduation)
+    const steps = [
+      { level: "Level 100", label: "Freshman", step: 0 },
+      { level: "Level 200", label: "Sophomore", step: 1 },
+      { level: "Level 300", label: "Junior", step: 2 },
+      { level: "Level 400", label: "Senior", step: 3 },
+      { level: "Graduation", label: "Degree Holder", step: 4 },
+    ];
+
+    let currentStep = 0;
+    if (rawClass.includes("400") || rawClass.includes("4")) {
+      currentStep = 3;
+    } else if (rawClass.includes("300") || rawClass.includes("3")) {
+      currentStep = 2;
+    } else if (rawClass.includes("200") || rawClass.includes("2")) {
+      currentStep = 1;
+    } else {
+      currentStep = 0;
+    }
+
+    return {
+      trackName: "Academic Level Progression",
+      subtitle: "Passing your 3rd Term exams automatically unlocks promotion to the next class level.",
+      steps,
+      currentStep,
+    };
+  }, [currentLevelStr, activeStudent?.classLevels]);
 
   // Academic standing & gpa estimation
   const totalResults = studentExamResults?.length || 0;
@@ -323,19 +423,21 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     });
   }, [exams, activeStudent, examSearch, examTypeFilter]);
 
-  // Filter exam results
+  // Filter exam results (Only Admin-approved published results)
   const filteredResults = useMemo(() => {
-    return studentExamResults.filter((r) => {
-      const examName = r.exam?.name || "Exam";
-      const subjectName = r.exam?.subject?.name || "";
-      const matchSearch =
-        examName.toLowerCase().includes(resultSearch.toLowerCase()) ||
-        subjectName.toLowerCase().includes(resultSearch.toLowerCase());
-      const matchStatus =
-        resultFilter === "all" ||
-        r.status?.toLowerCase() === resultFilter.toLowerCase();
-      return matchSearch && matchStatus;
-    });
+    return (studentExamResults || [])
+      .filter((r) => r?.isPublished === true)
+      .filter((r) => {
+        const examName = r.exam?.name || "Exam";
+        const subjectName = r.exam?.subject?.name || "";
+        const matchSearch =
+          examName.toLowerCase().includes(resultSearch.toLowerCase()) ||
+          subjectName.toLowerCase().includes(resultSearch.toLowerCase());
+        const matchStatus =
+          resultFilter === "all" ||
+          r.status?.toLowerCase() === resultFilter.toLowerCase();
+        return matchSearch && matchStatus;
+      });
   }, [studentExamResults, resultSearch, resultFilter]);
 
   // Handle Exam Launch
@@ -607,7 +709,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
               </h2>
             </div>
             <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Passing your 3rd Term exams automatically unlocks promotion to the next class level.
+              {progressionData.subtitle}
             </p>
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 w-fit">
@@ -623,25 +725,38 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
             <div
               className="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-500 rounded-full transition-all duration-700"
               style={{
-                width: `${Math.min(100, Math.max(10, ((currentLevelIndex + (activeStudent?.isGraduated ? 1 : 0.5)) / 4) * 100))}%`,
+                width: `${
+                  activeStudent?.isGraduated
+                    ? 100
+                    : Math.min(
+                        100,
+                        Math.max(
+                          10,
+                          ((progressionData.currentStep + 0.5) /
+                            (progressionData.steps.length - 1)) *
+                            100
+                        )
+                      )
+                }%`,
               }}
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 relative z-10">
-            {[
-              { level: "Level 100", label: "Freshman", step: 0 },
-              { level: "Level 200", label: "Sophomore", step: 1 },
-              { level: "Level 300", label: "Junior", step: 2 },
-              { level: "Level 400", label: "Senior", step: 3 },
-              { level: "Graduation", label: "Degree Holder", step: 4 },
-            ].map((stepItem) => {
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 ${
+              progressionData.steps.length === 4 ? "md:grid-cols-4" : "md:grid-cols-5"
+            } gap-4 relative z-10`}
+          >
+            {progressionData.steps.map((stepItem) => {
+              const isGraduationStep =
+                stepItem.step === progressionData.steps.length - 1;
               const isPast =
                 activeStudent?.isGraduated ||
-                currentLevelIndex > stepItem.step ||
-                (stepItem.step === 4 && activeStudent?.isGraduated);
+                progressionData.currentStep > stepItem.step ||
+                (isGraduationStep && activeStudent?.isGraduated);
               const isCurrent =
-                !activeStudent?.isGraduated && currentLevelIndex === stepItem.step;
+                !activeStudent?.isGraduated &&
+                progressionData.currentStep === stepItem.step;
 
               return (
                 <div
@@ -665,7 +780,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                   >
                     {isPast ? (
                       <HiOutlineCheck className="w-5 h-5 stroke-[3]" />
-                    ) : stepItem.step === 4 ? (
+                    ) : isGraduationStep ? (
                       "🎓"
                     ) : (
                       stepItem.step + 1
@@ -720,18 +835,18 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
           <div className="mt-3">
             <div className="flex items-baseline gap-2">
               <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {currentExamResult?.grade !== undefined
+                {currentExamResult?.isPublished && currentExamResult?.grade !== undefined
                   ? `${currentExamResult.grade}%`
                   : "N/A"}
               </h3>
-              {currentExamResult?.remarks && (
+              {currentExamResult?.isPublished && currentExamResult?.remarks && (
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
                   {currentExamResult.remarks}
                 </span>
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {currentExamResult?.exam?.name || "No exam record yet"}
+              {currentExamResult?.isPublished && currentExamResult?.exam?.name ? currentExamResult.exam.name : "No exam record yet"}
             </p>
           </div>
         </div>
@@ -845,7 +960,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                     Latest Published Assessment
                   </h3>
                 </div>
-                {currentExamResult && (
+                {currentExamResult && currentExamResult.isPublished && (
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-bold ${
                       currentExamResult.status === "Passed"
@@ -858,7 +973,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                 )}
               </div>
 
-              {currentExamResult ? (
+              {currentExamResult && currentExamResult.isPublished ? (
                 <div className="space-y-6">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-gradient-to-r from-indigo-50/60 to-violet-50/60 dark:from-slate-800/40 dark:to-indigo-950/30 border border-indigo-100 dark:border-slate-800">
                     <div className="space-y-2 text-center sm:text-left">
@@ -1126,7 +1241,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                     to="/student/subjects"
                     className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 text-sm"
                   >
-                    <span>{activeStudent?.subject || "View Enrolled (100L - Final)"}</span>
+                    <span>{activeStudent?.subject || "View Class Subjects"}</span>
                     <HiOutlineArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
@@ -1615,7 +1730,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                   to="/student/subjects"
                   className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 text-sm"
                 >
-                  <span>{activeStudent?.subject || "View Enrolled (100L - Final)"}</span>
+                  <span>{activeStudent?.subject || "View Class Subjects"}</span>
                   <HiOutlineArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

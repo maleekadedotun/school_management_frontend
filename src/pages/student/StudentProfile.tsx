@@ -67,8 +67,8 @@ const StudentProfile: React.FC = () => {
       })
     : "September 15, 2022";
 
-  // Exam Performance Data
-  const examResults: any[] = currentStudentObj?.examsResults || [];
+  // Exam Performance Data (Only Admin-approved published results)
+  const examResults: any[] = (currentStudentObj?.examsResults || []).filter((r: any) => r?.isPublished === true);
   const pendingTeacherCount = (currentStudentObj as any)?.pendingTeacherReviewCount || 0;
   const pendingAdminCount = (currentStudentObj as any)?.pendingAdminReviewCount || 0;
   const hasPendingReview = pendingTeacherCount > 0 || pendingAdminCount > 0;
@@ -242,7 +242,7 @@ const StudentProfile: React.FC = () => {
             <span>{allEnrolledSubjects.length}</span>
             <span className="text-xs text-indigo-400 font-normal">Active Courses</span>
           </div>
-          <p className="text-[11px] text-slate-400">Across 100L – 400L class tiers</p>
+          <p className="text-[11px] text-slate-400">Across enrolled class tiers</p>
         </div>
 
         <div className="p-5 rounded-2xl bg-slate-900/60 border border-white/10 backdrop-blur-xl shadow-lg space-y-1">
@@ -376,17 +376,48 @@ const StudentProfile: React.FC = () => {
             {/* Academic Progression Progress */}
             <div className="pt-4 border-t border-white/10 space-y-3">
               <div className="flex items-center justify-between text-xs font-semibold">
-                <span className="text-slate-300">Degree Progression (100L $\rightarrow$ 400L)</span>
-                <span className="text-indigo-400 font-bold">85% Completed</span>
+                <span className="text-slate-300">
+                  Academic Progression ({enrolledSubjectsByClass.map((g) => g.shortCode).join(" → ") || "Class Progression"})
+                </span>
+                <span className="text-indigo-400 font-bold">
+                  {currentStudentObj?.isGraduated ? "100% Completed" : "In Progress"}
+                </span>
               </div>
               <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden p-0.5">
-                <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 w-[85%] transition-all duration-500" />
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-500 via-violet-500 to-emerald-400 transition-all duration-500"
+                  style={{
+                    width: `${
+                      currentStudentObj?.isGraduated
+                        ? 100
+                        : Math.min(
+                            100,
+                            Math.max(
+                              25,
+                              (((enrolledSubjectsByClass.findIndex((g) => g.isCurrent) + 1) || 1) /
+                                (enrolledSubjectsByClass.length || 1)) *
+                                100
+                            )
+                          )
+                    }%`,
+                  }}
+                />
               </div>
-              <div className="grid grid-cols-4 gap-2 pt-1 text-[11px] text-center text-slate-400">
-                <span className="text-emerald-400 font-medium">✓ 100L Done</span>
-                <span className="text-emerald-400 font-medium">✓ 200L Done</span>
-                <span className="text-emerald-400 font-medium">✓ 300L Done</span>
-                <span className="text-indigo-300 font-bold">Current (400L)</span>
+              <div className="grid grid-flow-col auto-cols-fr gap-2 pt-1 text-[11px] text-center text-slate-400">
+                {enrolledSubjectsByClass.map((g) => (
+                  <span
+                    key={g.classLevel}
+                    className={
+                      g.isCurrent
+                        ? "text-indigo-300 font-bold"
+                        : g.isCompleted
+                        ? "text-emerald-400 font-medium"
+                        : "text-slate-500"
+                    }
+                  >
+                    {g.isCompleted ? `✓ ${g.shortCode}` : g.isCurrent ? `Current (${g.shortCode})` : g.shortCode}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
