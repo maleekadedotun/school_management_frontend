@@ -19,9 +19,20 @@ export interface QuestionItem {
   exam?: {
     _id: string;
     name: string;
+    description?: string;
+    examType?: string;
     subject?: string;
     program?: string;
+    academicYear?: string;
+    academicTerm?: string;
+    classLevel?: string;
+    duration?: string;
+    passMark?: number;
+    totalMark?: number;
   };
+  academicYear?: string;
+  academicTerm?: string;
+  examType?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +118,19 @@ export const updateQuestion = createAsyncThunk(
   }
 );
 
+// Teacher — delete question (DELETE /api/v1/questions/:id)
+export const deleteQuestion = createAsyncThunk(
+  "questions/delete",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await api.delete(`/questions/${id}`);
+      return id;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to delete question");
+    }
+  }
+);
+
 const questionsSlice = createSlice({
   name: "questions",
   initialState,
@@ -166,6 +190,15 @@ const questionsSlice = createSlice({
           state.questions = state.questions.map((q) =>
             q._id === updated._id ? updated : q
           );
+        }
+      })
+      // Delete question
+      .addCase(deleteQuestion.fulfilled, (state, action) => {
+        const id = action.payload;
+        state.teacherQuestions = state.teacherQuestions.filter((q) => q._id !== id);
+        state.questions = state.questions.filter((q) => q._id !== id);
+        if (state.currentQuestion?._id === id) {
+          state.currentQuestion = null;
         }
       });
   },

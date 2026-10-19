@@ -22,7 +22,7 @@ export default function LandingPage() {
             </div>
             <div>
               <span className="text-xl font-bold tracking-tight text-white block leading-none">
-                School<span className="text-indigo-400">MS</span>
+                DotTech<span className="text-indigo-400">MS</span>
               </span>
               <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
                 Education System

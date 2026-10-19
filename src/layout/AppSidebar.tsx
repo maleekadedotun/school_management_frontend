@@ -109,6 +109,11 @@ const adminNavGroups: NavGroup[] = [
         icon: <UserCircleIcon />,
         path: "/admin/class-teachers",
       },
+      {
+        name: "Parents",
+        icon: <UserCircleIcon />,
+        path: "/admin/parents",
+      },
     ],
   },
   {
@@ -766,7 +771,7 @@ const AppSidebar: React.FC = () => {
           {(isExpanded || isHovered || isMobileOpen) && (
             <div>
               <span className="text-lg font-bold text-white tracking-wide block leading-none">
-                School<span className="text-indigo-400">MS</span>
+                DotTech<span className="text-indigo-400">MS</span>
               </span>
               <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">
                 {portalLabel}

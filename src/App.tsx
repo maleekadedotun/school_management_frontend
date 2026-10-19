@@ -156,6 +156,8 @@ export default function App() {
             <Route path="/admin/finance/invoices" element={<InvoiceManagement />} />
             <Route path="/admin/finance/transactions" element={<PaymentHistory />} />
             <Route path="/admin/finance/parents" element={<ParentsList />} />
+            <Route path="/admin/parents" element={<ParentsList />} />
+            <Route path="/parents" element={<ParentsList />} />
           </Route>
 
           {/* Teacher Protected Dashboard Routes */}

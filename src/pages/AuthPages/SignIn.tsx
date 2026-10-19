@@ -50,7 +50,7 @@ export default function SignIn() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422A12.083 12.083 0 0121 13.5c0 4.418-4.03 8-9 8s-9-3.582-9-8a12.083 12.083 0 012.84-7.922L12 14z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">SchoolMS</h1>
+          <h1 className="text-3xl font-bold text-white tracking-tight">DotTechMS</h1>
           <p className="text-slate-400 mt-1 text-sm">Admin Portal — Sign in to continue</p>
         </div>
 

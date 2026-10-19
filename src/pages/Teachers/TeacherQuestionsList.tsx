@@ -5,17 +5,22 @@ import {
   fetchQuestion,
   createQuestion,
   updateQuestion,
+  deleteQuestion,
   clearCurrentQuestion,
   type QuestionItem,
 } from "../../features/questions/questionsSlice";
-import { fetchExams } from "../../features/exams/examsSlice";
+import { fetchExams, createExam } from "../../features/exams/examsSlice";
+import { fetchAcademicYears } from "../../features/academicYears/academicYearsSlice";
+import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
+import { fetchSubjects } from "../../features/subjects/subjectsSlice";
+import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
+import { fetchPrograms } from "../../features/programs/programsSlice";
 import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice";
-import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
-const ITEMS_PER_PAGE = 10;
-
 interface QuestionFormData {
+  academicYear: string;
+  academicTerm: string;
   examId: string;
   question: string;
   optionA: string;
@@ -26,6 +31,8 @@ interface QuestionFormData {
 }
 
 const emptyForm: QuestionFormData = {
+  academicYear: "",
+  academicTerm: "",
   examId: "",
   question: "",
   optionA: "",
@@ -33,6 +40,34 @@ const emptyForm: QuestionFormData = {
   optionC: "",
   optionD: "",
   correctAnswer: "optionA",
+};
+
+const emptyExamForm = {
+  name: "",
+  description: "",
+  examType: "Exam",
+  academicYear: "",
+  academicTerm: "",
+  subject: "",
+  classLevel: "",
+  program: "",
+  duration: "30 minutes",
+  examDate: new Date().toISOString().split("T")[0],
+  examTime: "09:00",
+  passMark: 40,
+  totalMark: 70,
+};
+
+const getObjName = (obj: any): string => {
+  if (!obj) return "";
+  if (typeof obj === "string") return obj;
+  return obj.name || obj.title || "";
+};
+
+const getObjId = (obj: any): string => {
+  if (!obj) return "";
+  if (typeof obj === "string") return obj;
+  return obj._id || obj.id || "";
 };
 
 export default function TeacherQuestionsList() {
@@ -46,19 +81,33 @@ export default function TeacherQuestionsList() {
     loading: questionsLoading,
   } = useAppSelector((s) => s.questions);
   const { items: exams } = useAppSelector((s) => s.exams);
+  const { items: academicYears } = useAppSelector((s) => s.academicYears);
+  const { items: academicTerms } = useAppSelector((s) => s.academicTerms);
+  const { items: subjects } = useAppSelector((s) => s.subjects);
+  const { items: classLevels } = useAppSelector((s) => s.classLevels);
+  const { items: programs } = useAppSelector((s) => s.programs);
 
-  // Local state for filtering & pagination
+  // Table State: Expanded Examination Rows (click row to display questions under each examination)
+  const [expandedExamIds, setExpandedExamIds] = useState<string[]>([]);
+
+  // Filter States
+  const [selectedYearFilter, setSelectedYearFilter] = useState("all");
+  const [selectedTermFilter, setSelectedTermFilter] = useState("all");
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState("all"); // 'all' | 'Exam' | 'Test'
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedExamFilter, setSelectedExamFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateExamModal, setShowCreateExamModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Form states
   const [formData, setFormData] = useState<QuestionFormData>({ ...emptyForm });
+  const [examForm, setExamForm] = useState({ ...emptyExamForm });
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -69,23 +118,15 @@ export default function TeacherQuestionsList() {
     dispatch(fetchTeacherProfile());
     dispatch(fetchTeacherQuestions());
     dispatch(fetchExams());
+    dispatch(fetchAcademicYears());
+    dispatch(fetchAcademicTerms());
+    dispatch(fetchSubjects());
+    dispatch(fetchClassLevels());
+    dispatch(fetchPrograms());
   }, [dispatch]);
 
-  // Map question ID to associated Exam if available
-  const examMap = useMemo(() => {
-    const map: Record<string, any> = {};
-    exams.forEach((exam: any) => {
-      if (exam.questions && Array.isArray(exam.questions)) {
-        exam.questions.forEach((q: any) => {
-          const qId = typeof q === "string" ? q : q?._id;
-          if (qId) map[qId] = exam;
-        });
-      }
-    });
-    return map;
-  }, [exams]);
-
   const teacherId = teacher?._id || (teacher as any)?.id;
+  const t: any = teacher || {};
 
   // Filter questions authored by this teacher only
   const myTeacherQuestions = useMemo(() => {
@@ -96,84 +137,274 @@ export default function TeacherQuestionsList() {
     });
   }, [teacherQuestions, teacherId]);
 
-  // Filtered questions
-  const filteredQuestions = useMemo(() => {
-    return myTeacherQuestions.filter((q) => {
-      const associatedExam = q.exam || examMap[q._id];
-      const examName = associatedExam?.name || "";
-      const matchesExam =
-        selectedExamFilter === "all" ||
-        associatedExam?._id === selectedExamFilter ||
-        examName.toLowerCase().includes(selectedExamFilter.toLowerCase());
+  // Aggregate questions into assessments (Exam or Test for Academic Year, Term, Examination Name)
+  const assessments = useMemo(() => {
+    const map: Record<string, any> = {};
+
+    // 1. Initialize from exams
+    exams.forEach((exam: any) => {
+      const yearName = getObjName(exam.academicYear);
+      const termName = getObjName(exam.academicTerm);
+      const subName = getObjName(exam.subject);
+      const className = getObjName(exam.classLevel);
+      const rawType = (exam.examType || "Exam").trim();
+      const isTest = ["test", "quiz", "continuous assessment", "ca"].includes(rawType.toLowerCase());
+
+      // Questions directly embedded inside exam.questions
+      const embeddedQuestions: QuestionItem[] = [];
+      if (exam.questions && Array.isArray(exam.questions)) {
+        exam.questions.forEach((q: any) => {
+          if (q && typeof q === "object" && q._id && q.question) {
+            embeddedQuestions.push({
+              ...q,
+              exam: {
+                _id: exam._id,
+                name: exam.name,
+                examType: isTest ? "Test" : "Exam",
+                subject: subName,
+                program: getObjName(exam.program),
+                academicYear: yearName,
+                academicTerm: termName,
+                classLevel: className,
+              },
+              academicYear: yearName,
+              academicTerm: termName,
+              examType: isTest ? "Test" : "Exam",
+            });
+          }
+        });
+      }
+
+      map[exam._id] = {
+        id: exam._id,
+        name: exam.name,
+        description: exam.description || "",
+        examType: isTest ? "Test" : (rawType || "Exam"),
+        rawExamType: rawType,
+        academicYear: yearName || "2026/2027",
+        academicYearId: getObjId(exam.academicYear),
+        academicTerm: termName || "First Term",
+        academicTermId: getObjId(exam.academicTerm),
+        subject: subName,
+        classLevel: className,
+        passMark: exam.passMark ?? (isTest ? 15 : 40),
+        totalMark: exam.totalMark ?? (isTest ? 30 : 70),
+        duration: exam.duration || "30 mins",
+        examDate: exam.examDate,
+        examTime: exam.examTime,
+        questions: embeddedQuestions,
+      };
+    });
+
+    // 2. Attach questions from myTeacherQuestions
+    myTeacherQuestions.forEach((q) => {
+      const associatedExam = q.exam || (q as any).examId;
+      const examId = typeof associatedExam === "object" ? associatedExam?._id : associatedExam;
+
+      if (examId && map[examId]) {
+        if (!map[examId].questions.some((existingQ: any) => existingQ._id === q._id)) {
+          map[examId].questions.push(q);
+        }
+      } else if (examId) {
+        const yearName = q.academicYear || getObjName(associatedExam?.academicYear) || "2026/2027";
+        const termName = q.academicTerm || getObjName(associatedExam?.academicTerm) || "First Term";
+        const rawType = (q.examType || associatedExam?.examType || "Exam").trim();
+        const isTest = ["test", "quiz", "continuous assessment", "ca"].includes(rawType.toLowerCase());
+
+        map[examId] = {
+          id: examId,
+          name: associatedExam?.name || "Exam / Assessment",
+          description: associatedExam?.description || "",
+          examType: isTest ? "Test" : (rawType || "Exam"),
+          rawExamType: rawType,
+          academicYear: yearName,
+          academicYearId: "",
+          academicTerm: termName,
+          academicTermId: "",
+          subject: associatedExam?.subject || "",
+          classLevel: associatedExam?.classLevel || "",
+          passMark: associatedExam?.passMark ?? 40,
+          totalMark: associatedExam?.totalMark ?? 70,
+          duration: associatedExam?.duration || "30 mins",
+          questions: [q],
+        };
+      } else {
+        const fallbackId = "general-unlinked";
+        if (!map[fallbackId]) {
+          map[fallbackId] = {
+            id: fallbackId,
+            name: "General Question Bank",
+            description: "Questions authored without an active examination link",
+            examType: "Question Bank",
+            rawExamType: "Bank",
+            academicYear: q.academicYear || "2026/2027",
+            academicYearId: "",
+            academicTerm: q.academicTerm || "First Term",
+            academicTermId: "",
+            subject: "General",
+            classLevel: "All Levels",
+            passMark: 0,
+            totalMark: 0,
+            duration: "N/A",
+            questions: [],
+          };
+        }
+        if (!map[fallbackId].questions.some((existingQ: any) => existingQ._id === q._id)) {
+          map[fallbackId].questions.push(q);
+        }
+      }
+    });
+
+    return Object.values(map);
+  }, [exams, myTeacherQuestions]);
+
+  // Unique Academic Years & Terms
+  const availableYears = useMemo(() => {
+    const set = new Set<string>();
+    academicYears.forEach((y: any) => {
+      const n = getObjName(y);
+      if (n) set.add(n);
+    });
+    assessments.forEach((a) => {
+      if (a.academicYear) set.add(a.academicYear);
+    });
+    if (!set.has("2026/2027")) set.add("2026/2027");
+    return Array.from(set);
+  }, [academicYears, assessments]);
+
+  const availableTerms = useMemo(() => {
+    const set = new Set<string>();
+    academicTerms.forEach((t: any) => {
+      const n = getObjName(t);
+      if (n) set.add(n);
+    });
+    assessments.forEach((a) => {
+      if (a.academicTerm) set.add(a.academicTerm);
+    });
+    if (set.size === 0) {
+      set.add("First Term");
+      set.add("Second Term");
+      set.add("Third Term");
+    }
+    return Array.from(set);
+  }, [academicTerms, assessments]);
+
+  // Filtered Assessments
+  const filteredAssessments = useMemo(() => {
+    return assessments.filter((item) => {
+      const matchesYear =
+        selectedYearFilter === "all" ||
+        item.academicYear?.toLowerCase() === selectedYearFilter.toLowerCase();
+
+      const matchesTerm =
+        selectedTermFilter === "all" ||
+        item.academicTerm?.toLowerCase() === selectedTermFilter.toLowerCase();
+
+      const matchesType =
+        selectedTypeFilter === "all" ||
+        (selectedTypeFilter === "Exam" && item.examType === "Exam") ||
+        (selectedTypeFilter === "Test" && item.examType === "Test");
 
       const query = searchTerm.toLowerCase().trim();
       const matchesSearch =
         !query ||
-        q.question.toLowerCase().includes(query) ||
-        q.optionA.toLowerCase().includes(query) ||
-        q.optionB.toLowerCase().includes(query) ||
-        q.optionC.toLowerCase().includes(query) ||
-        q.optionD.toLowerCase().includes(query) ||
-        q.correctAnswer.toLowerCase().includes(query) ||
-        examName.toLowerCase().includes(query);
+        item.name.toLowerCase().includes(query) ||
+        (item.subject && item.subject.toLowerCase().includes(query)) ||
+        (item.classLevel && item.classLevel.toLowerCase().includes(query)) ||
+        item.questions.some((q: QuestionItem) =>
+          q.question?.toLowerCase().includes(query)
+        );
 
-      return matchesExam && matchesSearch;
+      return matchesYear && matchesTerm && matchesType && matchesSearch;
     });
-  }, [myTeacherQuestions, examMap, selectedExamFilter, searchTerm]);
+  }, [assessments, selectedYearFilter, selectedTermFilter, selectedTypeFilter, searchTerm]);
 
-  // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / ITEMS_PER_PAGE));
-  const paginatedQuestions = useMemo(() => {
+  // Pagination for table
+  const totalPages = Math.max(1, Math.ceil(filteredAssessments.length / ITEMS_PER_PAGE));
+  const paginatedAssessments = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredQuestions.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredQuestions, currentPage]);
+    return filteredAssessments.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredAssessments, currentPage]);
 
-  // Reset to page 1 on filter change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedExamFilter]);
+  }, [selectedYearFilter, selectedTermFilter, selectedTypeFilter, searchTerm]);
 
-  // Helper to determine if an option is the correct answer
+  // Total questions count
+  const totalQuestionsCount = useMemo(() => {
+    let count = 0;
+    assessments.forEach((a) => {
+      count += a.questions.length;
+    });
+    return count;
+  }, [assessments]);
+
+  // Toggle row expansion (click row to show questions under each examination)
+  const toggleRowExpansion = (id: string) => {
+    setExpandedExamIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleExpandAll = () => {
+    if (expandedExamIds.length === paginatedAssessments.length) {
+      setExpandedExamIds([]);
+    } else {
+      setExpandedExamIds(paginatedAssessments.map((a) => a.id));
+    }
+  };
+
+  // Helper to check correct answer
   const isOptionCorrect = (
     q: { correctAnswer: string; optionA: string; optionB: string; optionC: string; optionD: string },
     optKey: "optionA" | "optionB" | "optionC" | "optionD"
   ) => {
-    const val = q[optKey]?.trim().toLowerCase();
-    const ans = q.correctAnswer?.trim().toLowerCase();
-    return ans === optKey.toLowerCase() || ans === val;
+    const val = (q[optKey] || "").trim().toLowerCase();
+    const ans = (q.correctAnswer || "").trim().toLowerCase();
+    return ans === optKey.toLowerCase() || (val && ans === val);
   };
 
-  // Open Create Modal
-  const handleOpenCreateModal = () => {
+  // Open Create Question Modal
+  const handleOpenCreateModal = (targetAssessmentId?: string) => {
+    const targetExam = targetAssessmentId
+      ? assessments.find((a) => a.id === targetAssessmentId)
+      : assessments[0] || null;
+
+    const yearVal = targetExam?.academicYear || availableYears[0] || "2026/2027";
+    const termVal = targetExam?.academicTerm || availableTerms[0] || "First Term";
+    const examIdVal = targetExam?.id && targetExam.id !== "general-unlinked" ? targetExam.id : (exams[0]?._id || "");
+
     setFormData({
       ...emptyForm,
-      examId: exams.length > 0 ? exams[0]._id : "",
+      academicYear: yearVal,
+      academicTerm: termVal,
+      examId: examIdVal,
     });
     setFormError("");
     setShowCreateModal(true);
   };
 
-  // Open View Modal (hits fetchQuestionCtrl via fetchQuestion)
+  // Open View Single Question Modal (API: fetchQuestion)
   const handleOpenViewModal = (questionId: string) => {
     dispatch(fetchQuestion(questionId));
     setShowViewModal(true);
     setShowRawJson(false);
   };
 
-  // Open Edit Modal (pre-fills with question data)
+  // Open Edit Question Modal
   const handleOpenEditModal = (q: QuestionItem) => {
-    const associatedExam = q.exam || examMap[q._id];
-
-    // Determine which key optionA..optionD was the correct answer
+    const associatedExam = q.exam;
     let resolvedCorrectKey: "optionA" | "optionB" | "optionC" | "optionD" = "optionA";
-    const ans = q.correctAnswer?.trim().toLowerCase();
-    if (ans === "optiona" || ans === q.optionA.trim().toLowerCase()) resolvedCorrectKey = "optionA";
-    else if (ans === "optionb" || ans === q.optionB.trim().toLowerCase()) resolvedCorrectKey = "optionB";
-    else if (ans === "optionc" || ans === q.optionC.trim().toLowerCase()) resolvedCorrectKey = "optionC";
-    else if (ans === "optiond" || ans === q.optionD.trim().toLowerCase()) resolvedCorrectKey = "optionD";
+    const ans = (q.correctAnswer || "").trim().toLowerCase();
+    if (ans === "optiona" || ans === (q.optionA || "").trim().toLowerCase()) resolvedCorrectKey = "optionA";
+    else if (ans === "optionb" || ans === (q.optionB || "").trim().toLowerCase()) resolvedCorrectKey = "optionB";
+    else if (ans === "optionc" || ans === (q.optionC || "").trim().toLowerCase()) resolvedCorrectKey = "optionC";
+    else if (ans === "optiond" || ans === (q.optionD || "").trim().toLowerCase()) resolvedCorrectKey = "optionD";
 
     setEditingQuestionId(q._id);
     setFormData({
+      academicYear: q.academicYear || associatedExam?.academicYear || "",
+      academicTerm: q.academicTerm || associatedExam?.academicTerm || "",
       examId: associatedExam?._id || "",
       question: q.question,
       optionA: q.optionA,
@@ -187,13 +418,31 @@ export default function TeacherQuestionsList() {
     setShowEditModal(true);
   };
 
+  // Delete Question
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!window.confirm("Are you sure you want to remove this question?")) return;
+    setDeletingId(questionId);
+    try {
+      const res = await dispatch(deleteQuestion(questionId));
+      if (deleteQuestion.fulfilled.match(res)) {
+        toast.success("Question deleted successfully!");
+        dispatch(fetchTeacherQuestions());
+        dispatch(fetchExams());
+      } else {
+        toast.error((res.payload as string) || "Failed to delete question");
+      }
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   // Submit Create Question
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
 
     if (!formData.examId) {
-      setFormError("Please select an exam to link this question to.");
+      setFormError("Please select an Examination / Assessment to save this question under.");
       return;
     }
     if (!formData.question.trim()) {
@@ -211,12 +460,24 @@ export default function TeacherQuestionsList() {
     }
 
     setIsSubmitting(true);
-    // Submit with the actual text of the correct option to ensure clear display in tests
     const chosenAnswerValue = formData[formData.correctAnswer];
+
+    // Find matching AcademicYear and AcademicTerm ObjectIds if available
+    const matchedYear = academicYears.find(
+      (y: any) => y.name === formData.academicYear || y._id === formData.academicYear
+    );
+    const matchedTerm = academicTerms.find(
+      (t: any) => t.name === formData.academicTerm || t._id === formData.academicTerm
+    );
+
+    const yearPayload = matchedYear?._id || formData.academicYear;
+    const termPayload = matchedTerm?._id || formData.academicTerm;
 
     const result = await dispatch(
       createQuestion({
         examId: formData.examId,
+        academicYear: yearPayload,
+        academicTerm: termPayload,
         question: formData.question.trim(),
         optionA: formData.optionA.trim(),
         optionB: formData.optionB.trim(),
@@ -229,9 +490,14 @@ export default function TeacherQuestionsList() {
     setIsSubmitting(false);
 
     if (createQuestion.fulfilled.match(result)) {
-      toast.success("Question created and linked to exam successfully!");
+      toast.success("Question created and saved to the exam successfully!");
       setShowCreateModal(false);
+      // Auto expand this exam row so user immediately sees their new question
+      if (!expandedExamIds.includes(formData.examId)) {
+        setExpandedExamIds((prev) => [...prev, formData.examId]);
+      }
       dispatch(fetchTeacherQuestions());
+      dispatch(fetchExams());
     } else {
       const err = (result.payload as string) || "Failed to create question.";
       setFormError(err);
@@ -249,22 +515,26 @@ export default function TeacherQuestionsList() {
       setFormError("Question statement is required.");
       return;
     }
-    if (
-      !formData.optionA.trim() ||
-      !formData.optionB.trim() ||
-      !formData.optionC.trim() ||
-      !formData.optionD.trim()
-    ) {
-      setFormError("All options must be filled.");
-      return;
-    }
 
     setIsSubmitting(true);
     const chosenAnswerValue = formData[formData.correctAnswer];
 
+    const matchedYear = academicYears.find(
+      (y: any) => y.name === formData.academicYear || y._id === formData.academicYear
+    );
+    const matchedTerm = academicTerms.find(
+      (t: any) => t.name === formData.academicTerm || t._id === formData.academicTerm
+    );
+
+    const yearPayload = matchedYear?._id || formData.academicYear || undefined;
+    const termPayload = matchedTerm?._id || formData.academicTerm || undefined;
+
     const result = await dispatch(
       updateQuestion({
         id: editingQuestionId,
+        examId: formData.examId || undefined,
+        academicYear: yearPayload,
+        academicTerm: termPayload,
         question: formData.question.trim(),
         optionA: formData.optionA.trim(),
         optionB: formData.optionB.trim(),
@@ -281,6 +551,7 @@ export default function TeacherQuestionsList() {
       setShowEditModal(false);
       setEditingQuestionId(null);
       dispatch(fetchTeacherQuestions());
+      dispatch(fetchExams());
     } else {
       const err = (result.payload as string) || "Failed to update question.";
       setFormError(err);
@@ -288,19 +559,67 @@ export default function TeacherQuestionsList() {
     }
   };
 
-  const t = teacher as any;
+  // Submit Quick Create Assessment (Exam or Test)
+  const handleCreateExamSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+
+    if (!examForm.name.trim()) {
+      setFormError("Examination name is required.");
+      return;
+    }
+    if (!examForm.subject) {
+      setFormError("Please choose a subject.");
+      return;
+    }
+    if (!examForm.classLevel) {
+      setFormError("Please choose a class level.");
+      return;
+    }
+    if (!examForm.academicYear) {
+      setFormError("Please choose an academic year.");
+      return;
+    }
+    if (!examForm.academicTerm) {
+      setFormError("Please choose an academic term.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const payload = {
+      ...examForm,
+      program: examForm.program || (programs[0]?._id ?? ""),
+    };
+
+    const res = await dispatch(createExam(payload));
+    setIsSubmitting(false);
+
+    if (createExam.fulfilled.match(res)) {
+      toast.success(`${examForm.examType} "${examForm.name}" created successfully!`);
+      setShowCreateExamModal(false);
+      const newExam = res.payload.data || res.payload;
+      if (newExam?._id) {
+        setExpandedExamIds((prev) => [...prev, newExam._id]);
+      }
+      dispatch(fetchExams());
+    } else {
+      const err = (res.payload as string) || "Failed to create examination.";
+      setFormError(err);
+      toast.error(err);
+    }
+  };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto min-h-screen">
-      {/* 1. TEACHER PROFILE HERO BANNER (fetchTeacherProfile) */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-950 border border-emerald-500/20 p-6 sm:p-8 shadow-2xl shadow-emerald-950/40">
-        <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-10 -left-10 w-72 h-72 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
+    <div className="space-y-6 max-w-7xl mx-auto pb-16">
+      {/* 1. TEACHER BANNER */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#0d1629] via-[#0f223a] to-[#0a1826] border border-emerald-500/20 p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-80 h-80 rounded-full bg-emerald-500/10 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-teal-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <div className="relative group">
-              <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 flex items-center justify-center text-white text-3xl font-extrabold shadow-xl shadow-emerald-500/30 border-2 border-white/20">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-700 flex items-center justify-center text-white text-3xl font-extrabold shadow-xl shadow-emerald-500/30 border-2 border-white/20">
                 {teacher?.name ? teacher.name[0].toUpperCase() : "T"}
               </div>
               <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-[#0a0f1e] flex items-center justify-center text-[10px] text-black font-bold">
@@ -315,7 +634,7 @@ export default function TeacherQuestionsList() {
                 </h1>
                 <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Educator
+                  Question Bank Table
                 </span>
                 {t?.teacherId && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-mono font-medium bg-white/10 text-slate-300 border border-white/10">
@@ -330,7 +649,7 @@ export default function TeacherQuestionsList() {
                   <>
                     <span className="text-slate-600">•</span>
                     <span className="text-emerald-300 font-medium">
-                      Program: {t?.program?.name || t?.program}
+                      Program: {getObjName(t.program)}
                     </span>
                   </>
                 )}
@@ -338,7 +657,7 @@ export default function TeacherQuestionsList() {
                   <>
                     <span className="text-slate-600">•</span>
                     <span className="text-teal-300 font-medium">
-                      Subject: {t?.subject?.name || t?.subject}
+                      Subject: {getObjName(t.subject)}
                     </span>
                   </>
                 )}
@@ -347,24 +666,35 @@ export default function TeacherQuestionsList() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <Link
-              to="/teacher/profile"
-              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-semibold transition-all flex items-center justify-center gap-2"
+            <button
+              onClick={() => {
+                setExamForm({
+                  ...emptyExamForm,
+                  academicYear: availableYears[0] || "",
+                  academicTerm: availableTerms[0] || "",
+                  subject: subjects[0]?._id || "",
+                  classLevel: classLevels[0]?._id || "",
+                  program: programs[0]?._id || "",
+                });
+                setFormError("");
+                setShowCreateExamModal(true);
+              }}
+              className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
               <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              View Full Profile
-            </Link>
+              + Create Examination / Test
+            </button>
 
             <button
-              onClick={handleOpenCreateModal}
+              onClick={() => handleOpenCreateModal()}
               className="flex-1 md:flex-initial px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
-              Create Question
+              + Create Question
             </button>
           </div>
         </div>
@@ -374,37 +704,37 @@ export default function TeacherQuestionsList() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           {
-            title: "Question Bank",
-            value: myTeacherQuestions.length,
-            label: "Total Created",
+            title: "Examinations & Tests",
+            value: assessments.length,
+            label: "Assessment Records",
+            icon: "📋",
+            bg: "from-blue-500/10 to-indigo-500/5",
+            border: "border-blue-500/20",
+            text: "text-blue-400",
+          },
+          {
+            title: "Total Questions",
+            value: totalQuestionsCount,
+            label: "Questions in Bank",
             icon: "❓",
             bg: "from-emerald-500/10 to-teal-500/5",
             border: "border-emerald-500/20",
             text: "text-emerald-400",
           },
           {
-            title: "Associated Exams",
-            value: exams.length,
-            label: "Active Tests",
-            icon: "📋",
-            bg: "from-blue-500/10 to-cyan-500/5",
-            border: "border-blue-500/20",
-            text: "text-blue-400",
-          },
-          {
-            title: "Filtered Results",
-            value: filteredQuestions.length,
-            label: "Showing Match",
-            icon: "🔍",
+            title: "Academic Years",
+            value: availableYears.length,
+            label: "e.g. 2026/2027",
+            icon: "📅",
             bg: "from-violet-500/10 to-purple-500/5",
             border: "border-violet-500/20",
             text: "text-violet-400",
           },
           {
-            title: "Pagination",
-            value: `${currentPage} / ${totalPages}`,
-            label: "Current Page",
-            icon: "📄",
+            title: "Current Term",
+            value: availableTerms[0] || "Active",
+            label: "Session Term",
+            icon: "🎯",
             bg: "from-amber-500/10 to-yellow-500/5",
             border: "border-amber-500/20",
             text: "text-amber-400",
@@ -414,290 +744,528 @@ export default function TeacherQuestionsList() {
             key={idx}
             className={`p-4 sm:p-5 rounded-2xl bg-gradient-to-br ${stat.bg} border ${stat.border} backdrop-blur-xl space-y-1 transition-all hover:scale-[1.01]`}
           >
-            <div className="flex items-center justify-between text-xs text-slate-400 font-semibold uppercase tracking-wider">
+            <div className="flex items-center justify-between text-xs text-dark-400 font-semibold uppercase tracking-wider">
               <span>{stat.title}</span>
               <span className="text-base">{stat.icon}</span>
             </div>
-            <div className={`text-2xl sm:text-3xl font-extrabold ${stat.text}`}>{stat.value}</div>
-            <div className="text-[11px] text-slate-400 font-medium">{stat.label}</div>
+            <div className={`text-2xl sm:text-3xl font-extrabold ${stat.text} truncate`}>{stat.value}</div>
+            <div className="text-[11px] text-dark-400 font-medium">{stat.label}</div>
           </div>
         ))}
       </div>
 
-      {/* 3. TOOLBAR: SEARCH & EXAM SELECTOR */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-[#0e172a]/80 border border-white/10 backdrop-blur-xl shadow-xl flex flex-col md:flex-row gap-4 items-center justify-between">
-        {/* Search */}
-        <div className="relative w-full md:w-80">
-          <svg
-            className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search questions, options, answer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+      {/* 3. FILTERS BAR: YEAR, TERM, TYPE, SEARCH */}
+      <div className="p-5 rounded-2xl bg-[#0e172a]/95 border border-white/10 backdrop-blur-xl shadow-xl space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
+          {/* Search Bar */}
+          <div className="relative flex-1 max-w-md">
+            <svg
+              className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              Clear
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search by examination name, academic year, subject..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExpandAll}
+              className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>{expandedExamIds.length === paginatedAssessments.length ? "▲ Collapse All" : "▼ Expand All"}</span>
             </button>
-          )}
+
+            <button
+              onClick={() => {
+                dispatch(fetchTeacherQuestions());
+                dispatch(fetchExams());
+                toast.success("Question bank updated!");
+              }}
+              title="Refresh Question Bank"
+              className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all cursor-pointer"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* Filter by Exam */}
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider shrink-0 hidden sm:inline">
-            Exam:
-          </span>
-          <select
-            value={selectedExamFilter}
-            onChange={(e) => setSelectedExamFilter(e.target.value)}
-            className="flex-1 md:w-64 px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-all"
-          >
-            <option value="all">All Linked Exams</option>
-            {exams.map((ex: any) => (
-              <option key={ex._id} value={ex._id}>
-                {ex.name} ({ex.questions?.length || 0} Qs)
-              </option>
-            ))}
-          </select>
+        {/* Filter Dropdowns */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-white/5">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              Academic Year:
+            </label>
+            <select
+              value={selectedYearFilter}
+              onChange={(e) => setSelectedYearFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#1e293b] border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-emerald-500 font-medium [&>option]:text-slate-900 [&>option]:bg-white"
+            >
+              <option value="all" className="text-slate-900 bg-white">All Academic Years</option>
+              {availableYears.map((yr) => (
+                <option key={yr} value={yr} className="text-slate-900 bg-white">
+                  {yr} {yr === "2026/2027" ? " (Current)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          {/* Quick Refresh */}
-          <button
-            onClick={() => {
-              dispatch(fetchTeacherQuestions());
-              dispatch(fetchExams());
-              toast.success("Questions reloaded!");
-            }}
-            title="Refresh Questions"
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all cursor-pointer"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              Academic Term:
+            </label>
+            <select
+              value={selectedTermFilter}
+              onChange={(e) => setSelectedTermFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#1e293b] border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-emerald-500 font-medium [&>option]:text-slate-900 [&>option]:bg-white"
+            >
+              <option value="all" className="text-slate-900 bg-white">All Terms</option>
+              {availableTerms.map((tm) => (
+                <option key={tm} value={tm} className="text-slate-900 bg-white">
+                  {tm}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              Assessment Type:
+            </label>
+            <select
+              value={selectedTypeFilter}
+              onChange={(e) => setSelectedTypeFilter(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#1e293b] border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-emerald-500 font-medium [&>option]:text-slate-900 [&>option]:bg-white"
+            >
+              <option value="all" className="text-slate-900 bg-white">All Types (Exam & Test)</option>
+              <option value="Exam" className="text-slate-900 bg-white">Exams (Final / MidTerm)</option>
+              <option value="Test" className="text-slate-900 bg-white">Tests (Continuous Assessment / CA)</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* 4. QUESTIONS LIST / CARDS (fetchAllQuestionsCtrl) */}
-      <div className="space-y-4">
-        {questionsLoading && teacherQuestions.length === 0 ? (
-          <div className="p-12 rounded-3xl bg-white/5 border border-white/10 text-center space-y-3">
-            <div className="w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-slate-300 text-sm font-medium">Fetching question bank...</p>
+      {/* 4. MAIN TABLE: EXAM / TEST QUESTION BANK TABLE */}
+      <div className="bg-[#0f1629] border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
+        <div className="p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.02]">
+          <div>
+            <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span>📊</span>
+              <span>Examination & Test Question Records</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                {filteredAssessments.length} Examination{filteredAssessments.length === 1 ? "" : "s"}
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Click on any row or click <strong className="text-emerald-400">"View Questions"</strong> to display questions under each examination
+            </p>
           </div>
-        ) : paginatedQuestions.length === 0 ? (
-          <div className="p-12 rounded-3xl bg-white/5 border border-white/10 text-center space-y-4">
+
+          <div className="text-xs text-slate-400">
+            Total in Bank: <strong className="text-white font-semibold">{totalQuestionsCount}</strong> Questions
+          </div>
+        </div>
+
+        {questionsLoading && assessments.length === 0 ? (
+          <div className="p-16 text-center space-y-3">
+            <div className="w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-slate-300 text-sm font-medium">Fetching examination & question records...</p>
+          </div>
+        ) : filteredAssessments.length === 0 ? (
+          <div className="p-16 text-center text-slate-400 space-y-4">
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl mx-auto">
-              📝
+              📋
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-bold text-white">No questions found</h3>
+              <h3 className="text-lg font-bold text-white">No examinations found</h3>
               <p className="text-slate-400 text-sm max-w-md mx-auto">
-                {searchTerm || selectedExamFilter !== "all"
-                  ? "No questions match your search or exam filter. Try changing your filters."
-                  : "You haven't authored any exam questions yet. Click 'Create Question' to get started."}
+                {searchTerm || selectedYearFilter !== "all" || selectedTermFilter !== "all" || selectedTypeFilter !== "all"
+                  ? "No examination records match your selected filters. Try clearing or broadening your search."
+                  : "No examinations or tests have been created yet. Create an examination to start authoring questions."}
               </p>
             </div>
             <button
-              onClick={handleOpenCreateModal}
+              onClick={() => {
+                setExamForm({
+                  ...emptyExamForm,
+                  academicYear: availableYears[0] || "",
+                  academicTerm: availableTerms[0] || "",
+                  subject: subjects[0]?._id || "",
+                  classLevel: classLevels[0]?._id || "",
+                  program: programs[0]?._id || "",
+                });
+                setShowCreateExamModal(true);
+              }}
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/20"
             >
-              + Create First Question
+              + Create First Examination
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
-            {paginatedQuestions.map((q, index) => {
-              const actualIndex = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
-              const associatedExam = q.exam || examMap[q._id];
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm border-collapse">
+              <thead className="bg-white/5 border-b border-white/10 text-slate-400 uppercase text-[11px] font-semibold tracking-wider">
+                <tr>
+                  <th className="py-3.5 px-4 w-10 text-center">#</th>
+                  <th className="py-3.5 px-4">Examination Name</th>
+                  <th className="py-3.5 px-3">Type</th>
+                  <th className="py-3.5 px-3">Academic Year</th>
+                  <th className="py-3.5 px-3">Term</th>
+                  <th className="py-3.5 px-4">Subject & Class</th>
+                  <th className="py-3.5 px-3 text-center">Questions</th>
+                  <th className="py-3.5 px-3 text-center">Marks</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {paginatedAssessments.map((assessment, index) => {
+                  const actualIndex = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                  const isExpanded = expandedExamIds.includes(assessment.id);
+                  const isTest = assessment.examType === "Test";
+                  const qCount = assessment.questions.length;
 
-              return (
-                <div
-                  key={q._id}
-                  className="p-5 sm:p-6 rounded-2xl bg-[#0f172a]/90 border border-white/10 hover:border-emerald-500/40 transition-all duration-200 shadow-xl space-y-4 group"
-                >
-                  {/* Top Bar: Question Number + Exam Badge + Actions */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/5 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-center shrink-0">
-                        #{actualIndex}
-                      </span>
-                      {associatedExam ? (
-                        <span className="px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 flex items-center gap-1.5">
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          Exam: {associatedExam.name}
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 text-slate-400">
-                          General Question
-                        </span>
-                      )}
-                      {q.createdAt && (
-                        <span className="text-[11px] text-slate-500 hidden sm:inline">
-                          Created {new Date(q.createdAt).toLocaleDateString()}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* View Single Question (fetchQuestionCtrl) */}
-                      <button
-                        onClick={() => handleOpenViewModal(q._id)}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-medium border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
-                        title="View Full Question Details"
+                  return (
+                    <React.Fragment key={assessment.id}>
+                      {/* Examination Row */}
+                      <tr
+                        onClick={() => toggleRowExpansion(assessment.id)}
+                        className={`group cursor-pointer transition-colors ${
+                          isExpanded
+                            ? "bg-emerald-500/[0.08] border-l-4 border-l-emerald-500"
+                            : "hover:bg-white/[0.03]"
+                        }`}
                       >
-                        <svg className="w-3.5 h-3.5 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        Inspect
-                      </button>
+                        {/* Expand Icon & Number */}
+                        <td className="py-4 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="font-mono text-slate-500 text-xs font-semibold">{actualIndex}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleRowExpansion(assessment.id);
+                              }}
+                              className="w-6 h-6 rounded-lg bg-white/5 group-hover:bg-emerald-500/20 text-slate-400 group-hover:text-emerald-300 font-bold flex items-center justify-center transition-all"
+                              title={isExpanded ? "Collapse questions" : "Click to view questions"}
+                            >
+                              <span className="text-[10px] transition-transform duration-200">
+                                {isExpanded ? "▼" : "▶"}
+                              </span>
+                            </button>
+                          </div>
+                        </td>
 
-                      {/* Edit Question (updateQuestionCtrl) */}
-                      <button
-                        onClick={() => handleOpenEditModal(q)}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
-                        title="Edit Question"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Edit
-                      </button>
-                    </div>
-                  </div>
+                        {/* Examination Name */}
+                        <td className="py-4 px-4">
+                          <div className="font-bold text-white group-hover:text-emerald-300 transition-colors text-sm sm:text-base flex items-center gap-2">
+                            <span>{assessment.name}</span>
+                            {isExpanded && (
+                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                Viewing Questions
+                              </span>
+                            )}
+                          </div>
+                          {assessment.description && (
+                            <p className="text-slate-400 text-xs mt-0.5 line-clamp-1">
+                              {assessment.description}
+                            </p>
+                          )}
+                        </td>
 
-                  {/* Question Prompt */}
-                  <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-white leading-relaxed">
-                      {q.question}
-                    </h3>
-                  </div>
+                        {/* Category (Exam vs Test) */}
+                        <td className="py-4 px-3 whitespace-nowrap">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
+                              isTest
+                                ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                                : "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
+                            }`}
+                          >
+                            {isTest ? "⚡ Test" : "📋 Exam"}
+                          </span>
+                        </td>
 
-                  {/* Options A, B, C, D Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    {[
-                      { key: "optionA" as const, label: "A", value: q.optionA },
-                      { key: "optionB" as const, label: "B", value: q.optionB },
-                      { key: "optionC" as const, label: "C", value: q.optionC },
-                      { key: "optionD" as const, label: "D", value: q.optionD },
-                    ].map((opt) => {
-                      const isCorrect = isOptionCorrect(q, opt.key);
+                        {/* Academic Year */}
+                        <td className="py-4 px-3 whitespace-nowrap">
+                          <span className="font-semibold text-emerald-300 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono">
+                            📅 {assessment.academicYear}
+                          </span>
+                        </td>
 
-                      return (
-                        <div
-                          key={opt.key}
-                          className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 transition-all ${
-                            isCorrect
-                              ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-200 shadow-sm shadow-emerald-500/10"
-                              : "bg-white/5 border-white/5 text-slate-300"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 overflow-hidden">
-                            <span
-                              className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 ${
-                                isCorrect
-                                  ? "bg-emerald-500 text-black font-extrabold"
-                                  : "bg-white/10 text-slate-400"
+                        {/* Academic Term */}
+                        <td className="py-4 px-3 whitespace-nowrap">
+                          <span className="font-medium text-teal-300 px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs">
+                            🏷️ {assessment.academicTerm}
+                          </span>
+                        </td>
+
+                        {/* Subject & Class */}
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <div className="font-semibold text-slate-200">
+                            {assessment.subject || "General"}
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            {assessment.classLevel || "All Class Levels"}
+                          </div>
+                        </td>
+
+                        {/* Questions Count Badge */}
+                        <td className="py-4 px-3 text-center whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all ${
+                              qCount > 0
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm"
+                                : "bg-white/5 text-slate-400 border-white/10"
+                            }`}
+                          >
+                            <span>{qCount}</span>
+                            <span className="font-normal opacity-80">Qs</span>
+                          </span>
+                        </td>
+
+                        {/* Marks & Duration */}
+                        <td className="py-4 px-3 text-center whitespace-nowrap text-xs text-slate-300">
+                          <div>
+                            <span className="font-bold text-white">{assessment.passMark}</span> / {assessment.totalMark}
+                          </div>
+                          <div className="text-[10px] text-slate-500">{assessment.duration}</div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-4 px-4 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => toggleRowExpansion(assessment.id)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
+                                isExpanded
+                                  ? "bg-emerald-500 text-black border-emerald-400 shadow-md shadow-emerald-500/20"
+                                  : "bg-white/5 hover:bg-white/10 text-emerald-300 border-white/10"
                               }`}
                             >
-                              {opt.label}
-                            </span>
-                            <span className="text-sm font-medium truncate">{opt.value}</span>
-                          </div>
+                              <span>{isExpanded ? "Hide Questions" : "View Questions"}</span>
+                              <span>{isExpanded ? "▲" : "▼"}</span>
+                            </button>
 
-                          {isCorrect && (
-                            <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                              ✓ Correct
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCreateModal(assessment.id)}
+                              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer"
+                              title="Add Question directly to this exam"
+                            >
+                              <span>+</span>
+                              <span className="hidden sm:inline">Add Q</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* EXPANDED ROW: DISPLAY QUESTIONS UNDER THIS EXAMINATION */}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={9} className="p-0 border-b border-emerald-500/20 bg-[#080d1a]/90">
+                            <div className="p-5 sm:p-6 space-y-4 m-2 rounded-2xl border border-emerald-500/30 bg-[#0b1328]/95 shadow-inner animate-in fade-in duration-200">
+                              {/* Sub-header inside expansion */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    <h4 className="text-base font-bold text-white">
+                                      Questions for: <span className="text-emerald-300">{assessment.name}</span>
+                                    </h4>
+                                  </div>
+                                  <p className="text-xs text-slate-400 flex flex-wrap items-center gap-2">
+                                    <span>Academic Year: <strong className="text-white">{assessment.academicYear}</strong></span>
+                                    <span>•</span>
+                                    <span>Term: <strong className="text-white">{assessment.academicTerm}</strong></span>
+                                    <span>•</span>
+                                    <span>Category: <strong className="text-white">{assessment.examType}</strong></span>
+                                    <span>•</span>
+                                    <span>Subject: <strong className="text-white">{assessment.subject || "General"}</strong></span>
+                                  </p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenCreateModal(assessment.id)}
+                                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                  </svg>
+                                  + Add Question to {assessment.name}
+                                </button>
+                              </div>
+
+                              {/* Questions Under This Examination */}
+                              {assessment.questions.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400 bg-white/5 rounded-2xl border border-white/10 space-y-3">
+                                  <p className="text-sm font-semibold text-white">
+                                    No questions currently saved under this examination.
+                                  </p>
+                                  <p className="text-xs text-slate-400">
+                                    Click "+ Add Question to {assessment.name}" above to save the first question for this assessment.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {assessment.questions.map((q: QuestionItem, qIdx: number) => {
+                                    return (
+                                      <div
+                                        key={q._id || qIdx}
+                                        className="p-4 sm:p-5 rounded-2xl bg-[#0f172a] border border-white/10 hover:border-emerald-500/40 transition-all space-y-3 shadow-md"
+                                      >
+                                        {/* Top Bar of Question */}
+                                        <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
+                                          <div className="flex items-center gap-2">
+                                            <span className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center justify-center">
+                                              #{qIdx + 1}
+                                            </span>
+                                            <span className="text-xs font-semibold text-slate-300">
+                                              Saved under: {assessment.name} ({assessment.academicYear})
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenViewModal(q._id)}
+                                              className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-medium border border-white/10 transition-colors"
+                                            >
+                                              Inspect
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenEditModal(q)}
+                                              className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/20 transition-colors"
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteQuestion(q._id)}
+                                              disabled={deletingId === q._id}
+                                              className="px-2.5 py-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 text-xs font-medium border border-red-500/20 transition-colors disabled:opacity-50"
+                                            >
+                                              Delete
+                                            </button>
+                                          </div>
+                                        </div>
+
+                                        {/* Question Text */}
+                                        <h5 className="text-white text-sm sm:text-base font-semibold leading-relaxed">
+                                          {q.question}
+                                        </h5>
+
+                                        {/* Options Grid */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                                          {[
+                                            { k: "optionA" as const, l: "A", val: q.optionA },
+                                            { k: "optionB" as const, l: "B", val: q.optionB },
+                                            { k: "optionC" as const, l: "C", val: q.optionC },
+                                            { k: "optionD" as const, l: "D", val: q.optionD },
+                                          ].map((opt) => {
+                                            const isCorrect = isOptionCorrect(q, opt.k);
+
+                                            return (
+                                              <div
+                                                key={opt.k}
+                                                className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition-all ${
+                                                  isCorrect
+                                                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-200 font-semibold"
+                                                    : "bg-white/5 border-white/5 text-slate-300"
+                                                }`}
+                                              >
+                                                <div className="flex items-center gap-2 truncate">
+                                                  <span
+                                                    className={`w-5 h-5 rounded text-[11px] font-bold flex items-center justify-center shrink-0 ${
+                                                      isCorrect
+                                                        ? "bg-emerald-500 text-black font-extrabold"
+                                                        : "bg-white/10 text-slate-400"
+                                                    }`}
+                                                  >
+                                                    {opt.l}
+                                                  </span>
+                                                  <span className="truncate">{opt.val}</span>
+                                                </div>
+
+                                                {isCorrect && (
+                                                  <span className="text-[10px] font-bold text-emerald-400 shrink-0 bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                                                    ✓ KEY
+                                                  </span>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
 
-        {/* 5. PAGINATION (10 per page, Back & Next) */}
-        {filteredQuestions.length > ITEMS_PER_PAGE && (
-          <div className="p-4 rounded-2xl bg-[#0e172a] border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs text-slate-400">
+        {/* Table Pagination */}
+        {filteredAssessments.length > ITEMS_PER_PAGE && (
+          <div className="p-4 sm:p-5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/[0.02]">
+            <p className="text-xs text-slate-400">
               Showing{" "}
               <strong className="text-white font-semibold">
                 {(currentPage - 1) * ITEMS_PER_PAGE + 1}
               </strong>{" "}
               to{" "}
               <strong className="text-white font-semibold">
-                {Math.min(currentPage * ITEMS_PER_PAGE, filteredQuestions.length)}
+                {Math.min(currentPage * ITEMS_PER_PAGE, filteredAssessments.length)}
               </strong>{" "}
-              of <strong className="text-white font-semibold">{filteredQuestions.length}</strong>{" "}
-              questions
-            </div>
+              of <strong className="text-white font-semibold">{filteredAssessments.length}</strong> examinations
+            </p>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 ← Back
               </button>
 
-              <div className="flex items-center gap-1">
-                {Array.from({ length: totalPages }).map((_, i) => {
-                  const pNum = i + 1;
-                  // Only show current, first, last, and neighbors if totalPages > 6
-                  if (
-                    totalPages > 6 &&
-                    pNum !== 1 &&
-                    pNum !== totalPages &&
-                    Math.abs(pNum - currentPage) > 1
-                  ) {
-                    if (pNum === 2 || pNum === totalPages - 1) {
-                      return (
-                        <span key={pNum} className="text-slate-600 px-1 text-xs">
-                          ...
-                        </span>
-                      );
-                    }
-                    return null;
-                  }
-
-                  return (
-                    <button
-                      key={pNum}
-                      onClick={() => setCurrentPage(pNum)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                        currentPage === pNum
-                          ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20"
-                          : "bg-white/5 hover:bg-white/10 text-slate-300"
-                      }`}
-                    >
-                      {pNum}
-                    </button>
-                  );
-                })}
-              </div>
+              <span className="text-xs text-slate-300 font-medium px-2">
+                Page <strong className="text-white">{currentPage}</strong> of{" "}
+                <strong className="text-white">{totalPages}</strong>
+              </span>
 
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
                 Next →
               </button>
@@ -706,21 +1274,20 @@ export default function TeacherQuestionsList() {
         )}
       </div>
 
-      {/* 6. CREATE QUESTION MODAL (createQuestion) */}
+      {/* 5. CREATE QUESTION MODAL (Saved according to examination name & academic year) */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
           <div className="bg-[#0b1329] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in-95 duration-200">
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-sm font-bold">
                     +
                   </span>
-                  <h3 className="text-xl font-bold text-white">Create New Question</h3>
+                  <h3 className="text-xl font-bold text-white">Save Question to Examination</h3>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Author a multiple choice question and assign it to an exam
+                  Author a question and save it according to the examination name and academic year
                 </p>
               </div>
 
@@ -732,7 +1299,6 @@ export default function TeacherQuestionsList() {
               </button>
             </div>
 
-            {/* Error Message */}
             {formError && (
               <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium flex items-center gap-2">
                 <span>⚠️</span>
@@ -741,31 +1307,76 @@ export default function TeacherQuestionsList() {
             )}
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
-              {/* Select Exam */}
+              {/* Academic Year & Academic Term */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Academic Year <span className="text-emerald-400">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.academicYear}
+                    onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 [&>option]:text-slate-900 [&>option]:bg-white"
+                  >
+                    <option value="" disabled className="text-slate-900 bg-white">-- Select Academic Year --</option>
+                    {availableYears.map((yr) => (
+                      <option key={yr} value={yr} className="text-slate-900 bg-white">
+                        {yr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Academic Term <span className="text-emerald-400">*</span>
+                  </label>
+                  <select
+                    required
+                    value={formData.academicTerm}
+                    onChange={(e) => setFormData({ ...formData, academicTerm: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 [&>option]:text-slate-900 [&>option]:bg-white"
+                  >
+                    <option value="" disabled className="text-slate-900 bg-white">-- Select Academic Term --</option>
+                    {availableTerms.map((tm) => (
+                      <option key={tm} value={tm} className="text-slate-900 bg-white">
+                        {tm}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Examination Name */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                  Select Associated Exam <span className="text-emerald-400">*</span>
+                  Examination / Assessment Name <span className="text-emerald-400">*</span>
                 </label>
                 <select
                   required
                   value={formData.examId}
-                  onChange={(e) => setFormData({ ...formData, examId: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 transition-all"
+                  onChange={(e) => {
+                    const exId = e.target.value;
+                    const foundEx = assessments.find((a) => a.id === exId);
+                    setFormData({
+                      ...formData,
+                      examId: exId,
+                      academicYear: foundEx?.academicYear || formData.academicYear,
+                      academicTerm: foundEx?.academicTerm || formData.academicTerm,
+                    });
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 [&>option]:text-slate-900 [&>option]:bg-white"
                 >
-                  <option value="" disabled>
-                    -- Select an Exam --
-                  </option>
-                  {exams.map((ex: any) => (
-                    <option key={ex._id} value={ex._id}>
-                      {ex.name} {ex.subject?.name ? `(${ex.subject.name})` : ""}
-                    </option>
-                  ))}
+                  <option value="" disabled className="text-slate-900 bg-white">-- Select Examination or Test --</option>
+                  {assessments
+                    .filter((a) => a.id !== "general-unlinked")
+                    .map((ex) => (
+                      <option key={ex.id} value={ex.id} className="text-slate-900 bg-white">
+                        [{ex.academicYear} • {ex.academicTerm} • {ex.examType}] {ex.name} ({ex.subject || "Subject"})
+                      </option>
+                    ))}
                 </select>
-                {exams.length === 0 && (
-                  <p className="text-[11px] text-amber-400 mt-1">
-                    No exams found. Create an exam in 'My Exams' first or check exams list.
-                  </p>
-                )}
               </div>
 
               {/* Question Statement */}
@@ -776,21 +1387,21 @@ export default function TeacherQuestionsList() {
                 <textarea
                   required
                   rows={3}
-                  placeholder="e.g. What is the fundamental unit of structure and function in living organisms?"
+                  placeholder="e.g. Which of the following is an example of an endothermic reaction?"
                   value={formData.question}
                   onChange={(e) => setFormData({ ...formData, question: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-none"
                 />
               </div>
 
-              {/* Options A, B, C, D */}
+              {/* Options A - D */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Answer Options & Correct Key <span className="text-emerald-400">*</span>
+                    Answer Options & Correct Answer Key <span className="text-emerald-400">*</span>
                   </span>
                   <span className="text-[11px] text-emerald-400 font-medium">
-                    Click radio button to mark as correct
+                    Click radio button to mark correct key
                   </span>
                 </div>
 
@@ -835,36 +1446,12 @@ export default function TeacherQuestionsList() {
                 </div>
               </div>
 
-              {/* Live Preview Box */}
-              {formData.question.trim() && (
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-                  <div className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 flex items-center gap-1.5">
-                    <span>👁️</span> Student Preview
-                  </div>
-                  <p className="text-sm font-semibold text-white">{formData.question}</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    {(["optionA", "optionB", "optionC", "optionD"] as const).map((k) => (
-                      <div
-                        key={k}
-                        className={`p-2 rounded-lg border ${
-                          formData.correctAnswer === k
-                            ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300 font-semibold"
-                            : "bg-black/20 border-white/5 text-slate-400"
-                        }`}
-                      >
-                        {k.replace("option", "")}: {formData[k] || `[Option ${k.replace("option", "")}]`}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Modal Actions */}
+              {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white text-sm font-medium transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -873,7 +1460,7 @@ export default function TeacherQuestionsList() {
                   disabled={isSubmitting}
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
                 >
-                  {isSubmitting ? "Creating..." : "Save Question"}
+                  {isSubmitting ? "Saving..." : "Save Question to Exam"}
                 </button>
               </div>
             </form>
@@ -881,11 +1468,181 @@ export default function TeacherQuestionsList() {
         </div>
       )}
 
-      {/* 7. VIEW SINGLE QUESTION MODAL (fetchQuestionCtrl) */}
+      {/* 6. CREATE EXAM / TEST MODAL */}
+      {showCreateExamModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
+          <div className="bg-[#0b1329] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div>
+                <h3 className="text-xl font-bold text-white">Create Examination / Test</h3>
+                <p className="text-xs text-slate-400">
+                  Create a new assessment to house question banks for an academic year
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateExamModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+
+            {formError && (
+              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateExamSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                  Category
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setExamForm({ ...examForm, examType: "Exam", totalMark: 70, passMark: 40 })}
+                    className={`p-3 rounded-xl border text-sm font-bold transition-all ${
+                      examForm.examType === "Exam"
+                        ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-md"
+                        : "bg-white/5 border-white/10 text-slate-400"
+                    }`}
+                  >
+                    📋 Examination (Final / MidTerm)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExamForm({ ...examForm, examType: "Test", totalMark: 30, passMark: 15 })}
+                    className={`p-3 rounded-xl border text-sm font-bold transition-all ${
+                      examForm.examType === "Test"
+                        ? "bg-amber-500/20 border-amber-500 text-amber-300 shadow-md"
+                        : "bg-white/5 border-white/10 text-slate-400"
+                    }`}
+                  >
+                    ⚡ Test / Continuous Assessment
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                  Examination Name <span className="text-emerald-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 2026/2027 First Term Biology Midterm Test"
+                  value={examForm.name}
+                  onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Academic Year <span className="text-emerald-400">*</span>
+                  </label>
+                  <select
+                    required
+                    value={examForm.academicYear}
+                    onChange={(e) => setExamForm({ ...examForm, academicYear: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 [&>option]:text-slate-900 [&>option]:bg-white"
+                  >
+                    <option value="" disabled className="text-slate-900 bg-white">-- Select Year --</option>
+                    {academicYears.map((y: any) => (
+                      <option key={y._id} value={y._id} className="text-slate-900 bg-white">
+                        {y.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Academic Term <span className="text-emerald-400">*</span>
+                  </label>
+                  <select
+                    required
+                    value={examForm.academicTerm}
+                    onChange={(e) => setExamForm({ ...examForm, academicTerm: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 [&>option]:text-slate-900 [&>option]:bg-white"
+                  >
+                    <option value="" disabled className="text-slate-900 bg-white">-- Select Term --</option>
+                    {academicTerms.map((t: any) => (
+                      <option key={t._id} value={t._id} className="text-slate-900 bg-white">
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Subject <span className="text-emerald-400">*</span>
+                  </label>
+                  <select
+                    required
+                    value={examForm.subject}
+                    onChange={(e) => setExamForm({ ...examForm, subject: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 [&>option]:text-slate-900 [&>option]:bg-white"
+                  >
+                    <option value="" disabled className="text-slate-900 bg-white">-- Select Subject --</option>
+                    {subjects.map((s: any) => (
+                      <option key={s._id} value={s._id} className="text-slate-900 bg-white">
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
+                    Class Level <span className="text-emerald-400">*</span>
+                  </label>
+                  <select
+                    required
+                    value={examForm.classLevel}
+                    onChange={(e) => setExamForm({ ...examForm, classLevel: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#1e293b] border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 [&>option]:text-slate-900 [&>option]:bg-white"
+                  >
+                    <option value="" disabled className="text-slate-900 bg-white">-- Select Class Level --</option>
+                    {classLevels.map((c: any) => (
+                      <option key={c._id} value={c._id} className="text-slate-900 bg-white">
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateExamModal(false)}
+                  className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20"
+                >
+                  {isSubmitting ? "Creating..." : "Save Examination"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 7. VIEW QUESTION INSPECT MODAL */}
       {showViewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
           <div className="bg-[#0b1329] border border-white/10 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in-95 duration-200">
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -895,7 +1652,7 @@ export default function TeacherQuestionsList() {
                   <h3 className="text-xl font-bold text-white">Question Inspection</h3>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Fetched via API endpoint: <code className="text-teal-300">GET /api/v1/questions/:id</code>
+                  Fetched via endpoint: <code className="text-teal-300">GET /api/v1/questions/:id</code>
                 </p>
               </div>
 
@@ -910,15 +1667,13 @@ export default function TeacherQuestionsList() {
               </button>
             </div>
 
-            {/* Content */}
             {!currentQuestion ? (
               <div className="p-8 text-center space-y-2">
                 <div className="w-8 h-8 border-2 border-teal-400 border-t-transparent rounded-full animate-spin mx-auto" />
-                <p className="text-sm text-slate-300">Fetching single question data from server...</p>
+                <p className="text-sm text-slate-300">Fetching question data...</p>
               </div>
             ) : (
               <div className="space-y-5">
-                {/* Meta details */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-white/5 border border-white/10 text-xs">
                   <div>
                     <span className="text-slate-400 block">Question ID</span>
@@ -936,13 +1691,12 @@ export default function TeacherQuestionsList() {
                     <span className="text-slate-400 block">Created On</span>
                     <span className="text-white block">
                       {currentQuestion.createdAt
-                        ? new Date(currentQuestion.createdAt).toLocaleString()
+                        ? new Date(currentQuestion.createdAt).toLocaleDateString()
                         : "—"}
                     </span>
                   </div>
                 </div>
 
-                {/* Prompt */}
                 <div className="space-y-1.5">
                   <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Question Statement
@@ -952,7 +1706,6 @@ export default function TeacherQuestionsList() {
                   </div>
                 </div>
 
-                {/* Options Breakdown */}
                 <div className="space-y-2">
                   <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                     Options & Correctness
@@ -1013,14 +1766,13 @@ export default function TeacherQuestionsList() {
                   )}
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center justify-between pt-3 border-t border-white/10">
                   <button
                     onClick={() => {
                       setShowViewModal(false);
                       dispatch(clearCurrentQuestion());
                     }}
-                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-sm font-medium transition-colors"
+                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-sm font-medium"
                   >
                     Close
                   </button>
@@ -1029,9 +1781,6 @@ export default function TeacherQuestionsList() {
                     onClick={() => handleOpenEditModal(currentQuestion)}
                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/20 flex items-center gap-2"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
                     Edit this Question
                   </button>
                 </div>
@@ -1041,11 +1790,10 @@ export default function TeacherQuestionsList() {
         </div>
       )}
 
-      {/* 8. EDIT QUESTION MODAL (updateQuestionCtrl) */}
+      {/* 8. EDIT QUESTION MODAL */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md overflow-y-auto">
           <div className="bg-[#0b1329] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in-95 duration-200">
-            {/* Header */}
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -1055,28 +1803,25 @@ export default function TeacherQuestionsList() {
                   <h3 className="text-xl font-bold text-white">Edit Question</h3>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Update question statement, options, or change the correct answer key
+                  Update question statement, options, or designated answer key
                 </p>
               </div>
 
               <button
                 onClick={() => setShowEditModal(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
               >
                 ✕
               </button>
             </div>
 
-            {/* Error Message */}
             {formError && (
-              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium flex items-center gap-2">
-                <span>⚠️</span>
-                <span>{formError}</span>
+              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium">
+                {formError}
               </div>
             )}
 
             <form onSubmit={handleUpdateSubmit} className="space-y-4">
-              {/* Question Statement */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
                   Question Statement <span className="text-emerald-400">*</span>
@@ -1086,20 +1831,14 @@ export default function TeacherQuestionsList() {
                   rows={3}
                   value={formData.question}
                   onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-emerald-500 resize-none"
                 />
               </div>
 
-              {/* Options A, B, C, D */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Options & Correct Key <span className="text-emerald-400">*</span>
-                  </span>
-                  <span className="text-[11px] text-emerald-400 font-medium">
-                    Click an option to designate it as the correct answer
-                  </span>
-                </div>
+                <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                  Options & Correct Key <span className="text-emerald-400">*</span>
+                </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
@@ -1141,19 +1880,18 @@ export default function TeacherQuestionsList() {
                 </div>
               </div>
 
-              {/* Modal Actions */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white text-sm font-medium transition-colors cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/20 cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20"
                 >
                   {isSubmitting ? "Saving..." : "Save Changes"}
                 </button>

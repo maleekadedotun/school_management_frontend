@@ -44,7 +44,7 @@ export default function SignInForm() {
               Sign In
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your admin credentials to access SchoolMS
+              Enter your admin credentials to access DotTechMS
             </p>
           </div>
 
