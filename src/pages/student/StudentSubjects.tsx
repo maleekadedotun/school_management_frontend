@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useParams, useSearchParams, Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
+import api from "../../services/api";
 import {
   fetchStudentEnrolledSubjects,
   studentEnrollSubject,
@@ -9,7 +10,7 @@ import {
   resetEnrollState,
   type EnrolledSubjectItem,
 } from "../../features/students/studentsSlice";
-import { fetchSubjects } from "../../features/subjects/subjectsSlice";
+import { fetchSubjects, fetchStudentClassSubjects } from "../../features/subjects/subjectsSlice";
 import { fetchExams } from "../../features/exams/examsSlice";
 import {
   HiOutlineAcademicCap,
@@ -25,10 +26,60 @@ import {
   HiOutlineTrophy,
   HiOutlineCheck,
   HiOutlineXMark,
+  HiOutlineExclamationTriangle,
+  HiOutlineTableCells,
+  HiOutlineSquares2X2,
 } from "react-icons/hi2";
+
+/**
+ * Robust helper to match academic class levels across variants
+ * (e.g. "jss 1", "jss1", "JSS 1 Class", "Junior Secondary 1" vs "sss 1", "sss1", "SS 1")
+ */
+export const isClassLevelMatch = (targetClass?: string, queryClass?: string): boolean => {
+  if (!targetClass || !queryClass) return false;
+  const t = targetClass.toLowerCase().trim();
+  const q = queryClass.toLowerCase().trim();
+  if (q === "all" || t === "all") return true;
+  if (t === q) return true;
+
+  const cleanT = t.replace(/[^a-z0-9]/g, "");
+  const cleanQ = q.replace(/[^a-z0-9]/g, "");
+  if (cleanT === cleanQ) return true;
+
+  const parseClass = (str: string) => {
+    let tier = "";
+    if (str.includes("jss") || str.includes("junior") || str.startsWith("js")) tier = "jss";
+    else if (str.includes("sss") || str.includes("senior") || str.startsWith("ss")) tier = "sss";
+    else if (str.includes("pry") || str.includes("primary")) tier = "primary";
+    else if (str.includes("level") || str.includes("lvl")) tier = "level";
+
+    const num = str.match(/\d+/)?.[0] || "";
+    return { tier, num };
+  };
+
+  const parsedT = parseClass(t);
+  const parsedQ = parseClass(q);
+
+  if (parsedT.tier && parsedQ.tier && parsedT.tier === parsedQ.tier && parsedT.num && parsedQ.num && parsedT.num === parsedQ.num) {
+    return true;
+  }
+
+  // If numbers differ, do not match
+  if (parsedT.num && parsedQ.num && parsedT.num !== parsedQ.num) {
+    return false;
+  }
+
+  // If tiers differ, do not match
+  if (parsedT.tier && parsedQ.tier && parsedT.tier !== parsedQ.tier) {
+    return false;
+  }
+
+  return cleanT.includes(cleanQ) || cleanQ.includes(cleanT);
+};
 
 export default function StudentSubjects() {
   const dispatch = useAppDispatch();
+  const { classParam } = useParams<{ classParam?: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const {
@@ -48,14 +99,17 @@ export default function StudentSubjects() {
 
   const activeStudent = { ...(student || {}), ...(profile || {}) };
 
-  // Query parameter filters (e.g. from sidebar: ?class=Level+100&subject=...)
-  const selectedClassParam = searchParams.get("class") || "all";
+  // Query parameter filters or path params (e.g. /student/subjects/jss1 or /student/subjects?class=jss 1)
+  const selectedClassParam = classParam || searchParams.get("class") || "all";
   const highlightedSubjectParam = searchParams.get("subject") || "";
+  const subjectIdParam = searchParams.get("subjectId") || "";
 
   // Local filter states
   const [activeTab, setActiveTab] = useState<string>(selectedClassParam);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubjectDetail, setSelectedSubjectDetail] = useState<EnrolledSubjectItem | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
 
   // Enrollment Modal states
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -69,18 +123,58 @@ export default function StudentSubjects() {
   const [subjectToDrop, setSubjectToDrop] = useState<{ id: string; name: string; classLevel: string } | null>(null);
 
   useEffect(() => {
+    dispatch(fetchStudentClassSubjects());
     dispatch(fetchStudentEnrolledSubjects());
     dispatch(fetchStudentProfile());
     dispatch(fetchSubjects());
     dispatch(fetchExams());
   }, [dispatch]);
 
-  // Sync tab with URL search parameter
+  // Sync tab with URL search parameter or route parameter
   useEffect(() => {
     if (selectedClassParam) {
       setActiveTab(selectedClassParam);
     }
   }, [selectedClassParam]);
+
+  // Deep validation & selection when navigating from sidebar subject link
+  useEffect(() => {
+    if (subjectIdParam || highlightedSubjectParam) {
+      if (subjectIdParam) {
+        api.get(`/subjects/${subjectIdParam}`)
+          .then((res) => {
+            const data = res.data?.data;
+            if (data) {
+              setSelectedSubjectDetail({
+                _id: data._id,
+                subjectId: data._id,
+                name: data.name,
+                description: data.description,
+                classLevel: data.classLevel || activeStudent.currentClassLevel || "My Class",
+                duration: data.duration,
+                teacher: data.teacher,
+                academicTerms: data.academicTerms,
+                program: data.program,
+              });
+              setAccessDeniedMessage(null);
+            }
+          })
+          .catch((err) => {
+            const msg = err.response?.data?.message || "Access Denied: You are not authorized to view subjects outside your registered class level.";
+            setAccessDeniedMessage(msg);
+            setSelectedSubjectDetail(null);
+          });
+      } else if (highlightedSubjectParam) {
+        const found = allEnrolledSubjects.find(
+          (s) => s.name?.toLowerCase() === highlightedSubjectParam.toLowerCase()
+        );
+        if (found) {
+          setSelectedSubjectDetail(found);
+          setAccessDeniedMessage(null);
+        }
+      }
+    }
+  }, [subjectIdParam, highlightedSubjectParam, allEnrolledSubjects]);
 
   // Helper to identify if subject belongs to student's program
   const studentProgObj = typeof activeStudent?.program === "object" ? activeStudent.program : null;
@@ -121,14 +215,9 @@ export default function StudentSubjects() {
   };
 
   const handleSelectAllClassSubjects = () => {
-    const classDigits = (enrollClassLevel || "").match(/\d+/)?.[0];
-    const classClean = (enrollClassLevel || "").toLowerCase().trim();
     const classSubs = allSchoolSubjects
       .filter((s) => {
-        const sClassClean = (s.classLevel || "").toLowerCase().trim();
-        const sClassDigits = sClassClean.match(/\d+/)?.[0];
-        const isMatch = classDigits && sClassDigits ? classDigits === sClassDigits : sClassClean === classClean;
-        return isMatch && !isSubjectEnrolledInLevel(s._id, enrollClassLevel);
+        return isClassLevelMatch(s.classLevel || "", enrollClassLevel) && !isSubjectEnrolledInLevel(s._id, enrollClassLevel);
       })
       .map((s) => s._id);
     const set = new Set([...enrollSubjectIds, ...classSubs]);
@@ -136,16 +225,12 @@ export default function StudentSubjects() {
   };
 
   const handleSelectAllProgramAndClassSubjects = () => {
-    const classDigits = (enrollClassLevel || "").match(/\d+/)?.[0];
-    const classClean = (enrollClassLevel || "").toLowerCase().trim();
     const coreSubs = allSchoolSubjects
       .filter((s) => {
         const inProg = isSubjectInStudentProgram(s);
         const isCore = isSubjectCore(s);
-        const sClassClean = (s.classLevel || "").toLowerCase().trim();
-        const sClassDigits = sClassClean.match(/\d+/)?.[0];
-        const isMatch = classDigits && sClassDigits ? classDigits === sClassDigits : sClassClean === classClean;
-        return (inProg || isCore) && (isMatch || !sClassClean) && !isSubjectEnrolledInLevel(s._id, enrollClassLevel);
+        const isClass = isClassLevelMatch(s.classLevel || "", enrollClassLevel);
+        return (inProg || isCore) && (isClass || !s.classLevel) && !isSubjectEnrolledInLevel(s._id, enrollClassLevel);
       })
       .map((s) => s._id);
     const set = new Set([...enrollSubjectIds, ...coreSubs]);
@@ -165,18 +250,30 @@ export default function StudentSubjects() {
     return match?.name || raw || "Subject";
   };
 
+  // Helper to reliably display human-readable teacher name, never raw ObjectId hex
+  const getTeacherDisplayName = (teacher: any): string => {
+    if (!teacher) return "-";
+    if (typeof teacher === "object" && teacher.name) {
+      const rawName = teacher.name;
+      if (rawName && !/^[0-9a-fA-F]{24}$/.test(rawName) && rawName.toLowerCase() !== "not assigned") return rawName;
+    }
+    if (typeof teacher === "string") {
+      if (/^[0-9a-fA-F]{24}$/.test(teacher)) {
+        return "-";
+      }
+      const trimmed = teacher.trim();
+      if (!trimmed || trimmed.toLowerCase() === "not assigned") return "-";
+      return trimmed;
+    }
+    return "-";
+  };
+
   // Check if subject is enrolled for given class level
   const isSubjectEnrolledInLevel = (subId: string, levelName: string) => {
-    const lNorm = (levelName || "").toLowerCase().trim();
-    const lDigits = lNorm.match(/\d+/)?.[0];
     return allEnrolledSubjects.some((item) => {
       const matchId = ((item as any).id || item.subjectId || item._id) === subId;
       if (!matchId) return false;
-      const itemL = (item.classLevel || "").toLowerCase().trim();
-      if (itemL === lNorm) return true;
-      const iDigits = itemL.match(/\d+/)?.[0];
-      if (lDigits && iDigits && lDigits === iDigits) return true;
-      return false;
+      return isClassLevelMatch(item.classLevel || "", levelName);
     });
   };
 
@@ -186,12 +283,7 @@ export default function StudentSubjects() {
       if (enrollFilterTab === "core" && !isSubjectCore(s) && !isSubjectInStudentProgram(s)) return false;
       if (enrollFilterTab === "program" && !isSubjectInStudentProgram(s)) return false;
       if (enrollFilterTab === "class") {
-        const classDigits = (enrollClassLevel || "").match(/\d+/)?.[0];
-        const classClean = (enrollClassLevel || "").toLowerCase().trim();
-        const sClassClean = (s.classLevel || "").toLowerCase().trim();
-        const sClassDigits = sClassClean.match(/\d+/)?.[0];
-        const isMatch = classDigits && sClassDigits ? classDigits === sClassDigits : sClassClean === classClean;
-        if (!isMatch) return false;
+        if (!isClassLevelMatch(s.classLevel || "", enrollClassLevel)) return false;
       }
       if (enrollSearchQuery.trim()) {
         const q = enrollSearchQuery.toLowerCase().trim();
@@ -279,17 +371,58 @@ export default function StudentSubjects() {
     setSubjectToDrop(null);
   };
 
+  // Determine student educational track
+  const isStudentJSS = useMemo(() => {
+    const rawClass = (activeStudent?.currentClassLevel || "").toLowerCase();
+    return !rawClass.includes("sss") && !rawClass.includes("senior") && !rawClass.includes("100") && !rawClass.includes("200") && !rawClass.includes("300") && !rawClass.includes("400");
+  }, [activeStudent?.currentClassLevel]);
+
+  const isStudentSSS = useMemo(() => {
+    const rawClass = (activeStudent?.currentClassLevel || "").toLowerCase();
+    return rawClass.includes("sss") || rawClass.includes("senior") || rawClass.includes("ss");
+  }, [activeStudent?.currentClassLevel]);
+
+  // Track filtered groups: JSS students only see JSS classes, SSS students only see SSS classes
+  const trackFilteredClassGroups = useMemo(() => {
+    return (enrolledSubjectsByClass || []).filter((g) => {
+      const gCode = (g.shortCode || g.classLevel || "").toLowerCase();
+      if (isStudentJSS) {
+        return !gCode.includes("sss") && !gCode.includes("senior") && !gCode.includes("ss ");
+      }
+      if (isStudentSSS) {
+        return !gCode.includes("jss") && !gCode.includes("junior") && !gCode.includes("js ");
+      }
+      return true;
+    });
+  }, [enrolledSubjectsByClass, isStudentJSS, isStudentSSS]);
+
+  // Track filtered enrolled subjects: JSS students only see JSS subjects, SSS students only see SSS subjects
+  const trackFilteredAllEnrolled = useMemo(() => {
+    return allEnrolledSubjects.filter((s: any) => {
+      const sClass = (s.classLevel || "").toLowerCase();
+      const sName = (s.name || "").toLowerCase();
+      if (isStudentJSS) {
+        return !sClass.includes("sss") && !sClass.includes("senior") && !sClass.includes("ss ") &&
+               !sName.includes("sss 1") && !sName.includes("sss 2") && !sName.includes("sss 3") &&
+               !sName.includes("sss1") && !sName.includes("sss2") && !sName.includes("sss3");
+      }
+      if (isStudentSSS) {
+        return !sClass.includes("jss") && !sClass.includes("junior") && !sClass.includes("js ") &&
+               !sName.includes("jss 1") && !sName.includes("jss 2") && !sName.includes("jss 3") &&
+               !sName.includes("jss1") && !sName.includes("jss2") && !sName.includes("jss3");
+      }
+      return true;
+    });
+  }, [allEnrolledSubjects, isStudentJSS, isStudentSSS]);
+
   // Filter groups according to tab and search query
   const filteredGroups = useMemo(() => {
-    return enrolledSubjectsByClass
+    return trackFilteredClassGroups
       .filter((group) => {
         if (activeTab === "all") return true;
-        const groupNorm = group.classLevel.toLowerCase().trim();
-        const tabNorm = activeTab.toLowerCase().trim();
         return (
-          groupNorm === tabNorm ||
-          group.shortCode.toLowerCase() === tabNorm ||
-          (Boolean(tabNorm.match(/\d+/)) && groupNorm.includes(tabNorm.match(/\d+/)?.[0] || ""))
+          isClassLevelMatch(group.classLevel, activeTab) ||
+          isClassLevelMatch(group.shortCode, activeTab)
         );
       })
       .map((group) => {
@@ -299,20 +432,280 @@ export default function StudentSubjects() {
           (s) =>
             s.name.toLowerCase().includes(q) ||
             s.description?.toLowerCase().includes(q) ||
-            s.teacher?.name?.toLowerCase().includes(q)
+            getTeacherDisplayName(s.teacher).toLowerCase().includes(q)
         );
         return {
           ...group,
           subjects: filteredSubjects,
         };
       });
-  }, [enrolledSubjectsByClass, activeTab, searchQuery]);
+  }, [trackFilteredClassGroups, activeTab, searchQuery]);
+
+  const activeClassGroup = useMemo(() => {
+    if (activeTab === "all") return null;
+    return trackFilteredClassGroups.find(
+      (g) => isClassLevelMatch(g.classLevel, activeTab) || isClassLevelMatch(g.shortCode, activeTab)
+    );
+  }, [trackFilteredClassGroups, activeTab]);
+
+  const allEnrolledFiltered = useMemo(() => {
+    if (!searchQuery.trim()) return trackFilteredAllEnrolled;
+    const q = searchQuery.toLowerCase().trim();
+    return trackFilteredAllEnrolled.filter(
+      (s: any) =>
+        (s.name || "").toLowerCase().includes(q) ||
+        (s.classLevel || "").toLowerCase().includes(q) ||
+        (s.description || "").toLowerCase().includes(q) ||
+        getTeacherDisplayName(s.teacher).toLowerCase().includes(q)
+    );
+  }, [trackFilteredAllEnrolled, searchQuery]);
 
   // Total enrolled subjects count
-  const totalEnrolledCount = allEnrolledSubjects.length;
+  const totalEnrolledCount = trackFilteredAllEnrolled.length;
+
+  // Find exams related to this subject set by assigned teacher for this class that are LIVE
+  const getRelatedExams = (sub: any, classLevelStr?: string) => {
+    return exams.filter((e: any) => {
+      if (e.examStatus !== "live") return false;
+
+      // 1. Subject match
+      const subNameMatch =
+        (typeof e.subject === "object" ? e.subject?.name : e.subject)?.trim().toLowerCase() === (sub.name || "").trim().toLowerCase();
+      const subIdMatch =
+        (typeof e.subject === "object" ? e.subject?._id : e.subject) === sub.subjectId ||
+        (typeof e.subject === "object" ? e.subject?._id : e.subject) === sub._id;
+      if (!subNameMatch && !subIdMatch) return false;
+
+      // 2. Class Level match
+      const examClassStr = (typeof e.classLevel === "object" ? e.classLevel?.name : e.classLevel) || "";
+      if (examClassStr && classLevelStr && !isClassLevelMatch(examClassStr, classLevelStr)) {
+        return false;
+      }
+
+      // 3. Assigned Teacher match (strictly matching this subject's teacher)
+      const teacherId = sub.teacher?._id || (typeof sub.teacher === "string" && !/^[0-9a-fA-F]{24}$/.test(sub.teacher) ? null : (typeof sub.teacher === "string" ? sub.teacher : null));
+      const teacherName = (typeof sub.teacher === "object" ? sub.teacher?.name : (typeof sub.teacher === "string" && !/^[0-9a-fA-F]{24}$/.test(sub.teacher) ? sub.teacher : ""))?.trim().toLowerCase();
+
+      const examCreatorId = e.createdBy?._id || (typeof e.createdBy === "string" ? e.createdBy : null);
+      const examCreatorName = (e.createdBy?.name || "").trim().toLowerCase();
+
+      if (teacherId || teacherName) {
+        const isAssigned =
+          (teacherId && examCreatorId && teacherId.toString() === examCreatorId.toString()) ||
+          (teacherName && examCreatorName && (examCreatorName === teacherName || examCreatorName.includes(teacherName) || teacherName.includes(examCreatorName)));
+        if (!isAssigned) return false;
+      }
+
+      return true;
+    });
+  };
+
+  // Reusable responsive Table Format for registered subjects
+  const renderSubjectsTable = (subjectsList: any[], defaultClassLevel?: string) => {
+    if (subjectsList.length === 0) {
+      return (
+        <div className="py-8 px-6 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center space-y-3">
+          <p className="text-slate-400 text-sm">
+            No subjects are currently registered under this curriculum view.
+          </p>
+          <button
+            onClick={() => handleOpenEnrollModal(defaultClassLevel)}
+            className="px-4 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all inline-flex items-center gap-2 cursor-pointer"
+          >
+            <HiOutlinePlus className="w-4 h-4" />
+            <span>Enroll in Subjects</span>
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/60 shadow-xl backdrop-blur-md">
+        <table className="w-full text-left text-xs sm:text-sm">
+          <thead>
+            <tr className="text-slate-400 border-b border-white/10 uppercase text-[11px] tracking-wider bg-white/[0.03]">
+              <th className="py-3 px-3.5 text-center w-12 font-semibold">#</th>
+              <th className="py-3 px-3.5 font-semibold">Subject</th>
+              <th className="py-3 px-3.5 font-semibold">Registered Class</th>
+              <th className="py-3 px-3.5 font-semibold">Assigned Teacher</th>
+              <th className="py-3 px-3.5 font-semibold">Duration / Terms</th>
+              <th className="py-3 px-3.5 font-semibold">Type</th>
+              <th className="py-3 px-3.5 font-semibold">Evaluation Status</th>
+              <th className="py-3 px-3.5 text-right font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5 text-slate-200">
+            {subjectsList.map((sub: any, idx: number) => {
+              const subClass = sub.classLevel || defaultClassLevel || activeStudent?.currentClassLevel || "General";
+              const isCore = isSubjectCore(sub);
+              const subRelatedExams = getRelatedExams(sub, subClass);
+              const isHighlighted =
+                (highlightedSubjectParam && sub.name?.toLowerCase() === highlightedSubjectParam.toLowerCase()) ||
+                (subjectIdParam && (sub._id === subjectIdParam || sub.subjectId === subjectIdParam));
+
+              return (
+                <tr
+                  key={sub._id || sub.name || idx}
+                  className={`transition-colors ${
+                    isHighlighted
+                      ? "bg-indigo-500/20 border-l-4 border-indigo-400"
+                      : "hover:bg-white/[0.04]"
+                  }`}
+                >
+                  {/* S/N */}
+                  <td className="py-3.5 px-3.5 text-center font-mono text-xs text-slate-400">
+                    {idx + 1}
+                  </td>
+
+                  {/* Subject Name & Description */}
+                  <td className="py-3.5 px-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-300 shrink-0">
+                        <HiOutlineBookOpen className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span
+                          className="font-semibold text-white block hover:text-indigo-300 transition-colors cursor-pointer"
+                          onClick={() => setSelectedSubjectDetail(sub)}
+                        >
+                          {getSubjectDisplayName(sub)}
+                        </span>
+                        {sub.description && (
+                          <span className="text-[11px] text-slate-400 line-clamp-1 max-w-xs sm:max-w-sm mt-0.5">
+                            {sub.description}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Class Level */}
+                  <td className="py-3.5 px-3.5 whitespace-nowrap">
+                    <button
+                      onClick={() => {
+                        setActiveTab(subClass);
+                        setSearchParams({ class: subClass });
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/25 hover:bg-indigo-500/30 transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                      title={`Filter by ${subClass}`}
+                    >
+                      <span>{subClass}</span>
+                      <span className="text-[10px] text-indigo-400">→</span>
+                    </button>
+                  </td>
+
+                  {/* Teacher */}
+                  <td className="py-3.5 px-3.5 text-slate-300 whitespace-nowrap">
+                    {getTeacherDisplayName(sub.teacher) === "-" ? (
+                      <span className="text-slate-500 font-semibold text-sm">
+                        -
+                      </span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-[10px] font-bold text-indigo-200">
+                          {getTeacherDisplayName(sub.teacher).charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-slate-200 text-xs">
+                          {getTeacherDisplayName(sub.teacher)}
+                        </span>
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Duration / Terms */}
+                  <td className="py-3.5 px-3.5 text-slate-400 text-xs whitespace-nowrap">
+                    <div className="flex items-center gap-1.5">
+                      <HiOutlineClock className="w-3.5 h-3.5 text-slate-500" />
+                      <span>{sub.duration || "3 months"}</span>
+                    </div>
+                  </td>
+
+                  {/* Subject Type */}
+                  <td className="py-3.5 px-3.5 whitespace-nowrap">
+                    {isCore ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 tracking-wider">
+                        CORE
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30">
+                        Elective
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Live Exam Status */}
+                  <td className="py-3.5 px-3.5 whitespace-nowrap">
+                    {subRelatedExams.length > 0 ? (
+                      <Link
+                        to={`/student/exams`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-all shadow-sm shadow-emerald-500/20"
+                      >
+                        <HiOutlineClipboardDocumentCheck className="w-3.5 h-3.5" />
+                        <span>Take Exam</span>
+                      </Link>
+                    ) : (
+                      <span className="text-[11px] text-slate-500">No Live Exam</span>
+                    )}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="py-3.5 px-3.5 text-right whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => setSelectedSubjectDetail(sub)}
+                        className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-indigo-300 hover:text-white transition cursor-pointer border border-white/10 flex items-center gap-1"
+                      >
+                        <HiOutlineInformationCircle className="w-3.5 h-3.5" />
+                        <span>View</span>
+                      </button>
+                      <button
+                        onClick={() =>
+                          setSubjectToDrop({
+                            id: sub.subjectId || sub._id,
+                            name: getSubjectDisplayName(sub),
+                            classLevel: subClass,
+                          })
+                        }
+                        title="Drop Subject"
+                        className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                      >
+                        <HiOutlineTrash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
+      {/* Access Denied Warning Banner */}
+      {accessDeniedMessage && (
+        <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 flex items-center justify-between gap-3 animate-fade-in shadow-lg shadow-rose-900/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+              <HiOutlineExclamationTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white">Subject Access Denied</p>
+              <p className="text-xs text-rose-300/90 leading-relaxed">{accessDeniedMessage}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setAccessDeniedMessage(null)}
+            className="p-1.5 rounded-lg hover:bg-rose-500/20 text-rose-400 hover:text-white transition cursor-pointer"
+            title="Dismiss"
+          >
+            <HiOutlineXMark className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* Top Header Card */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950/70 via-slate-900/90 to-purple-950/60 border border-white/10 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
         <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
@@ -426,19 +819,28 @@ export default function StudentSubjects() {
               setActiveTab("all");
               setSearchParams({});
             }}
-            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer flex items-center gap-2 ${
               activeTab === "all"
                 ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-600/25 font-semibold"
                 : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
             }`}
           >
-            All Classes
+            <span>All Classes Overview</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                activeTab === "all"
+                  ? "bg-white/20 text-white"
+                  : "bg-white/10 text-slate-400 group-hover:text-white"
+              }`}
+            >
+              {totalEnrolledCount}
+            </span>
           </button>
 
-          {enrolledSubjectsByClass.map((group) => {
+          {trackFilteredClassGroups.map((group) => {
             const isSelected =
-              activeTab.toLowerCase().trim() === group.classLevel.toLowerCase().trim() ||
-              activeTab.toLowerCase().trim() === group.shortCode.toLowerCase().trim();
+              isClassLevelMatch(group.classLevel, activeTab) ||
+              isClassLevelMatch(group.shortCode, activeTab);
 
             return (
               <button
@@ -471,16 +873,45 @@ export default function StudentSubjects() {
           })}
         </div>
 
-        {/* Search input */}
-        <div className="relative w-full md:w-auto md:min-w-[260px]">
-          <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search subjects, codes, topics..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-          />
+        {/* Search input & View Toggle */}
+        <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
+          <div className="relative flex-1 md:w-auto md:min-w-[240px]">
+            <HiOutlineMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search subjects, codes, topics..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-400 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10 shrink-0">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === "table"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+              title="Table View (List all registered subjects)"
+            >
+              <HiOutlineTableCells className="w-4 h-4" />
+              <span className="hidden sm:inline">Table</span>
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+                viewMode === "grid"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                  : "text-slate-400 hover:text-white hover:bg-white/5"
+              }`}
+              title="Cards Grid View"
+            >
+              <HiOutlineSquares2X2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -515,6 +946,70 @@ export default function StudentSubjects() {
         </div>
       ) : (
         <div className="space-y-8">
+          {/* Master "All Registered Subjects (Table Format)" Overview Section (Visible when on All Classes tab) */}
+          {activeTab === "all" && allEnrolledFiltered.length > 0 && (
+            <div className="rounded-3xl bg-slate-900/80 border border-indigo-500/25 p-5 sm:p-7 space-y-4 shadow-xl backdrop-blur-xl">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300">
+                    <HiOutlineBookOpen className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                      <span>All Registered Subjects (Table Format)</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-indigo-600/30 text-indigo-300 border border-indigo-400/30 font-normal">
+                        Registered ({allEnrolledFiltered.length})
+                      </span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Complete table of all subjects you are currently registered for across your curriculum.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenEnrollModal()}
+                    className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/30"
+                  >
+                    <HiOutlinePlus className="w-3.5 h-3.5" />
+                    <span>Enroll More Subjects</span>
+                  </button>
+                </div>
+              </div>
+
+              {renderSubjectsTable(allEnrolledFiltered, activeStudent?.currentClassLevel)}
+            </div>
+          )}
+
+          {/* Active Class Header when focusing on a specific class (JSS 1, JSS 2, JSS 3, SSS 1, etc.) */}
+          {activeTab !== "all" && activeClassGroup && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/20">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setActiveTab("all");
+                    setSearchParams({});
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-white/10"
+                >
+                  <span>← Back to All Classes Overview</span>
+                </button>
+                <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
+                <span className="text-sm font-semibold text-white">
+                  {activeClassGroup.shortCode} Registered Subjects ({activeClassGroup.count})
+                </span>
+              </div>
+
+              <button
+                onClick={() => handleOpenEnrollModal(activeClassGroup.classLevel)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-500 text-white text-xs font-semibold shadow-md transition flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+              >
+                <HiOutlinePlus className="w-3.5 h-3.5" />
+                <span>+ Add to {activeClassGroup.shortCode}</span>
+              </button>
+            </div>
+          )}
           {filteredGroups.map((group) => {
             const isLevelCurrent = group.isCurrent;
             const isLevelCompleted = group.isCompleted;
@@ -580,7 +1075,7 @@ export default function StudentSubjects() {
                   </div>
                 </div>
 
-                {/* Subjects Grid */}
+                {/* Subjects Content: Table vs Grid */}
                 {group.subjects.length === 0 ? (
                   <div className="py-8 px-6 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center space-y-3">
                     <p className="text-slate-400 text-sm">
@@ -594,6 +1089,8 @@ export default function StudentSubjects() {
                       <span>Enroll in {group.shortCode} Subjects</span>
                     </button>
                   </div>
+                ) : viewMode === "table" ? (
+                  renderSubjectsTable(group.subjects, group.classLevel)
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {group.subjects.map((sub) => {
@@ -601,8 +1098,11 @@ export default function StudentSubjects() {
                         highlightedSubjectParam &&
                         sub.name.toLowerCase() === highlightedSubjectParam.toLowerCase();
 
-                      // Find exams related to this subject set by assigned teacher for this class
+                      // Find exams related to this subject set by assigned teacher for this class that are LIVE
                       const relatedExams = exams.filter((e: any) => {
+                        // Exam must be LIVE to show on student portal
+                        if (e.examStatus !== "live") return false;
+
                         // 1. Subject match
                         const subNameMatch =
                           (typeof e.subject === "object" ? e.subject?.name : e.subject)?.trim().toLowerCase() === sub.name.trim().toLowerCase();
@@ -613,25 +1113,23 @@ export default function StudentSubjects() {
 
                         // 2. Class Level match
                         const examClassStr = (typeof e.classLevel === "object" ? e.classLevel?.name : e.classLevel) || "";
-                        const examClassNum = examClassStr.toString().match(/\d+/)?.[0];
-                        const groupClassNum = group.classLevel.toString().match(/\d+/)?.[0];
-                        if (examClassNum && groupClassNum && examClassNum !== groupClassNum) {
+                        if (examClassStr && !isClassLevelMatch(examClassStr, group.classLevel)) {
                           return false;
                         }
 
-                        // 3. Assigned Teacher match
-                        const studentAssignedTeacherObj = typeof activeStudent.assignedTeacher === "object" ? (activeStudent.assignedTeacher as any) : null;
-                        const teacherId = sub.teacher?._id || (typeof sub.teacher === "string" ? sub.teacher : null) || studentAssignedTeacherObj?._id || (typeof activeStudent.assignedTeacher === "string" ? activeStudent.assignedTeacher : null);
-                        const teacherName = (sub.teacher?.name || studentAssignedTeacherObj?.name || "").trim().toLowerCase();
+                        // 3. Assigned Teacher match (strictly matching this subject's teacher)
+                        const teacherId = sub.teacher?._id || (typeof sub.teacher === "string" && !/^[0-9a-fA-F]{24}$/.test(sub.teacher) ? null : (typeof sub.teacher === "string" ? sub.teacher : null));
+                        const teacherName = (typeof sub.teacher === "object" ? sub.teacher?.name : (typeof sub.teacher === "string" && !/^[0-9a-fA-F]{24}$/.test(sub.teacher) ? sub.teacher : ""))?.trim().toLowerCase();
 
                         const examCreatorId = e.createdBy?._id || (typeof e.createdBy === "string" ? e.createdBy : null);
                         const examCreatorName = (e.createdBy?.name || "").trim().toLowerCase();
 
-                        const isAssigned =
-                          (teacherId && examCreatorId && teacherId.toString() === examCreatorId.toString()) ||
-                          (teacherName && examCreatorName && (examCreatorName === teacherName || examCreatorName.includes(teacherName) || teacherName.includes(examCreatorName)));
-
-                        if (!isAssigned && (teacherId || teacherName)) return false;
+                        if (teacherId || teacherName) {
+                          const isAssigned =
+                            (teacherId && examCreatorId && teacherId.toString() === examCreatorId.toString()) ||
+                            (teacherName && examCreatorName && (examCreatorName === teacherName || examCreatorName.includes(teacherName) || teacherName.includes(examCreatorName)));
+                          if (!isAssigned) return false;
+                        }
 
                         return true;
                       });
@@ -687,14 +1185,12 @@ export default function StudentSubjects() {
 
                             {/* Metadata Pills */}
                             <div className="space-y-1.5 pt-2 border-t border-white/5 text-xs text-slate-300">
-                              {sub.teacher && (
-                                <div className="flex items-center gap-2 text-slate-300">
-                                  <HiOutlineUser className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                                  <span className="truncate">
-                                    Lecturer: {typeof sub.teacher === "object" ? sub.teacher?.name : sub.teacher}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2 text-slate-300">
+                                <HiOutlineUser className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                <span className="truncate">
+                                  Teacher: {getTeacherDisplayName(sub.teacher)}
+                                </span>
+                              </div>
 
                               <div className="flex items-center gap-2 text-slate-400">
                                 <HiOutlineClock className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -769,7 +1265,7 @@ export default function StudentSubjects() {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5 custom-scrollbar flex-1">
+            <div className="p-6 overflow-y-auto space-y-5 modal-vertical-scrollbar custom-scrollbar flex-1">
               {enrollFeedback && (
                 <div
                   className={`p-3.5 rounded-xl text-xs sm:text-sm font-medium ${
@@ -792,9 +1288,25 @@ export default function StudentSubjects() {
                   onChange={(e) => setEnrollClassLevel(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/15 text-white text-sm focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
-                  <option value="jss 1" className="bg-slate-900 text-white">JSS 1</option>
-                  <option value="JSS 2 Class" className="bg-slate-900 text-white">JSS 2</option>
-                  <option value="JSS 3 class" className="bg-slate-900 text-white">JSS 3</option>
+                  {trackFilteredClassGroups && trackFilteredClassGroups.length > 0 ? (
+                    trackFilteredClassGroups.map((g) => (
+                      <option key={g.classLevel} value={g.classLevel} className="bg-slate-900 text-white">
+                        {g.shortCode} ({g.classLevel})
+                      </option>
+                    ))
+                  ) : isStudentSSS ? (
+                    <>
+                      <option value="sss 1" className="bg-slate-900 text-white">SSS 1</option>
+                      <option value="sss 2" className="bg-slate-900 text-white">SSS 2</option>
+                      <option value="sss 3" className="bg-slate-900 text-white">SSS 3</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="jss 1" className="bg-slate-900 text-white">JSS 1</option>
+                      <option value="JSS 2 Class" className="bg-slate-900 text-white">JSS 2</option>
+                      <option value="JSS 3 class" className="bg-slate-900 text-white">JSS 3</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -1132,16 +1644,12 @@ export default function StudentSubjects() {
                 <span className="text-slate-400">Duration:</span>
                 <span className="text-white font-medium">{selectedSubjectDetail.duration || "3 months"}</span>
               </div>
-              {selectedSubjectDetail.teacher && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Assigned Teacher:</span>
-                  <span className="text-indigo-300 font-medium">
-                    {typeof selectedSubjectDetail.teacher === "object"
-                      ? selectedSubjectDetail.teacher?.name
-                      : selectedSubjectDetail.teacher}
-                  </span>
-                </div>
-              )}
+              <div className="flex justify-between">
+                <span className="text-slate-400">Assigned Teacher:</span>
+                <span className={getTeacherDisplayName(selectedSubjectDetail.teacher) === "-" ? "text-slate-500 font-medium" : "text-indigo-300 font-medium"}>
+                  {getTeacherDisplayName(selectedSubjectDetail.teacher)}
+                </span>
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">

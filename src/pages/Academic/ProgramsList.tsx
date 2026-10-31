@@ -16,7 +16,7 @@ export default function ProgramsList() {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    duration: "4 years",
+    duration: "3 months",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,7 +26,7 @@ export default function ProgramsList() {
 
   const handleOpenCreate = () => {
     setEditingId(null);
-    setForm({ name: "", description: "", duration: "4 years" });
+    setForm({ name: "", description: "", duration: "3 months" });
     setShowModal(true);
   };
 
@@ -35,7 +35,7 @@ export default function ProgramsList() {
     setForm({
       name: item.name || "",
       description: item.description || "",
-      duration: item.duration || "4 years",
+      duration: item.duration || "3 months",
     });
     setShowModal(true);
   };
@@ -51,7 +51,7 @@ export default function ProgramsList() {
     setSubmitting(false);
     setShowModal(false);
     setEditingId(null);
-    setForm({ name: "", description: "", duration: "4 years" });
+    setForm({ name: "", description: "", duration: "3 months" });
   };
 
   const handleDelete = async (id: string) => {
@@ -162,7 +162,7 @@ export default function ProgramsList() {
                     </span>
                   )}
                   <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-dark-300 text-xs font-medium">
-                    {item.duration || "4 years"}
+                    {item.duration || "3 months"}
                   </span>
                 </div>
 

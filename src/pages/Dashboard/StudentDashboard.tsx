@@ -3,12 +3,14 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   fetchStudentProfile,
+  fetchStudentEnrolledSubjects,
   updateStudentProfile,
   writeStudentExam,
   resetExamSubmitState,
   type Student,
 } from "../../features/students/studentsSlice";
 import { fetchExams } from "../../features/exams/examsSlice";
+import ClassAttendedSubjectsModal from "../../components/modals/ClassAttendedSubjectsModal";
 import {
   HiOutlineAcademicCap,
   HiOutlineBookOpen,
@@ -65,6 +67,8 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     examSubmitError,
     hasPendingReview,
     pendingReviewCount,
+    enrolledSubjectsByClass,
+    allEnrolledSubjects,
   } = useAppSelector((state) => state.students);
 
   const { items: exams, loading: examsLoading } = useAppSelector(
@@ -125,11 +129,44 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
   const [formFeedback, setFormFeedback] = useState<string | null>(null);
   const [examSubmittedBanner, setExamSubmittedBanner] = useState<{ examName: string } | null>(null);
 
+  const [dashboardModalClass, setDashboardModalClass] = useState<string | null>(null);
+
   // Initial Load
   useEffect(() => {
     dispatch(fetchStudentProfile());
+    dispatch(fetchStudentEnrolledSubjects());
     dispatch(fetchExams());
   }, [dispatch]);
+
+  // Resolve prior attended classes (e.g. JSS 1 attended by student in JSS 2)
+  const currentClassStr = (activeStudent?.currentClassLevel || "").toLowerCase();
+  const rawClassLevels = Array.isArray(activeStudent?.classLevels)
+    ? activeStudent.classLevels
+    : typeof activeStudent?.classLevels === "string"
+    ? [activeStudent.classLevels]
+    : [];
+  const classLevelsList = rawClassLevels.map((cl: string) => String(cl).toLowerCase());
+
+  const hasAttendedJss1 =
+    (currentClassStr.includes("2") || currentClassStr.includes("3") || currentClassStr.includes("two") || currentClassStr.includes("three")) &&
+    (classLevelsList.some((cl: string) => cl.includes("1") || cl.includes("one")) || currentClassStr.includes("jss"));
+
+  const hasAttendedJss2 =
+    (currentClassStr.includes("3") || currentClassStr.includes("three")) &&
+    (classLevelsList.some((cl: string) => cl.includes("2") || cl.includes("two")) || currentClassStr.includes("jss"));
+
+  const modalSubjectsForDashboard = useMemo(() => {
+    if (!dashboardModalClass) return [];
+    const group = (enrolledSubjectsByClass || []).find((g: any) =>
+      (g.classLevel || g.shortCode || "").toLowerCase().replace(/[^a-z0-9]/g, "") ===
+      dashboardModalClass.toLowerCase().replace(/[^a-z0-9]/g, "")
+    );
+    if (group?.subjects && group.subjects.length > 0) return group.subjects;
+    return (allEnrolledSubjects || []).filter((s: any) =>
+      (s.classLevel || "").toLowerCase().replace(/[^a-z0-9]/g, "") ===
+      dashboardModalClass.toLowerCase().replace(/[^a-z0-9]/g, "")
+    );
+  }, [dashboardModalClass, enrolledSubjectsByClass, allEnrolledSubjects]);
 
   // Sync updateEmail initial value
   useEffect(() => {
@@ -160,7 +197,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
   }, []);
 
   // Level Progression Logic (JSS 1-3, SSS 1-3, or Level 100-400)
-  const currentLevelStr = (activeStudent?.currentClassLevel || "Level 100").trim();
+  const currentLevelStr = (activeStudent?.currentClassLevel || "").trim();
 
   const progressionData = useMemo(() => {
     const rawClass = currentLevelStr.toLowerCase();
@@ -200,7 +237,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
       ];
 
       let currentStep = 0;
-      if (rawClass.includes("3") || rawClass.includes("three")) {
+      if (activeStudent?.isGraduated) {
+        currentStep = 3;
+      } else if (rawClass.includes("3") || rawClass.includes("three")) {
         currentStep = 2;
       } else if (rawClass.includes("2") || rawClass.includes("two")) {
         currentStep = 1;
@@ -225,7 +264,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
       ];
 
       let currentStep = 0;
-      if (rawClass.includes("3") || rawClass.includes("three")) {
+      if (activeStudent?.isGraduated) {
+        currentStep = 3;
+      } else if (rawClass.includes("3") || rawClass.includes("three")) {
         currentStep = 2;
       } else if (rawClass.includes("2") || rawClass.includes("two")) {
         currentStep = 1;
@@ -241,6 +282,15 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
       };
     }
 
+    if (!rawClass) {
+      return {
+        trackName: "Class Level Progression",
+        subtitle: "No class level assigned yet.",
+        steps: [],
+        currentStep: 0,
+      };
+    }
+
     // Default: Tertiary Track (Level 100 - 400 + Graduation)
     const steps = [
       { level: "Level 100", label: "Freshman", step: 0 },
@@ -251,7 +301,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     ];
 
     let currentStep = 0;
-    if (rawClass.includes("400") || rawClass.includes("4")) {
+    if (activeStudent?.isGraduated) {
+      currentStep = 4;
+    } else if (rawClass.includes("400") || rawClass.includes("4")) {
       currentStep = 3;
     } else if (rawClass.includes("300") || rawClass.includes("3")) {
       currentStep = 2;
@@ -263,21 +315,28 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
 
     return {
       trackName: "Academic Level Progression",
-      subtitle: "Passing your 3rd Term exams automatically unlocks promotion to the next class level.",
+      subtitle: activeStudent?.isGraduated
+        ? "Congratulations! You have fulfilled all graduation requirements and earned your degree."
+        : "Passing your 3rd Term exams automatically unlocks promotion to the next class level.",
       steps,
       currentStep,
     };
-  }, [currentLevelStr, activeStudent?.classLevels]);
+  }, [currentLevelStr, activeStudent?.classLevels, activeStudent?.isGraduated]);
 
-  // Academic standing & gpa estimation
-  const totalResults = studentExamResults?.length || 0;
-  const passedResults = studentExamResults?.filter((r) => r.status === "Passed")
-    ?.length || 0;
-  const averageGrade = useMemo(() => {
-    if (!studentExamResults || studentExamResults.length === 0) return 0;
-    const sum = studentExamResults.reduce((acc, r) => acc + (Number(r.grade) || 0), 0);
-    return Math.round(sum / studentExamResults.length);
+  // Academic standing & gpa estimation (Strictly published by both teacher and administration)
+  const verifiedPublishedResults = useMemo(() => {
+    return (studentExamResults || []).filter(
+      (r: any) => r?.isTeacherPublished === true && r?.isPublished === true
+    );
   }, [studentExamResults]);
+
+  const totalResults = verifiedPublishedResults.length;
+  const passedResults = verifiedPublishedResults.filter((r: any) => r.status === "Passed").length;
+  const averageGrade = useMemo(() => {
+    if (verifiedPublishedResults.length === 0) return 0;
+    const sum = verifiedPublishedResults.reduce((acc: number, r: any) => acc + (Number(r.grade) || 0), 0);
+    return Math.round(sum / verifiedPublishedResults.length);
+  }, [verifiedPublishedResults]);
 
   // Check if current student has already taken an exam
   const hasTakenExam = (examId: string) => {
@@ -314,7 +373,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
   // 2. Exam subject matches subject(s) student is offering
   // 3. Exam createdBy matches student's assigned teacher (or teacher of that offering subject)
   const filteredExams = useMemo(() => {
-    if (!activeStudent) return exams;
+    if (!activeStudent) return [];
 
     const studentClassNorm = normalizeClass(activeStudent.currentClassLevel);
 
@@ -372,6 +431,16 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     }
 
     return exams.filter((e) => {
+      // 0. Strict Live Status Check: Pending exams must NEVER appear on student dashboard
+      if (e.examStatus !== "live") {
+        return false;
+      }
+
+      // 0b. Exam already written/completed check: Do not show again
+      if (hasTakenExam(e._id)) {
+        return false;
+      }
+
       // 1. Class Level Check
       const examClassNorm = normalizeClass(e.classLevel);
       if (studentClassNorm && examClassNorm && studentClassNorm !== examClassNorm) {
@@ -423,10 +492,10 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     });
   }, [exams, activeStudent, examSearch, examTypeFilter]);
 
-  // Filter exam results (Only Admin-approved published results)
+  // Filter exam results (Only results officially published by both Teacher and Administration)
   const filteredResults = useMemo(() => {
     return (studentExamResults || [])
-      .filter((r) => r?.isPublished === true)
+      .filter((r) => r?.isTeacherPublished === true && r?.isPublished === true)
       .filter((r) => {
         const examName = r.exam?.name || "Exam";
         const subjectName = r.exam?.subject?.name || "";
@@ -444,6 +513,10 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
   const handleStartExam = (exam: any) => {
     if (activeStudent?.isSuspended || activeStudent?.isWithDrawn) {
       alert("Your account is currently suspended or withdrawn. You cannot take exams.");
+      return;
+    }
+    if (exam.examStatus !== "live") {
+      alert("This examination is currently pending and has not been launched live by the instructor. You cannot access it yet.");
       return;
     }
     if (hasTakenExam(exam._id)) {
@@ -834,19 +907,41 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
           </div>
           <div className="mt-3">
             <div className="flex items-baseline gap-2">
-              <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                {currentExamResult?.isPublished && currentExamResult?.grade !== undefined
-                  ? `${currentExamResult.grade}%`
-                  : "N/A"}
-              </h3>
-              {currentExamResult?.isPublished && currentExamResult?.remarks && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
-                  {currentExamResult.remarks}
-                </span>
+              {currentExamResult?.isUnderCorrection ? (
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-2xl font-black text-amber-500 filter blur-sm select-none">
+                      85%
+                    </h3>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 animate-pulse">
+                      Under Correction
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                    ⚠️ Blurred pending teacher review
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white">
+                    {currentExamResult?.isTeacherPublished && currentExamResult?.isPublished && currentExamResult?.grade !== undefined
+                      ? `${currentExamResult.grade}%`
+                      : "N/A"}
+                  </h3>
+                  {currentExamResult?.isTeacherPublished && currentExamResult?.isPublished && currentExamResult?.remarks && (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
+                      {currentExamResult.remarks}
+                    </span>
+                  )}
+                </>
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {currentExamResult?.isPublished && currentExamResult?.exam?.name ? currentExamResult.exam.name : "No exam record yet"}
+              {currentExamResult?.isUnderCorrection
+                ? "Result unpublished by admin for score correction"
+                : currentExamResult?.isTeacherPublished && currentExamResult?.isPublished && currentExamResult?.exam?.name
+                ? currentExamResult.exam.name
+                : "No exam record yet"}
             </p>
           </div>
         </div>
@@ -960,7 +1055,11 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                     Latest Published Assessment
                   </h3>
                 </div>
-                {currentExamResult && currentExamResult.isPublished && (
+                {currentExamResult && (currentExamResult as any).isUnderCorrection ? (
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-300/40 animate-pulse">
+                    ⚠️ Withheld for Correction
+                  </span>
+                ) : currentExamResult && currentExamResult.isTeacherPublished && currentExamResult.isPublished && (
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-bold ${
                       currentExamResult.status === "Passed"
@@ -973,7 +1072,47 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                 )}
               </div>
 
-              {currentExamResult && currentExamResult.isPublished ? (
+              {currentExamResult && (currentExamResult as any).isUnderCorrection ? (
+                /* Assessment Under Correction Warning & Blurred Display */
+                <div className="space-y-4">
+                  <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-sm text-amber-400">
+                      <span>⚠️ Assessment Result Withheld by School Administration</span>
+                    </div>
+                    <p className="text-xs text-amber-200/90 leading-relaxed">
+                      This assessment result has been unpublished by administration for teacher score correction. Scores and breakdown details are temporarily blurred pending adjustments and administrator re-approval.
+                    </p>
+                    {(currentExamResult as any).correctionReason && (
+                      <div className="text-xs bg-black/20 rounded-xl p-2.5 border border-amber-500/20 text-amber-100">
+                        <span className="font-semibold text-amber-300">Correction Note:</span> {(currentExamResult as any).correctionReason}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Blurred Assessment Card */}
+                  <div className="filter blur-sm opacity-50 select-none pointer-events-none p-6 rounded-2xl bg-gradient-to-r from-indigo-50/60 to-violet-50/60 dark:from-slate-800/40 dark:to-indigo-950/30 border border-indigo-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div className="space-y-2 text-center sm:text-left">
+                      <span className="text-xs font-bold tracking-wider uppercase text-indigo-600 dark:text-indigo-400">
+                        {currentExamResult.exam?.examType || "Assessment"}
+                      </span>
+                      <h4 className="text-xl font-extrabold text-gray-900 dark:text-white">
+                        {currentExamResult.exam?.name || "Examination Result"}
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Term: {currentExamResult.academicTerm?.name || "Current Term"}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center justify-center w-24 h-24 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-slate-700 shadow-md">
+                      <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                        --%
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Score: --
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : currentExamResult && currentExamResult.isTeacherPublished && currentExamResult.isPublished ? (
                 <div className="space-y-6">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-6 p-6 rounded-2xl bg-gradient-to-r from-indigo-50/60 to-violet-50/60 dark:from-slate-800/40 dark:to-indigo-950/30 border border-indigo-100 dark:border-slate-800">
                     <div className="space-y-2 text-center sm:text-left">
@@ -1095,13 +1234,13 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                     ⏳
                   </div>
                   <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 dark:text-amber-300 border border-amber-500/30">
-                    Awaiting Administrative Review
+                    Awaiting Teacher & Administrative Review
                   </span>
                   <h4 className="font-bold text-gray-900 dark:text-white text-base">
                     Exam Submission Under Review
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-                    Your exam has been submitted and is saved as unpublished. As soon as the school administration reviews and publishes your result, your full score and question breakdown will unlock here.
+                    Your exam has been submitted and is saved as unpublished. In accordance with academic policy, your official score and question breakdown will unlock here once your teacher compiles and the school administration approves and officially publishes your results.
                   </p>
                   <button
                     onClick={() => setActiveTab("results")}
@@ -1146,7 +1285,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                   onClick={() => setActiveTab("exams")}
                   className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                 >
-                  View All ({exams.length})
+                  View All ({filteredExams.length})
                 </button>
               </div>
 
@@ -1154,13 +1293,13 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                 <div className="py-8 text-center text-xs text-slate-400">
                   Loading active exams...
                 </div>
-              ) : exams.length === 0 ? (
+              ) : filteredExams.length === 0 ? (
                 <p className="text-xs text-slate-500 dark:text-slate-400 py-4">
-                  No online exams are scheduled at the moment.
+                  No active live examinations are scheduled at the moment. Examinations only appear here once your instructor sends them live.
                 </p>
               ) : (
                 <div className="space-y-3">
-                  {exams.slice(0, 3).map((exam) => {
+                  {filteredExams.slice(0, 3).map((exam) => {
                     const taken = hasTakenExam(exam._id);
                     return (
                       <div
@@ -1172,12 +1311,15 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
                               {exam.examType || "Quiz"}
                             </span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+                              Live
+                            </span>
                             <h4 className="font-bold text-sm text-gray-900 dark:text-white">
                               {exam.name}
                             </h4>
                           </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Subject: {exam.subject?.name || typeof exam.subject === "string" ? exam.subject?.name || exam.subject : "General"} • Duration: {exam.duration || "30m"}
+                            Subject: {exam.subject?.name || (typeof exam.subject === "string" ? exam.subject : "General")} • Duration: {exam.duration || "30m"}
                           </p>
                         </div>
 
@@ -1245,6 +1387,39 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                     <HiOutlineArrowRight className="w-3.5 h-3.5" />
                   </Link>
                 </div>
+                {/* Historical Attended Classes Modal Buttons */}
+                {hasAttendedJss1 && (
+                  <div className="flex justify-between items-center pt-3 bg-emerald-500/10 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-500/25">
+                    <div>
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300 block">JSS 1 Subjects</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Attended & Moved to {currentLevelStr}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDashboardModalClass("JSS 1")}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <HiOutlineBookOpen className="w-3.5 h-3.5" />
+                      <span>View Modal</span>
+                    </button>
+                  </div>
+                )}
+                {hasAttendedJss2 && (
+                  <div className="flex justify-between items-center pt-3 bg-emerald-500/10 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-500/25">
+                    <div>
+                      <span className="font-semibold text-emerald-700 dark:text-emerald-300 block">JSS 2 Subjects</span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">Attended & Moved to {currentLevelStr}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDashboardModalClass("JSS 2")}
+                      className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <HiOutlineBookOpen className="w-3.5 h-3.5" />
+                      <span>View Modal</span>
+                    </button>
+                  </div>
+                )}
                 <div className="flex justify-between pt-3">
                   <span className="text-slate-500 dark:text-slate-400">Date Admitted</span>
                   <span className="font-bold text-gray-900 dark:text-white">
@@ -1263,6 +1438,69 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                 )}
               </div>
             </div>
+
+            {/* Subject Progression & Attended Classes Card */}
+            {(hasAttendedJss1 || hasAttendedJss2) && (
+              <div className="rounded-3xl bg-gradient-to-br from-emerald-950/20 via-slate-900 to-indigo-950/20 border border-emerald-500/30 p-6 shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-base text-gray-900 dark:text-white flex items-center gap-2">
+                    <HiOutlineBookOpen className="w-5 h-5 text-emerald-400" />
+                    <span>Attended Subjects</span>
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    Carried Forward
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Subjects attended in previous class levels have been carried forward to <strong className="text-emerald-300">{currentLevelStr}</strong> together with any newly added subjects.
+                </p>
+
+                <div className="space-y-2 pt-1">
+                  {hasAttendedJss1 && (
+                    <button
+                      type="button"
+                      onClick={() => setDashboardModalClass("JSS 1")}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold text-xs transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <HiOutlineBookOpen className="w-4 h-4 text-emerald-400" />
+                        <span>JSS 1 Subjects (Attended)</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] bg-emerald-500/20 text-emerald-300 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        Click to Pop Up Modal
+                      </span>
+                    </button>
+                  )}
+                  {hasAttendedJss2 && (
+                    <button
+                      type="button"
+                      onClick={() => setDashboardModalClass("JSS 2")}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 font-semibold text-xs transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <HiOutlineBookOpen className="w-4 h-4 text-emerald-400" />
+                        <span>JSS 2 Subjects (Attended)</span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-md text-[10px] bg-emerald-500/20 text-emerald-300 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        Click to Pop Up Modal
+                      </span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Current Class Curriculum:</span>
+                  <Link
+                    to="/student/subjects"
+                    className="font-bold text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1"
+                  >
+                    <span>View All in Table</span>
+                    <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* Assigned Teacher Card */}
             <div className="rounded-3xl bg-gradient-to-br from-indigo-900/10 via-violet-900/10 to-slate-900/20 border border-indigo-200/50 dark:border-indigo-900/40 p-6 shadow-sm space-y-4">
@@ -1293,7 +1531,23 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                       Subject Specialization:
                     </div>
                     <div className="font-bold text-indigo-700 dark:text-indigo-300">
-                      {activeStudent.assignedTeacher.subject || activeStudent.subject || "Faculty Course"}
+                      {(() => {
+                        const raw = (activeStudent.assignedTeacher.subject || activeStudent.subject) as any;
+                        if (!raw) return "Faculty Course";
+                        if (typeof raw === "object" && raw.name) return raw.name;
+                        if (typeof raw === "string") {
+                          if (/^[0-9a-fA-F]{24}$/.test(raw)) {
+                            // Find in student's enrolled subjects
+                            const match = (activeStudent.enrolledSubjects || []).find(
+                              (es: any) => ((es.subject?._id || es.subject)?.toString() === raw)
+                            );
+                            if (match) return match.subject?.name || match.name || "Faculty Course";
+                            return "Class Faculty Instructor";
+                          }
+                          return raw;
+                        }
+                        return "Faculty Course";
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -1389,7 +1643,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
               <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
                 <span className="font-semibold text-slate-500 dark:text-slate-400">Class:</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 font-bold text-indigo-700 dark:text-indigo-300">
-                  {activeStudent?.currentClassLevel || "Level 100"}
+                  {activeStudent?.currentClassLevel || "Not Assigned"}
                 </span>
               </div>
 
@@ -1425,10 +1679,10 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                 📚
               </div>
               <h4 className="font-bold text-gray-900 dark:text-white text-base">
-                No Exams Available For Your Class & Assigned Teacher
+                No Active Live Examinations Available
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-                Only examinations set by your assigned teacher ({(typeof activeStudent?.assignedTeacher === "object" ? (activeStudent?.assignedTeacher as any)?.name : null) || "your instructor"}) for your enrolled subject in {activeStudent?.currentClassLevel || "your class"} are displayed. No tests match at this time.
+                Examinations only appear on your portal once your assigned instructor sends them live. Please check back when your teacher activates the exam.
               </p>
             </div>
           ) : (
@@ -1545,14 +1799,14 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h4 className="font-bold text-sm text-amber-300">
-                    Exam Submission Pending Administrative Review
+                    Exam Submission Pending Teacher & Administrative Review
                   </h4>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                     Draft / Unpublished
                   </span>
                 </div>
                 <p className="text-xs text-amber-200/90 leading-relaxed">
-                  You have {pendingReviewCount > 0 ? pendingReviewCount : 1} exam result(s) awaiting review and publication by the school administrator. In accordance with the academic workflow, your official grade and score breakdown will be displayed below as soon as it is published.
+                  You have {pendingReviewCount > 0 ? pendingReviewCount : 1} exam result(s) awaiting review and publication by your teacher and the school administration. In accordance with academic policy, your official grade and score breakdown will be displayed below once officially approved and published.
                 </p>
               </div>
             </div>
@@ -2166,6 +2420,17 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
           </div>
         </div>
       )}
+
+      {/* Historical Attended Class Subjects Modal Popup */}
+      <ClassAttendedSubjectsModal
+        isOpen={Boolean(dashboardModalClass)}
+        onClose={() => setDashboardModalClass(null)}
+        classLevel={dashboardModalClass || "JSS 1"}
+        subjects={modalSubjectsForDashboard}
+        studentName={activeStudent?.name || ""}
+        studentId={activeStudent?.studentId || activeStudent?.StudentId || ""}
+        currentClassLevel={currentLevelStr}
+      />
     </div>
   );
 }

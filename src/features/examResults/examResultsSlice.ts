@@ -36,6 +36,9 @@ export interface ExamResultItem {
   teacherPublishedAt?: string;
   teacherPublishedBy?: any;
   isPublished: boolean;
+  isUnderCorrection?: boolean;
+  correctionReason?: string;
+  isBlurred?: boolean;
   adminPublishedAt?: string;
   adminPublishedBy?: any;
   answeredQuestions?: any[];

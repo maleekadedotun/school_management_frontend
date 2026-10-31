@@ -63,6 +63,7 @@ interface AuthState {
   teacherClassStudents: Student[];
   teacherClassLevel: string | null;
   teacherSubject: string | null;
+  teacherSubjects: string[];
   teacherProgram: string | null;
   teacherProgramId: string | null;
   currentStudent: Student | null;
@@ -111,6 +112,7 @@ const initialState: AuthState = {
   teacherClassStudents: [],
   teacherClassLevel: null,
   teacherSubject: null,
+  teacherSubjects: [],
   teacherProgram: null,
   teacherProgramId: null,
   currentStudent: null,
@@ -153,14 +155,20 @@ export const fetchAllStudents = createAsyncThunk("students/fetchAll", async (_, 
   }
 });
 
-export const fetchTeacherClassStudents = createAsyncThunk("students/fetchTeacherClassStudents", async (_, { rejectWithValue }) => {
-  try {
-    const { data } = await api.get("/students/teacher/class-students");
-    return data;
-  } catch (err: any) {
-    return rejectWithValue(err.response?.data?.message || "Failed to fetch class students");
+export const fetchTeacherClassStudents = createAsyncThunk(
+  "students/fetchTeacherClassStudents",
+  async (mode: "class" | "subject" | void, { rejectWithValue }) => {
+    try {
+      const url = mode === "class"
+        ? "/students/teacher/class-students?mode=class"
+        : "/students/teacher?mode=subject";
+      const { data } = await api.get(url);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to fetch class students");
+    }
   }
-});
+);
 
 export const fetchStudent = createAsyncThunk("students/fetchOne", async (id: string, { rejectWithValue }) => {
   try {
@@ -481,6 +489,7 @@ const studentsSlice = createSlice({
         state.teacherClassStudents = action.payload.data || [];
         state.teacherClassLevel = action.payload.teacherClassLevel || null;
         state.teacherSubject = action.payload.teacherSubject || null;
+        state.teacherSubjects = action.payload.teacherSubjects || [];
         state.teacherProgram = action.payload.teacherProgram || null;
         state.teacherProgramId = action.payload.teacherProgramId || null;
       })
@@ -538,9 +547,9 @@ const studentsSlice = createSlice({
         state.profile = p;
         state.currentExamResult = action.payload.data?.currentExamResult || action.payload.currentExamResult || null;
         state.studentExamResults = action.payload.data?.examResults || p.examsResults || [];
-        state.allExamResults = action.payload.data?.allExamResults || p.examsResults || [];
+        state.allExamResults = action.payload.data?.allExamResults || p.allExamResults || p.examsResults || [];
         const backendWrittenIds: string[] = (action.payload.data?.writtenExamIds || []).map((id: any) => id?.toString());
-        const profileExamIds: string[] = (p.examsResults || [])
+        const profileExamIds: string[] = (state.allExamResults || [])
           .map((r: any) => (r?.exam?._id || r?.exam || r?._id)?.toString())
           .filter(Boolean);
         state.writtenExamIds = Array.from(new Set([...backendWrittenIds, ...profileExamIds]));
@@ -596,16 +605,17 @@ const studentsSlice = createSlice({
         }
         if (newResult) {
           state.allExamResults.unshift(newResult);
-          if (state.profile) {
-            if (!Array.isArray(state.profile.examsResults)) state.profile.examsResults = [];
-            state.profile.examsResults.unshift(newResult);
-          }
-          if (state.student) {
-            if (!Array.isArray(state.student.examsResults)) state.student.examsResults = [];
-            state.student.examsResults.unshift(newResult);
-          }
-          // Result is saved as unpublished; only expose if published
-          if (newResult.isPublished) {
+          // Result is newly written and pending review; only expose if published by BOTH teacher and admin
+          const isDualPublished = Boolean(newResult.isTeacherPublished && newResult.isPublished);
+          if (isDualPublished) {
+            if (state.profile) {
+              if (!Array.isArray(state.profile.examsResults)) state.profile.examsResults = [];
+              state.profile.examsResults.unshift(newResult);
+            }
+            if (state.student) {
+              if (!Array.isArray(state.student.examsResults)) state.student.examsResults = [];
+              state.student.examsResults.unshift(newResult);
+            }
             state.currentExamResult = newResult;
             state.studentExamResults.unshift(newResult);
           }

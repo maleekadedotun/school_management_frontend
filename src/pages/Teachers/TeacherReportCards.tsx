@@ -1,5 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { useSearchParams, useLocation, Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import api from "../../services/api";
 import {
@@ -11,6 +11,7 @@ import {
   fetchClassSubjectSheet,
   fetchClassSubjectsProgress,
   saveClassSubjectResults,
+  publishSubjectResultToClassTeacher,
   fetchClassResultsOverview,
   fetchStudentFullReport,
   type ReportCardItem,
@@ -22,6 +23,7 @@ import { fetchAcademicYears } from "../../features/academicYears/academicYearsSl
 import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
 import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import { fetchSubjects } from "../../features/subjects/subjectsSlice";
+import { fetchPrograms } from "../../features/programs/programsSlice";
 import { ReportCardDocument } from "../../components/reportCard/ReportCardDocument";
 import {
   HiOutlineCalculator,
@@ -44,6 +46,8 @@ import {
   HiOutlineCheck,
   HiOutlineClock,
   HiOutlineBookOpen,
+  HiOutlineChevronDown,
+  HiOutlineChevronUp,
 } from "react-icons/hi2";
 
 // Helper: Calculate subject remark based on percentage (Section 7)
@@ -53,6 +57,16 @@ const calculateRemark = (grade: number): string => {
   if (grade >= 60) return "Good";
   if (grade >= 40) return "Fair";
   return "Poor";
+};
+
+// Helper: Calculate letter grade based on percentage
+const calculateLetterGrade = (score: number): string => {
+  if (score >= 70) return "A";
+  if (score >= 60) return "B";
+  if (score >= 50) return "C";
+  if (score >= 45) return "D";
+  if (score >= 40) return "E";
+  return "F";
 };
 
 // Helper: Styling for remark badge
@@ -83,6 +97,9 @@ export interface SheetRowItem {
   status: string;
   isSaved: boolean;
   isRegistered?: boolean;
+  isPublishedToClassTeacher?: boolean;
+  classTeacher?: string | null;
+  classTeacherName?: string | null;
 }
 
 export interface StudentSubjectRow {
@@ -120,6 +137,7 @@ export default function TeacherReportCards() {
   const { items: academicTerms } = useAppSelector((state) => state.academicTerms);
   const { items: classLevels } = useAppSelector((state) => state.classLevels);
   const { items: allSubjects } = useAppSelector((state) => state.subjects);
+  const { items: allPrograms } = useAppSelector((state) => state.programs);
   const { teacher: authTeacher } = useAppSelector((state) => state.teacherAuth);
   const { myAssignments } = useAppSelector((state) => state.classTeachers);
   const { teacherClassStudents, teacherSubject: stateTeacherSubject } = useAppSelector((state) => state.students);
@@ -150,24 +168,136 @@ export default function TeacherReportCards() {
     if (stateTeacherSubject) {
       addSub(stateTeacherSubject);
     }
+
+    // Also include subjects from allSubjects where current teacher is the assigned teacher
+    const curTeacherId = (currentTeacher?._id || currentTeacher?.id)?.toString();
+    if (curTeacherId) {
+      (allSubjects || []).forEach((sub: any) => {
+        const tId = (sub.teacher?._id || sub.teacher)?.toString();
+        if (tId && tId === curTeacherId) {
+          const n = (sub.name || "").trim();
+          if (n && !list.includes(n)) list.push(n);
+        }
+      });
+    }
+
     return list;
   }, [currentTeacher, stateTeacherSubject, allSubjects]);
 
+  const teacherAssignedSubjectIds = useMemo<string[]>(() => {
+    const ids: string[] = [];
+    const addId = (val: any) => {
+      if (!val) return;
+      const str = (typeof val === "object" ? val._id || val.id : val)?.toString().trim();
+      if (str && !ids.includes(str)) ids.push(str);
+    };
+
+    if (Array.isArray(currentTeacher?.subjects)) {
+      currentTeacher.subjects.forEach(addId);
+    }
+    if (currentTeacher?.subject) {
+      addId(currentTeacher.subject);
+    }
+
+    const curTeacherId = (currentTeacher?._id || currentTeacher?.id)?.toString();
+    if (curTeacherId) {
+      (allSubjects || []).forEach((sub: any) => {
+        const tId = (sub.teacher?._id || sub.teacher)?.toString();
+        if (tId && tId === curTeacherId) {
+          addId(sub._id);
+        }
+      });
+    }
+
+    const lowerNames = teacherAssignedSubjectNames.map((n) => n.toLowerCase());
+    (allSubjects || []).forEach((sub: any) => {
+      if (sub.name && lowerNames.includes(sub.name.trim().toLowerCase())) {
+        addId(sub._id);
+      }
+    });
+
+    return ids;
+  }, [currentTeacher, allSubjects, teacherAssignedSubjectNames]);
+
+  const hasTeacherAssignedSubjects =
+    teacherAssignedSubjectNames.length > 0 || teacherAssignedSubjectIds.length > 0;
+
+  const isSubjectTaughtByTeacher = useCallback(
+    (subjectIdOrObj?: any, subjectNameStr?: string) => {
+      if (authTeacher?.role === "admin") return true;
+      if (!hasTeacherAssignedSubjects) return false;
+
+      const sId = (
+        typeof subjectIdOrObj === "object"
+          ? subjectIdOrObj?._id || subjectIdOrObj?.subjectId || subjectIdOrObj?.id
+          : subjectIdOrObj
+      )?.toString().trim();
+      const sName = (
+        subjectNameStr ||
+        (typeof subjectIdOrObj === "object" ? subjectIdOrObj?.name || subjectIdOrObj?.subjectName : null) ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+
+      if (sId && teacherAssignedSubjectIds.includes(sId)) return true;
+      if (sName && teacherAssignedSubjectNames.some((n) => n.trim().toLowerCase() === sName)) return true;
+
+      if (sName) {
+        const cleanS = sName.replace(/\s+/g, "");
+        const matched = teacherAssignedSubjectNames.some((n) => {
+          const cleanN = n.trim().toLowerCase().replace(/\s+/g, "");
+          return cleanN === cleanS || cleanN.includes(cleanS) || cleanS.includes(cleanN);
+        });
+        if (matched) return true;
+      }
+
+      if (sId) {
+        const matchedSub = (allSubjects || []).find((s: any) => s._id?.toString() === sId);
+        if (matchedSub) {
+          const mName = (matchedSub.name || "").trim().toLowerCase();
+          if (teacherAssignedSubjectNames.some((n) => n.trim().toLowerCase() === mName)) return true;
+          const curTeacherId = (currentTeacher?._id || currentTeacher?.id)?.toString();
+          const tId = (matchedSub.teacher?._id || matchedSub.teacher)?.toString();
+          if (tId && curTeacherId && tId === curTeacherId) return true;
+        }
+      }
+
+      return false;
+    },
+    [authTeacher, currentTeacher, hasTeacherAssignedSubjects, teacherAssignedSubjectIds, teacherAssignedSubjectNames, allSubjects]
+  );
+
   const teacherSubject = (currentTeacher?.subject?.name || currentTeacher?.subject || stateTeacherSubject || "").toString().trim().toLowerCase();
   const teacher = currentTeacher;
+
+  const location = useLocation();
+  // Dedicated Subject Teacher Score Entry page (/teacher/report-cards or /teacher/score-entry)
+  const isScoreEntryPage =
+    location.pathname.startsWith("/teacher/report-cards") ||
+    location.pathname === "/teacher/score-entry" ||
+    searchParams.get("tab") === "sheet";
 
   // View Modes:
   // "overview": Mode B - Class Results Overview
   // "studentReport": Mode A - Individual Student Report Card
   // "sheet": Subject Teacher Score Entry
   const tabParam = searchParams.get("tab");
-  const initialTab: "overview" | "studentReport" | "sheet" =
-    tabParam === "studentReport" || tabParam === "student"
-      ? "studentReport"
-      : tabParam === "sheet"
-      ? "sheet"
-      : "overview";
+  const initialTab: "overview" | "studentReport" | "sheet" = isScoreEntryPage
+    ? "sheet"
+    : tabParam === "studentReport" || tabParam === "student"
+    ? "studentReport"
+    : tabParam === "sheet"
+    ? "sheet"
+    : "overview";
   const [activeTab, setActiveTab] = useState<"overview" | "studentReport" | "sheet">(initialTab);
+
+  // When on the dedicated Subject Teacher Score Entry route, keep activeTab locked to "sheet"
+  useEffect(() => {
+    if (isScoreEntryPage && activeTab !== "sheet") {
+      setActiveTab("sheet");
+    }
+  }, [isScoreEntryPage, activeTab]);
 
   // Selected student ID for Mode A
   const [selectedStudentId, setSelectedStudentId] = useState<string>(
@@ -176,6 +306,13 @@ export default function TeacherReportCards() {
 
   // Overview filter for Mode B: "all" | "completed" | "incomplete"
   const [overviewFilter, setOverviewFilter] = useState<"all" | "completed" | "incomplete">("all");
+
+  // Expanded student row in Overview Mode B for reviewing multi-subject results breakdown
+  const [expandedStudentId, setExpandedStudentId] = useState<string | null>(null);
+
+  // Publishing state
+  const [publishingSubjectId, setPublishingSubjectId] = useState<string | null>(null);
+  const [publishingAll, setPublishingAll] = useState<boolean>(false);
 
   // Student comment state for Mode A
   const [studentCommentText, setStudentCommentText] = useState<string>("");
@@ -187,8 +324,25 @@ export default function TeacherReportCards() {
   const [selectedClass, setSelectedClass] = useState<string>("");
   const [selectedProgram, setSelectedProgram] = useState<string>("");
   const [selectedSubject, setSelectedSubject] = useState<string>("");
+  const [overviewSubjectFilter, setOverviewSubjectFilter] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [hasInitializedAssignment, setHasInitializedAssignment] = useState<boolean>(false);
+
+  // Complete list of available programs from both curriculum and assignments
+  const programsList = useMemo(() => {
+    const map = new Map<string, { _id: string; name: string }>();
+    (allPrograms || []).forEach((p: any) => {
+      if (p?._id && p?.name) {
+        map.set(p._id.toString(), { _id: p._id.toString(), name: p.name });
+      }
+    });
+    (myAssignments || []).forEach((a: any) => {
+      if (a?.program?._id && a?.program?.name) {
+        map.set(a.program._id.toString(), { _id: a.program._id.toString(), name: a.program.name });
+      }
+    });
+    return Array.from(map.values());
+  }, [allPrograms, myAssignments]);
 
   // Active assigned program name (from assignment, overview, or teacher profile)
   const assignedProgramName = useMemo(() => {
@@ -197,12 +351,85 @@ export default function TeacherReportCards() {
         (a: any) => (a.program?._id || a.program) === selectedProgram
       );
       if (match?.program?.name) return match.program.name;
+      const foundInList = programsList.find((p) => p._id === selectedProgram);
+      if (foundInList?.name) return foundInList.name;
     }
     if (classOverviewData?.program?.name) return classOverviewData.program.name;
     const active = myAssignments?.find((a: any) => a.isActive);
     if (active?.program?.name) return active.program.name;
     return (currentTeacher?.program?.name || currentTeacher?.program || "");
-  }, [selectedProgram, myAssignments, classOverviewData, currentTeacher]);
+  }, [selectedProgram, myAssignments, classOverviewData, currentTeacher, programsList]);
+
+  // Determine if the logged-in teacher is specifically assigned as the Class Teacher for the currently selected class level and program
+  const isClassTeacherForThisClass = useMemo(() => {
+    if (authTeacher?.role === "admin") return true;
+
+    const selClassDoc = classLevels.find((c) => c._id === selectedClass);
+    const selClassName = (selClassDoc?.name || "").toString().trim().toLowerCase();
+    const selClassNoSpace = selClassName.replace(/\s+/g, "");
+    const selClassDigits = selClassName.match(/\d+/)?.[0] || "";
+
+    // 1. Check teacher profile classLevel (legacy / direct assignment)
+    const tClassRaw = (teacher?.classLevel || authTeacher?.classLevel || "").toString().trim().toLowerCase();
+    const tClassNoSpace = tClassRaw.replace(/\s+/g, "");
+    const tClassDigits = tClassRaw.match(/\d+/)?.[0] || "";
+    if (
+      tClassRaw &&
+      (tClassRaw === selClassName ||
+        tClassNoSpace === selClassNoSpace ||
+        tClassRaw === selectedClass ||
+        (selClassDigits && tClassDigits && selClassDigits === tClassDigits))
+    ) {
+      return true;
+    }
+
+    // 2. Check overview data if classTeacher assigned
+    if (
+      (classOverviewData as any)?.classTeacher?._id &&
+      ((classOverviewData as any).classTeacher._id === authTeacher?._id || (classOverviewData as any).classTeacher._id === teacher?._id)
+    ) {
+      return true;
+    }
+
+    // 3. Check if any student in overview has assignedTeacher pointing to current teacher
+    if (authTeacher?._id && Array.isArray(classOverviewData?.students)) {
+      const isAssignedToStudent = classOverviewData.students.some((s: any) => {
+        const aId = s.student?.assignedTeacher?._id || s.student?.assignedTeacher;
+        return aId && aId.toString() === authTeacher._id.toString();
+      });
+      if (isAssignedToStudent) return true;
+    }
+
+    // 4. Check formal ClassTeacherAssignments
+    if (myAssignments && myAssignments.length > 0) {
+      return myAssignments.some((a: any) => {
+        if (!a.isActive) return false;
+        const aClassId = (a.classLevel?._id || a.classLevel || "").toString();
+        const aClassName = (a.classLevel?.name || "").toString().trim().toLowerCase();
+        const aClassNoSpace = aClassName.replace(/\s+/g, "");
+        const aClassDigits = aClassName.match(/\d+/)?.[0] || "";
+
+        const classMatches =
+          aClassId === selectedClass ||
+          (selClassName && aClassName === selClassName) ||
+          (selClassNoSpace && aClassNoSpace === selClassNoSpace) ||
+          (selClassDigits && aClassDigits && selClassDigits === aClassDigits);
+        if (!classMatches) return false;
+
+        // If program is selected and assignment specifies a program, check program too
+        if (selectedProgram && a.program) {
+          const aProgId = (a.program?._id || a.program || "").toString();
+          const aProgName = (a.program?.name || "").toString().trim().toLowerCase();
+          const selProgDoc = programsList.find((p) => p._id === selectedProgram);
+          const selProgName = (selProgDoc?.name || "").toString().trim().toLowerCase();
+          return aProgId === selectedProgram || (selProgName && aProgName === selProgName);
+        }
+        return true;
+      });
+    }
+
+    return false;
+  }, [authTeacher, teacher, myAssignments, selectedClass, selectedProgram, classLevels, programsList, classOverviewData]);
 
   // Sheet Rows state
   const [sheetRows, setSheetRows] = useState<SheetRowItem[]>([]);
@@ -211,8 +438,16 @@ export default function TeacherReportCards() {
 
   // Modals
   const [previewCard, setPreviewCard] = useState<ReportCardItem | null>(null);
+  const [loadingCardStudentId, setLoadingCardStudentId] = useState<string | null>(null);
 
   const [editingCard, setEditingCard] = useState<ReportCardItem | null>(null);
+  const [studentForComment, setStudentForComment] = useState<{
+    studentId: string;
+    studentName: string;
+    studentID?: string;
+    reportCardId?: string;
+    currentComment: string;
+  } | null>(null);
   const [commentInput, setCommentInput] = useState<string>("");
   const [submittingComment, setSubmittingComment] = useState(false);
 
@@ -252,6 +487,7 @@ export default function TeacherReportCards() {
     dispatch(fetchTeacherClassStudents());
     dispatch(fetchTeacherProfile());
     dispatch(fetchSubjects());
+    dispatch(fetchPrograms());
     dispatch(fetchMyClassTeacherAssignments());
   }, [dispatch]);
 
@@ -274,23 +510,42 @@ export default function TeacherReportCards() {
         }
       );
       if (data?.data?.subjects && data.data.subjects.length > 0) {
-        const rows: StudentSubjectRow[] = data.data.subjects.map((s: any) => ({
-          id: s._id || Math.random().toString(),
-          subjectId: s.subjectId,
-          subjectName: s.subjectName,
-          testScore: s.testScore !== null && s.testScore !== undefined ? String(s.testScore) : "",
-          examScore: s.examScore !== null && s.examScore !== undefined ? String(s.examScore) : "",
-          totalScore: s.totalScore !== null && s.totalScore !== undefined ? Number(s.totalScore) : 0,
-          grade: s.grade !== null && s.grade !== undefined ? Number(s.grade) : 0,
-          remark: s.remark || calculateRemark(Number(s.grade || 0)),
-          isExisting: true,
-        }));
-        setStudentSubjectRows(rows);
+        let validSubjects = data.data.subjects;
+        if (authTeacher?.role !== "admin" && !isClassTeacherForThisClass) {
+          validSubjects = validSubjects.filter((s: any) => isSubjectTaughtByTeacher(s.subjectId, s.subjectName));
+        }
+        if (validSubjects.length > 0) {
+          const rows: StudentSubjectRow[] = validSubjects.map((s: any) => ({
+            id: s._id || Math.random().toString(),
+            subjectId: s.subjectId,
+            subjectName: s.subjectName,
+            testScore: s.testScore !== null && s.testScore !== undefined ? String(s.testScore) : "",
+            examScore: s.examScore !== null && s.examScore !== undefined ? String(s.examScore) : "",
+            totalScore: s.totalScore !== null && s.totalScore !== undefined ? Number(s.totalScore) : 0,
+            grade: s.grade !== null && s.grade !== undefined ? Number(s.grade) : 0,
+            remark: s.remark || calculateRemark(Number(s.grade || 0)),
+            isExisting: true,
+          }));
+          setStudentSubjectRows(rows);
+        } else {
+          setStudentSubjectRows([
+            {
+              id: Math.random().toString(),
+              subjectName: teacherAssignedSubjectNames[0] || "",
+              testScore: "",
+              examScore: "",
+              totalScore: 0,
+              grade: 0,
+              remark: "Poor",
+              isExisting: false,
+            },
+          ]);
+        }
       } else {
         setStudentSubjectRows([
           {
             id: Math.random().toString(),
-            subjectName: "",
+            subjectName: teacherAssignedSubjectNames[0] || "",
             testScore: "",
             examScore: "",
             totalScore: 0,
@@ -304,7 +559,7 @@ export default function TeacherReportCards() {
       setStudentSubjectRows([
         {
           id: Math.random().toString(),
-          subjectName: "",
+          subjectName: teacherAssignedSubjectNames[0] || "",
           testScore: "",
           examScore: "",
           totalScore: 0,
@@ -352,7 +607,7 @@ export default function TeacherReportCards() {
       ...prev,
       {
         id: Math.random().toString(),
-        subjectName: "",
+        subjectName: teacherAssignedSubjectNames[0] || "",
         testScore: "",
         examScore: "",
         totalScore: 0,
@@ -460,6 +715,15 @@ export default function TeacherReportCards() {
     if (validRows.length === 0) {
       setFormError("Please type at least one subject and enter its Test & Exam scores.");
       return;
+    }
+
+    if (authTeacher?.role !== "admin" && !isClassTeacherForThisClass) {
+      for (const r of validRows) {
+        if (!isSubjectTaughtByTeacher(r.subjectId, r.subjectName)) {
+          setFormError(`Access Denied: You are not assigned to teach "${r.subjectName}". You can only enter scores for subjects you teach.`);
+          return;
+        }
+      }
     }
 
     for (const r of validRows) {
@@ -623,7 +887,7 @@ export default function TeacherReportCards() {
     }
   }, [dispatch, selectedClass, selectedYear, selectedTerm, selectedProgram]);
 
-  // Load single student full report when selected student changes
+  // Load single student full report when selected student changes or when switching to studentReport tab
   useEffect(() => {
     if (selectedStudentId && selectedYear && selectedTerm) {
       dispatch(
@@ -635,7 +899,21 @@ export default function TeacherReportCards() {
         })
       );
     }
-  }, [dispatch, selectedStudentId, selectedYear, selectedTerm, selectedClass]);
+  }, [dispatch, selectedStudentId, selectedYear, selectedTerm, selectedClass, activeTab]);
+
+  // Refresh class overview when switching to overview tab
+  useEffect(() => {
+    if (activeTab === "overview" && selectedClass && selectedYear && selectedTerm) {
+      dispatch(
+        fetchClassResultsOverview({
+          classLevelId: selectedClass,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          programId: selectedProgram || undefined,
+        })
+      );
+    }
+  }, [dispatch, activeTab, selectedClass, selectedYear, selectedTerm, selectedProgram]);
 
   // Sync comment text when activeFullReportCard loads
   useEffect(() => {
@@ -689,7 +967,7 @@ export default function TeacherReportCards() {
       });
     }
 
-    // 3. All curriculum subjects (guarantees Data Study and all subjects are always present)
+    // 3. All curriculum subjects (guarantees all subjects are present)
     (allSubjects || []).forEach((s: any) => {
       if (!subjectsMap.has(s._id)) {
         subjectsMap.set(s._id, {
@@ -706,35 +984,52 @@ export default function TeacherReportCards() {
     return Array.from(subjectsMap.values());
   }, [subjectsProgressData, selectedClass, classLevels, allSubjects]);
 
-  // Auto-select subject: prioritize teacher's assigned subject(s) if present
-  useEffect(() => {
-    if (availableClassSubjects.length > 0) {
-      if (!selectedSubject || !availableClassSubjects.some((s) => s._id === selectedSubject)) {
-        if (teacherAssignedSubjectNames.length > 0) {
-          const lowerAssigned = teacherAssignedSubjectNames.map((n) => n.toLowerCase());
-          const match = availableClassSubjects.find(
-            (s: any) =>
-              (s.name && lowerAssigned.includes(s.name.toLowerCase())) ||
-              lowerAssigned.includes(s._id?.toString().toLowerCase())
-          );
-          if (match) {
-            setSelectedSubject(match._id);
-            return;
-          }
-        }
-        if (teacherSubject) {
-          const match = availableClassSubjects.find(
-            (s: any) => (s.name && s.name.toLowerCase() === teacherSubject) || s._id === teacherSubject
-          );
-          if (match) {
-            setSelectedSubject(match._id);
-            return;
-          }
-        }
-        setSelectedSubject(availableClassSubjects[0]._id);
-      }
+  // Subjects available for the Score Entry Sheet tab:
+  // ONLY the subject(s) the teacher is teaching should show in the subject teacher score entry
+  // (unless the user is an Admin, who can manage all subjects)
+  const sheetAvailableSubjects = useMemo(() => {
+    if (authTeacher?.role === "admin") {
+      return availableClassSubjects;
     }
-  }, [availableClassSubjects, selectedSubject, teacherSubject, teacherAssignedSubjectNames]);
+    return availableClassSubjects.filter((s: any) => isSubjectTaughtByTeacher(s._id, s.name));
+  }, [availableClassSubjects, authTeacher, isSubjectTaughtByTeacher]);
+
+  // Auto-select subject: only auto-select when on sheet tab or if an invalid non-empty subject is selected
+  useEffect(() => {
+    if (activeTab === "sheet") {
+      if (sheetAvailableSubjects.length > 0) {
+        if (!selectedSubject || !sheetAvailableSubjects.some((s) => s._id === selectedSubject)) {
+          if (teacherAssignedSubjectNames.length > 0) {
+            const lowerAssigned = teacherAssignedSubjectNames.map((n) => n.toLowerCase());
+            const match = sheetAvailableSubjects.find(
+              (s: any) =>
+                (s.name && lowerAssigned.includes(s.name.toLowerCase())) ||
+                lowerAssigned.includes(s._id?.toString().toLowerCase())
+            );
+            if (match) {
+              setSelectedSubject(match._id);
+              return;
+            }
+          }
+          if (teacherSubject) {
+            const match = sheetAvailableSubjects.find(
+              (s: any) => (s.name && s.name.toLowerCase() === teacherSubject) || s._id === teacherSubject
+            );
+            if (match) {
+              setSelectedSubject(match._id);
+              return;
+            }
+          }
+          setSelectedSubject(sheetAvailableSubjects[0]._id);
+        }
+      } else {
+        setSelectedSubject("");
+      }
+    } else if (selectedSubject && !availableClassSubjects.some((s) => s._id === selectedSubject)) {
+      // If currently selected subject is not valid for this class, reset to all subjects
+      setSelectedSubject("");
+    }
+  }, [availableClassSubjects, sheetAvailableSubjects, selectedSubject, teacherSubject, teacherAssignedSubjectNames, activeTab]);
 
   // Clear sheet inputs immediately when switching subject so previous subject's scores do not linger or move
   useEffect(() => {
@@ -788,6 +1083,9 @@ export default function TeacherReportCards() {
           status: item.status || "draft",
           isSaved,
           isRegistered: true,
+          isPublishedToClassTeacher: Boolean(item.isPublishedToClassTeacher),
+          classTeacher: item.classTeacher || null,
+          classTeacherName: item.classTeacherName || null,
         };
       });
       setSheetRows(rows);
@@ -893,7 +1191,7 @@ export default function TeacherReportCards() {
         type: "success",
       });
 
-      // Refresh progress & sheet
+      // Refresh progress, sheet, and class overview
       dispatch(
         fetchClassSubjectsProgress({
           classLevelId: selectedClass,
@@ -909,11 +1207,275 @@ export default function TeacherReportCards() {
           subjectId: selectedSubject,
         })
       );
+      dispatch(
+        fetchClassResultsOverview({
+          classLevelId: selectedClass,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          programId: selectedProgram || undefined,
+        })
+      );
     } else {
       setAlertMsg({
         text: (res.payload as string) || "Failed to save subject results.",
         type: "error",
       });
+    }
+  };
+
+  // Publish single student's subject result to their Class Teacher
+  const handlePublishRowToClassTeacher = async (row: SheetRowItem) => {
+    if (!selectedClass || !selectedYear || !selectedTerm || !selectedSubject) {
+      setAlertMsg({ text: "Please select Academic Year, Term, Class, and Subject.", type: "error" });
+      return;
+    }
+    const testNum = row.testScore !== "" ? Number(row.testScore) : 0;
+    const examNum = row.examScore !== "" ? Number(row.examScore) : 0;
+    if (testNum < 0 || testNum > 30) {
+      setAlertMsg({ text: `Test score for ${row.studentName} must be between 0 and 30.`, type: "error" });
+      return;
+    }
+    if (examNum < 0 || examNum > 70) {
+      setAlertMsg({ text: `Exam score for ${row.studentName} must be between 0 and 70.`, type: "error" });
+      return;
+    }
+
+    const subName = availableClassSubjects.find((s: any) => s._id === selectedSubject)?.name || "Subject";
+    const ctName = row.classTeacherName || "the Class Teacher";
+    const confirm = window.confirm(
+      `Publish ${subName} scores (Test: ${testNum}, Exam: ${examNum}, Total: ${testNum + examNum}/100) for ${row.studentName} to ${ctName}?\n\n` +
+      `The Class Teacher will review this score alongside all other subjects before publishing to Admin.`
+    );
+    if (!confirm) return;
+
+    try {
+      setPublishingSubjectId(row.studentId);
+      const res = await dispatch(
+        publishSubjectResultToClassTeacher({
+          studentId: row.studentId,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          classLevelId: selectedClass,
+          subjectId: selectedSubject,
+          testScore: testNum,
+          examScore: examNum,
+        })
+      );
+
+      if (publishSubjectResultToClassTeacher.fulfilled.match(res)) {
+        setAlertMsg({
+          text: `✓ ${subName} result for ${row.studentName} published to Class Teacher (${ctName}) successfully!`,
+          type: "success",
+        });
+        // Refresh sheet, progress, and class overview
+        dispatch(
+          fetchClassSubjectSheet({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            subjectId: selectedSubject,
+            programId: selectedProgram || undefined,
+          })
+        );
+        dispatch(
+          fetchClassSubjectsProgress({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+        dispatch(
+          fetchClassResultsOverview({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+      } else {
+        setAlertMsg({
+          text: (res.payload as string) || "Failed to publish result to Class Teacher.",
+          type: "error",
+        });
+      }
+    } finally {
+      setPublishingSubjectId(null);
+    }
+  };
+
+  // Publish all students' subject results to Class Teachers at once
+  const handlePublishAllToClassTeacher = async () => {
+    if (!selectedClass || !selectedYear || !selectedTerm || !selectedSubject) {
+      setAlertMsg({ text: "Please select Academic Year, Term, Class, and Subject.", type: "error" });
+      return;
+    }
+
+    const validRows = sheetRows.filter(
+      (r) => r.isRegistered !== false && (r.testScore !== "" || r.examScore !== "")
+    );
+
+    if (validRows.length === 0) {
+      setAlertMsg({ text: "Please enter scores for at least one student before publishing.", type: "error" });
+      return;
+    }
+
+    for (const r of validRows) {
+      const t = Number(r.testScore);
+      const ex = Number(r.examScore);
+      if (isNaN(t) || t < 0 || t > 30) {
+        setAlertMsg({ text: `Validation error for ${r.studentName}: Test score must be between 0 and 30.`, type: "error" });
+        return;
+      }
+      if (isNaN(ex) || ex < 0 || ex > 70) {
+        setAlertMsg({ text: `Validation error for ${r.studentName}: Exam score must be between 0 and 70.`, type: "error" });
+        return;
+      }
+    }
+
+    const subName = availableClassSubjects.find((s: any) => s._id === selectedSubject)?.name || "Subject";
+    const confirm = window.confirm(
+      `Publish ${subName} results for all ${validRows.length} students to their respective Class Teachers?\n\n` +
+      `Each student's results will be arranged under their one term result for the Class Teacher to review before publishing to Admin.`
+    );
+    if (!confirm) return;
+
+    try {
+      setPublishingAll(true);
+      const payloadResults = validRows.map((r) => ({
+        studentId: r.studentId,
+        testScore: r.testScore !== "" ? Number(r.testScore) : 0,
+        examScore: r.examScore !== "" ? Number(r.examScore) : 0,
+      }));
+
+      const res = await dispatch(
+        saveClassSubjectResults({
+          classLevelId: selectedClass,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          subjectId: selectedSubject,
+          results: payloadResults,
+          publishToClassTeacher: true,
+        })
+      );
+
+      if (saveClassSubjectResults.fulfilled.match(res)) {
+        setAlertMsg({
+          text: `✓ All ${validRows.length} ${subName} results published to Class Teachers successfully!`,
+          type: "success",
+        });
+        setHasUnsavedChanges(false);
+        // Refresh sheet, progress, and class overview
+        dispatch(
+          fetchClassSubjectSheet({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            subjectId: selectedSubject,
+            programId: selectedProgram || undefined,
+          })
+        );
+        dispatch(
+          fetchClassSubjectsProgress({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+        dispatch(
+          fetchClassResultsOverview({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+      } else {
+        setAlertMsg({
+          text: (res.payload as string) || "Failed to publish all results to Class Teachers.",
+          type: "error",
+        });
+      }
+    } finally {
+      setPublishingAll(false);
+    }
+  };
+
+  // Publish a single student's subject result to the Class Teacher from Overview tab
+  const handlePublishStudentSubjectToClassTeacher = async (item: any) => {
+    const studentId = item.student._id;
+    const studentName = item.student.name;
+    const subDoc = availableClassSubjects.find((s: any) => s._id === selectedSubject) || availableClassSubjects[0];
+    const targetSubId = subDoc?._id;
+    const subName = subDoc?.name || "Subject";
+
+    // 1. Check if score is recorded in sheetRows
+    const sheetRow = sheetRows.find((r) => r.studentId === studentId);
+    let testNum: number | null = sheetRow && sheetRow.testScore !== "" ? Number(sheetRow.testScore) : null;
+    let examNum: number | null = sheetRow && sheetRow.examScore !== "" ? Number(sheetRow.examScore) : null;
+
+    // 2. Check if already recorded in item.submittedSubjects
+    if ((testNum === null || examNum === null) && Array.isArray(item.submittedSubjects)) {
+      const match = item.submittedSubjects.find(
+        (s: any) => s.subjectId === targetSubId || s.subjectName?.toLowerCase() === subName.toLowerCase()
+      );
+      if (match) {
+        testNum = match.testScore ?? 0;
+        examNum = match.examScore ?? 0;
+      }
+    }
+
+    if (testNum === null && examNum === null) {
+      setActiveTab("sheet");
+      setSearchParams({ tab: "sheet" });
+      setAlertMsg({
+        text: `Please enter scores for ${studentName} in ${subName} before publishing to the Class Teacher.`,
+        type: "error",
+      });
+      return;
+    }
+
+    const confirm = window.confirm(
+      `Submit ${subName} result for ${studentName} (Test: ${testNum || 0}, Exam: ${examNum || 0}, Total: ${(testNum || 0) + (examNum || 0)}/100) to the Class Teacher?\n\n` +
+      `The Class Teacher will review this score alongside other subjects before submitting complete results to Admin.`
+    );
+    if (!confirm) return;
+
+    try {
+      setPublishingSubjectId(studentId);
+      const res = await dispatch(
+        publishSubjectResultToClassTeacher({
+          studentId,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          classLevelId: selectedClass,
+          subjectId: targetSubId,
+          testScore: testNum || 0,
+          examScore: examNum || 0,
+        })
+      );
+      if (publishSubjectResultToClassTeacher.fulfilled.match(res)) {
+        setAlertMsg({
+          text: `✓ ${subName} result for ${studentName} submitted to Class Teacher successfully!`,
+          type: "success",
+        });
+        dispatch(
+          fetchClassResultsOverview({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+      } else {
+        setAlertMsg({
+          text: (res.payload as string) || "Failed to submit result to Class Teacher.",
+          type: "error",
+        });
+      }
+    } finally {
+      setPublishingSubjectId(null);
     }
   };
 
@@ -952,6 +1514,22 @@ export default function TeacherReportCards() {
     );
     if (calculateClassReportCards.fulfilled.match(res)) {
       setAlertMsg({ text: res.payload?.message || "Class results calculated successfully!", type: "success" });
+      dispatch(
+        fetchClassReportCards({
+          classLevelId: selectedClass,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          programId: selectedProgram || undefined,
+        })
+      );
+      dispatch(
+        fetchClassResultsOverview({
+          classLevelId: selectedClass,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          programId: selectedProgram || undefined,
+        })
+      );
     } else {
       setAlertMsg({ text: (res.payload as string) || "Failed to calculate class results.", type: "error" });
     }
@@ -1109,23 +1687,186 @@ export default function TeacherReportCards() {
     }
   };
 
-  const handleOpenCommentModal = (card: ReportCardItem) => {
-    setEditingCard(card);
-    setCommentInput(card.teacherComment || "");
+  const handleOpenStudentCommentModal = (item: any) => {
+    const sId = item.student?._id || item.student;
+    const sName = item.student?.name || "Student";
+    const sReg = item.student?.StudentId || item.studentID;
+    const rcId = item.reportCard?._id || (item._id && item.subjectResults ? item._id : undefined);
+    const comm = item.reportCard?.teacherComment || item.teacherComment || "";
+
+    setStudentForComment({
+      studentId: sId,
+      studentName: sName,
+      studentID: sReg,
+      reportCardId: rcId,
+      currentComment: comm,
+    });
+    setEditingCard(null);
+    setCommentInput(comm);
+  };
+
+  const handleViewStudentCardResult = async (item: any) => {
+    const sId = item.student?._id || item.student;
+    if (!sId) return;
+
+    setLoadingCardStudentId(sId);
+    setSelectedStudentId(sId);
+
+    try {
+      const res = await dispatch(
+        fetchStudentFullReport({
+          studentId: sId,
+          academicYearId: selectedYear,
+          academicTermId: selectedTerm,
+          classLevelId: selectedClass,
+        })
+      );
+
+      if (fetchStudentFullReport.fulfilled.match(res) && res.payload) {
+        let cardPayload = res.payload;
+        if (authTeacher?.role !== "admin" && !isClassTeacherForThisClass && Array.isArray(cardPayload.subjectResults)) {
+          const visibleRows = cardPayload.subjectResults.filter((s: any) =>
+            isSubjectTaughtByTeacher(s.subject?._id || s.subject || s.subjectId, s.subjectName || s.subject?.name)
+          );
+          const vTotal = visibleRows.reduce((acc: number, curr: any) => acc + (curr.score ?? curr.totalScore ?? 0), 0);
+          const vAvg = visibleRows.length > 0 ? Number((vTotal / visibleRows.length).toFixed(1)) : 0;
+          cardPayload = {
+            ...cardPayload,
+            subjectResults: visibleRows,
+            totalScore: vTotal,
+            averageScore: vAvg,
+          };
+        }
+        setPreviewCard(cardPayload);
+        setLoadingCardStudentId(null);
+        return;
+      }
+    } catch (err) {
+      console.warn("Failed to load server full report, creating synthesized card:", err);
+    }
+
+    // Synthesized report card from overview data (using full student record so all subjects are included)
+    const rawStudent =
+      item.rawStudent ||
+      (classOverviewData?.students || []).find(
+        (s: any) => (s.student?._id || s.student) === sId
+      ) ||
+      item;
+
+    const activeClass = classLevels.find((c) => c._id === selectedClass);
+    const activeYear = academicYears.find((y) => y._id === selectedYear);
+    const activeTerm = academicTerms.find((t) => t._id === selectedTerm);
+
+    const visibleSubmitted = (rawStudent.submittedSubjects || []).filter(
+      (sub: any) => authTeacher?.role === "admin" || isClassTeacherForThisClass || isSubjectTaughtByTeacher(sub.subjectId, sub.subjectName)
+    );
+    const synthTotal = visibleSubmitted.reduce((acc: number, curr: any) => acc + (curr.totalScore || 0), 0);
+    const synthAvg = visibleSubmitted.length > 0 ? Number((synthTotal / visibleSubmitted.length).toFixed(1)) : 0;
+
+    const synthesized: ReportCardItem = {
+      _id: rawStudent.reportCard?._id || `card-${sId}`,
+      student: rawStudent.student,
+      studentID: rawStudent.student?.StudentId || rawStudent.studentID || "STU",
+      academicYear: activeYear || { name: "Current Academic Year" },
+      academicTerm: activeTerm || { name: "Current Term" },
+      classLevel: activeClass || { name: "Current Class Level" },
+      subjectResults: visibleSubmitted.map((sub: any) => ({
+        subject: sub.subjectId,
+        subjectName: sub.subjectName,
+        examName: "Continuous Assessment & Exam",
+        score: sub.totalScore ?? 0,
+        testScore: sub.testScore ?? 0,
+        examScore: sub.examScore ?? 0,
+        position: null,
+        positionFormatted: "",
+        totalMark: 100,
+        grade: sub.totalScore ?? 0,
+        letterGrade: sub.letterGrade || sub.grade,
+        remarks: sub.remark || (sub.totalScore >= 70 ? "Excellent" : sub.totalScore >= 50 ? "Good" : "Needs Improvement"),
+        status: (sub.totalScore ?? 0) >= 40 ? "Passed" : "Failed",
+      })),
+      totalScore: authTeacher?.role === "admin" ? (rawStudent.totalScore || 0) : synthTotal,
+      totalMaxScore: (authTeacher?.role === "admin" ? (rawStudent.totalRegistered || rawStudent.submittedSubjects?.length || 1) : Math.max(visibleSubmitted.length, 1)) * 100,
+      averageScore: authTeacher?.role === "admin" ? (rawStudent.averageScore ?? rawStudent.currentAverage ?? 0) : synthAvg,
+      position: parseInt(rawStudent.displayRank, 10) || rawStudent.position || null,
+      positionFormatted: rawStudent.displayRank || rawStudent.positionFormatted || "",
+      totalStudents: (classOverviewData?.students?.length || filteredOverviewStudents.length || 1),
+      overallGrade: rawStudent.overallGrade || "—",
+      overallRemark: rawStudent.overallRemark || "Academic Review",
+      teacherComment: rawStudent.reportCard?.teacherComment || "",
+      principalComment: rawStudent.reportCard?.principalComment || "Satisfactory academic performance. Keep it up.",
+      status: rawStudent.reportCard?.status || (rawStudent.isFullySubmitted ? "ready" : "draft"),
+      published: Boolean(rawStudent.reportCard?.published),
+      isTeacherPublished: Boolean(rawStudent.reportCard?.isTeacherPublished),
+      promoted: Boolean(rawStudent.reportCard?.promoted),
+      promotionStatus: rawStudent.reportCard?.promotionStatus || "Pending",
+      createdAt: rawStudent.reportCard?.createdAt || new Date().toISOString(),
+      updatedAt: rawStudent.reportCard?.updatedAt || new Date().toISOString(),
+      classTeacher: authTeacher?.name || "Class Teacher",
+      submittedBy: rawStudent.reportCard?.isTeacherPublished ? rawStudent.reportCard?.submittedBy : undefined,
+      submittedAt: rawStudent.reportCard?.isTeacherPublished ? rawStudent.reportCard?.submittedAt : undefined,
+    };
+
+    setPreviewCard(synthesized);
+    setLoadingCardStudentId(null);
   };
 
   const handleSaveComment = async () => {
-    if (!editingCard) return;
+    const targetStudentId = studentForComment?.studentId || (editingCard?.student as any)?._id || (editingCard?.student as any);
+    const targetCardId = studentForComment?.reportCardId || editingCard?._id;
+    const studentName = studentForComment?.studentName || (editingCard?.student as any)?.name || "Student";
+
+    if (!targetStudentId && !targetCardId) return;
+
     setSubmittingComment(true);
-    await dispatch(
+    const res = await dispatch(
       updateTeacherComment({
-        id: editingCard._id,
+        id: targetCardId || undefined,
+        studentId: targetStudentId,
+        academicYearId: selectedYear,
+        academicTermId: selectedTerm,
+        classLevelId: selectedClass,
         teacherComment: commentInput,
       })
     );
     setSubmittingComment(false);
-    setEditingCard(null);
-    setAlertMsg({ text: "Teacher remark updated successfully.", type: "success" });
+
+    if (updateTeacherComment.fulfilled.match(res)) {
+      setEditingCard(null);
+      setStudentForComment(null);
+      setAlertMsg({ text: `Teacher remark for ${studentName} updated successfully.`, type: "success" });
+
+      if (selectedClass && selectedYear && selectedTerm) {
+        dispatch(
+          fetchClassResultsOverview({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+        dispatch(
+          fetchClassReportCards({
+            classLevelId: selectedClass,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            programId: selectedProgram || undefined,
+          })
+        );
+      }
+      if (selectedStudentId === targetStudentId) {
+        dispatch(
+          fetchStudentFullReport({
+            studentId: targetStudentId,
+            academicYearId: selectedYear,
+            academicTermId: selectedTerm,
+            classLevelId: selectedClass,
+          })
+        );
+      }
+    } else {
+      setAlertMsg({ text: (res.payload as string) || "Failed to update teacher remark.", type: "error" });
+    }
   };
 
   // Save teacher comment for the active student in Mode A
@@ -1193,29 +1934,133 @@ export default function TeacherReportCards() {
     (classOverviewData?.students || []).forEach((st) => {
       if (Array.isArray(st.pendingSubjects)) {
         st.pendingSubjects.forEach((subName) => {
-          if (subName) set.add(subName);
+          if (subName && (authTeacher?.role === "admin" || isClassTeacherForThisClass || isSubjectTaughtByTeacher(null, subName))) {
+            set.add(subName);
+          }
         });
       }
     });
     return Array.from(set);
-  }, [classOverviewData]);
+  }, [classOverviewData, authTeacher, isClassTeacherForThisClass, isSubjectTaughtByTeacher]);
 
-  // Filtered overview students for Mode B table
+  // Filtered overview students for Mode B table (with full access to all subjects and dynamic subject filtering)
   const filteredOverviewStudents = useMemo(() => {
     const list = classOverviewData?.students || [];
-    return list.filter((st) => {
-      if (overviewFilter === "completed" && !st.isFullySubmitted) return false;
-      if (overviewFilter === "incomplete" && st.isFullySubmitted) return false;
 
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesName = (st.student?.name || "").toLowerCase().includes(q);
-        const matchesId = (st.student?.StudentId || "").toLowerCase().includes(q);
-        if (!matchesName && !matchesId) return false;
-      }
-      return true;
-    });
-  }, [classOverviewData, overviewFilter, searchQuery]);
+    // Find the currently selected subject filter (if any)
+    const activeSubDoc = overviewSubjectFilter
+      ? availableClassSubjects.find((s) => s._id === overviewSubjectFilter)
+      : null;
+    const activeSubName = (activeSubDoc?.name || "").trim().toLowerCase();
+
+    return list
+      .map((st) => {
+        let subs = st.submittedSubjects || [];
+        let pSubs = st.pendingSubjects || [];
+
+        // STRICT FILTER FOR SUBJECT TEACHERS (Non-Class Teachers):
+        // If teacher is not admin and NOT class teacher, filter student's submitted & pending subjects to ONLY subjects taught by this teacher
+        if (authTeacher?.role !== "admin" && !isClassTeacherForThisClass) {
+          subs = subs.filter((sub: any) => isSubjectTaughtByTeacher(sub.subjectId, sub.subjectName));
+          pSubs = pSubs.filter((pName: string) => isSubjectTaughtByTeacher(null, pName));
+        }
+
+        // If user is filtering by a specific subject from the dropdown:
+        if (activeSubDoc) {
+          subs = subs.filter((sub: any) => {
+            const sn = (sub.subjectName || "").trim().toLowerCase();
+            const sId = (sub.subjectId || "").toString().trim().toLowerCase();
+            return (
+              (activeSubName && (sn === activeSubName || sn.includes(activeSubName) || activeSubName.includes(sn))) ||
+              (overviewSubjectFilter && sId === overviewSubjectFilter.toLowerCase())
+            );
+          });
+
+          pSubs = pSubs.filter((pName: string) => {
+            const pn = (pName || "").trim().toLowerCase();
+            return activeSubName && (pn === activeSubName || pn.includes(activeSubName) || activeSubName.includes(pn));
+          });
+        }
+
+        const subTotal = subs.reduce((acc: number, curr: any) => acc + (curr.totalScore || 0), 0);
+        const firstSub = subs[0];
+
+        // Recalculate statistics for subject-filtered view or for non-admin subject teachers
+        if (activeSubDoc || (authTeacher?.role !== "admin" && !isClassTeacherForThisClass)) {
+          return {
+            ...st,
+            rawStudent: st,
+            submittedSubjects: subs,
+            pendingSubjects: pSubs,
+            submittedCount: subs.length,
+            pendingCount: pSubs.length,
+            totalRegistered: subs.length + pSubs.length,
+            totalScore: subs.length > 0 ? subTotal : 0,
+            averageScore: subs.length > 0 ? Number((subTotal / subs.length).toFixed(1)) : null,
+            currentAverage: subs.length > 0 ? Number((subTotal / subs.length).toFixed(1)) : null,
+            overallGrade: firstSub ? (firstSub.letterGrade || (firstSub.grade !== undefined && firstSub.grade !== null ? calculateLetterGrade(firstSub.grade) : "—")) : (pSubs.length > 0 ? "—" : "—"),
+            overallRemark: firstSub ? (firstSub.remark || calculateRemark(firstSub.grade)) : (pSubs.length > 0 ? "Pending" : "—"),
+            isFullySubmitted: subs.length > 0 && pSubs.length === 0,
+          };
+        }
+
+        return {
+          ...st,
+          rawStudent: st,
+        };
+      })
+      .filter((st) => {
+        if (overviewFilter === "completed" && !st.isFullySubmitted) return false;
+        if (overviewFilter === "incomplete" && st.isFullySubmitted) return false;
+
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase().trim();
+          const matchesName = (st.student?.name || "").toLowerCase().includes(q);
+          const matchesId = (st.student?.StudentId || "").toLowerCase().includes(q);
+          if (!matchesName && !matchesId) return false;
+        }
+        return true;
+      });
+  }, [
+    classOverviewData,
+    overviewFilter,
+    searchQuery,
+    overviewSubjectFilter,
+    availableClassSubjects,
+    isClassTeacherForThisClass,
+    authTeacher,
+    teacherAssignedSubjectNames,
+    isSubjectTaughtByTeacher,
+  ]);
+
+  // Visible subjects and calculations for Mode A (Individual Student Report Card)
+  const visibleFullReportSubjectResults = useMemo(() => {
+    const list = activeFullReportCard?.subjectResults || [];
+    if (authTeacher?.role === "admin" || isClassTeacherForThisClass) return list;
+    return list.filter((sub: any) =>
+      isSubjectTaughtByTeacher(sub.subjectId || sub.subject?._id || sub.subject, sub.subjectName || sub.subject?.name)
+    );
+  }, [activeFullReportCard, authTeacher, isClassTeacherForThisClass, isSubjectTaughtByTeacher]);
+
+  const visibleFullReportSubmittedCount = useMemo(() => {
+    return visibleFullReportSubjectResults.filter(
+      (s: any) => s.status !== "Pending" && s.totalScore !== null && s.totalScore !== undefined
+    ).length;
+  }, [visibleFullReportSubjectResults]);
+
+  const visibleFullReportTotalScore = useMemo(() => {
+    if (authTeacher?.role === "admin" || isClassTeacherForThisClass) return activeFullReportCard?.totalScore ?? 0;
+    return visibleFullReportSubjectResults.reduce((acc: number, s: any) => {
+      const score = s.totalScore !== null && s.totalScore !== undefined ? Number(s.totalScore) : 0;
+      return acc + score;
+    }, 0);
+  }, [activeFullReportCard, authTeacher, isClassTeacherForThisClass, visibleFullReportSubjectResults]);
+
+  const visibleFullReportAverage = useMemo(() => {
+    if (authTeacher?.role === "admin" || isClassTeacherForThisClass) return activeFullReportCard?.averageScore;
+    if (visibleFullReportSubmittedCount === 0) return null;
+    return Number((visibleFullReportTotalScore / visibleFullReportSubmittedCount).toFixed(1));
+  }, [activeFullReportCard, authTeacher, isClassTeacherForThisClass, visibleFullReportSubmittedCount, visibleFullReportTotalScore]);
 
   // Status computation for overall class
   const classStatus = useMemo(() => {
@@ -1242,7 +2087,7 @@ export default function TeacherReportCards() {
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
                 <HiOutlineSparkles className="w-3.5 h-3.5" />
-                Academic Term Evaluation
+                {isScoreEntryPage ? "Subject Teacher Assessment" : "Academic Term Evaluation"}
               </div>
               {assignedProgramName && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
@@ -1252,14 +2097,34 @@ export default function TeacherReportCards() {
               )}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-              Class Term Report Cards & Ranking
+              {isScoreEntryPage ? "Subject Teacher Score Entry" : "Class Student Report Cards & Ranking"}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              Select class, term, and year to calculate overall totals, class positions, and submit results for Admin approval.
+              {isScoreEntryPage
+                ? "Enter continuous assessment and examination scores for your taught subjects and submit to the Class Teacher for term report cards."
+                : "Select class, term, and year to calculate overall totals, class positions, and submit results for Admin approval."}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {isScoreEntryPage && (isClassTeacherForThisClass || authTeacher?.role === "admin") && (
+              <Link
+                to="/teacher/class-results"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-lg shadow-sm hover:bg-purple-100 transition cursor-pointer"
+              >
+                <HiOutlineUserGroup className="w-4 h-4" />
+                Class Student Report Cards →
+              </Link>
+            )}
+            {!isScoreEntryPage && (
+              <Link
+                to="/teacher/report-cards"
+                className="inline-flex items-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-lg shadow-sm hover:bg-indigo-100 transition cursor-pointer"
+              >
+                <HiOutlinePencilSquare className="w-4 h-4" />
+                Subject Teacher Score Entry →
+              </Link>
+            )}
             <button
               type="button"
               onClick={() => setIsEnterModalOpen(true)}
@@ -1288,6 +2153,17 @@ export default function TeacherReportCards() {
                       programId: selectedProgram || undefined,
                     })
                   );
+                  if (selectedSubject) {
+                    dispatch(
+                      fetchClassSubjectSheet({
+                        classLevelId: selectedClass,
+                        academicYearId: selectedYear,
+                        academicTermId: selectedTerm,
+                        subjectId: selectedSubject,
+                        programId: selectedProgram || undefined,
+                      })
+                    );
+                  }
                 }
               }}
               type="button"
@@ -1316,71 +2192,53 @@ export default function TeacherReportCards() {
         </div>
       )}
 
-      {/* Navigation Tabs (Mode B: Overview, Mode A: Student Report, Sheet: Subject Score Entry) */}
-      <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-gray-200 dark:border-gray-800">
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("overview");
-            setSearchParams({ tab: "overview" });
-          }}
-          className={`inline-flex items-center gap-2 pb-3 px-4 text-sm font-bold border-b-2 transition cursor-pointer ${
-            activeTab === "overview"
-              ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          <HiOutlineUserGroup className="w-4 h-4" />
-          Class Results Overview (Mode B)
-          {classOverviewData?.summary?.totalStudents ? (
-            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
-              {classOverviewData.summary.totalStudents} Students
-            </span>
-          ) : null}
-        </button>
+      {/* Navigation Tabs (Only shown on Class Student Report Cards page, REMOVED from Subject Teacher Score Entry) */}
+      {!isScoreEntryPage && (
+        <div className="flex flex-wrap items-center gap-2 mb-6 border-b border-gray-200 dark:border-gray-800">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("overview");
+              setSearchParams({ tab: "overview" });
+              setOverviewSubjectFilter("");
+            }}
+            className={`inline-flex items-center gap-2 pb-3 px-4 text-sm font-bold border-b-2 transition cursor-pointer ${
+              activeTab === "overview"
+                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            <HiOutlineUserGroup className="w-4 h-4" />
+            Class Student Report Cards (Overview)
+            {classOverviewData?.summary?.totalStudents ? (
+              <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                {classOverviewData.summary.totalStudents} Students
+              </span>
+            ) : null}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("studentReport");
-            setSearchParams({ tab: "studentReport", studentId: selectedStudentId });
-          }}
-          className={`inline-flex items-center gap-2 pb-3 px-4 text-sm font-bold border-b-2 transition cursor-pointer ${
-            activeTab === "studentReport"
-              ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          <HiOutlineDocumentText className="w-4 h-4" />
-          Individual Student Report (Mode A)
-          {activeFullReportCard?.student?.name ? (
-            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 max-w-[120px] truncate">
-              {activeFullReportCard.student.name}
-            </span>
-          ) : null}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab("sheet");
-            setSearchParams({ tab: "sheet" });
-          }}
-          className={`inline-flex items-center gap-2 pb-3 px-4 text-sm font-bold border-b-2 transition cursor-pointer ${
-            activeTab === "sheet"
-              ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-              : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          }`}
-        >
-          <HiOutlinePencilSquare className="w-4 h-4" />
-          Subject Teacher Score Entry
-          {sheetRows.length > 0 && (
-            <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-              {sheetRows.length} Students
-            </span>
-          )}
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("studentReport");
+              setSearchParams({ tab: "studentReport", studentId: selectedStudentId });
+            }}
+            className={`inline-flex items-center gap-2 pb-3 px-4 text-sm font-bold border-b-2 transition cursor-pointer ${
+              activeTab === "studentReport"
+                ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
+          >
+            <HiOutlineDocumentText className="w-4 h-4" />
+            Individual Student Report Card (Mode A)
+            {activeFullReportCard?.student?.name ? (
+              <span className="ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 max-w-[120px] truncate">
+                {activeFullReportCard.student.name}
+              </span>
+            ) : null}
+          </button>
+        </div>
+      )}
 
       {/* Control Panel: Year, Term, Class, Subject & Actions */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 shadow-sm mb-6">
@@ -1388,7 +2246,7 @@ export default function TeacherReportCards() {
           Select Academic Class, Session & Subject
         </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 mb-6">
           {/* Academic Year */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
@@ -1397,7 +2255,7 @@ export default function TeacherReportCards() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white"
             >
               <option value="">Select Academic Year</option>
               {academicYears.map((yr) => (
@@ -1416,7 +2274,7 @@ export default function TeacherReportCards() {
             <select
               value={selectedTerm}
               onChange={(e) => setSelectedTerm(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white"
+              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white"
             >
               <option value="">Select Academic Term</option>
               {academicTerms.map((t) => (
@@ -1430,83 +2288,96 @@ export default function TeacherReportCards() {
           {/* Class Level */}
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Assigned Class Level:
-              {myAssignments && myAssignments.length > 0 && (
+              Class Level:
+            </label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white font-medium"
+            >
+              <option value="">Select Class Level</option>
+              {classLevels.map((cl) => (
+                <option key={cl._id} value={cl._id}>
+                  {cl.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Program / Arm */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+              Program / Arm:
+              {assignedProgramName && (
                 <span className="ml-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                  ({myAssignments.length} Assigned)
+                  ({assignedProgramName})
                 </span>
               )}
             </label>
             <select
-              value={selectedProgram ? `${selectedClass}:::${selectedProgram}` : selectedClass}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val.includes(":::")) {
-                  const [cId, pId] = val.split(":::");
-                  setSelectedClass(cId);
-                  setSelectedProgram(pId || "");
-                } else {
-                  setSelectedClass(val);
-                  const match = myAssignments?.find((a: any) => {
-                    const cId = (a.classLevel && typeof a.classLevel === "object" ? a.classLevel._id : a.classLevel)?.toString();
-                    return cId === val;
-                  });
-                  const progId = match?.program && typeof match.program === "object"
-                    ? (match.program._id as string)
-                    : (match?.program?.toString() || "");
-                  setSelectedProgram(progId);
-                }
-              }}
-              className="w-full px-3.5 py-2.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white"
+              value={selectedProgram}
+              onChange={(e) => setSelectedProgram(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white font-medium"
             >
-              <option value="">Select Class Level</option>
-              {myAssignments && myAssignments.length > 0
-                ? myAssignments.map((a) => {
-                    const cId = ((a.classLevel && typeof a.classLevel === "object" ? a.classLevel._id : a.classLevel) || "").toString();
-                    const pId = ((a.program && typeof a.program === "object" ? a.program._id : a.program) || "").toString();
-                    const cName = ((a.classLevel && typeof a.classLevel === "object" ? a.classLevel.name : a.classLevel) || "Class").toString();
-                    const pName = ((a.program && typeof a.program === "object" ? a.program.name : a.program) || "").toString();
-                    const keyVal = pId ? `${cId}:::${pId}` : cId;
-                    return (
-                      <option key={a._id || keyVal} value={keyVal}>
-                        {cName} {pName ? `(${pName})` : ""} {!a.isActive ? "[Inactive]" : ""}
-                      </option>
-                    );
-                  })
-                : classLevels.map((cl) => (
-                    <option key={cl._id} value={cl._id}>
-                      {cl.name}
-                    </option>
-                  ))}
-            </select>
-          </div>
-
-          {/* Subject (Section 2, 3, 11) */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-              Subject:
-              {teacherAssignedSubjectNames.length > 0 ? (
-                <span className="ml-1 text-[10px] font-normal text-indigo-600 dark:text-indigo-400">
-                  ({teacherAssignedSubjectNames.length > 1 ? `My subjects: ${teacherAssignedSubjectNames.join(", ")}` : `My subject: ${teacherAssignedSubjectNames[0]}`})
-                </span>
-              ) : teacherSubject ? (
-                <span className="ml-1 text-[10px] font-normal text-indigo-600 dark:text-indigo-400">
-                  (My subject: {teacherSubject})
-                </span>
-              ) : null}
-            </label>
-            <select
-              value={selectedSubject}
-              onChange={(e) => setSelectedSubject(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white"
-            >
-              <option value="">Select Subject</option>
-              {availableClassSubjects.map((sub: any) => (
-                <option key={sub._id} value={sub._id}>
-                  {sub.name} {sub.isCompleted ? "✓ (Completed)" : sub.recordedCount > 0 ? "⚠ (Partial)" : ""}
+              <option value="">All Programs / Arms</option>
+              {programsList.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name}
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Subject Filter / Selection */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300">
+                {activeTab === "sheet" ? "Score Entry Subject (My Teaching Subject):" : "Filter by Subject:"}
+              </label>
+              {activeTab !== "sheet" && overviewSubjectFilter ? (
+                <button
+                  type="button"
+                  onClick={() => setOverviewSubjectFilter("")}
+                  className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline font-bold cursor-pointer"
+                >
+                  Clear (All Subjects)
+                </button>
+              ) : null}
+            </div>
+
+            {activeTab === "sheet" ? (
+              <select
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white font-medium cursor-pointer"
+              >
+                {sheetAvailableSubjects.length === 0 ? (
+                  <option value="">No subject assigned to teach</option>
+                ) : null}
+                {sheetAvailableSubjects.map((sub: any) => (
+                  <option key={sub._id} value={sub._id}>
+                    {sub.name} {sub.isCompleted ? "✓ (Completed)" : sub.recordedCount > 0 ? "⚠ (Partial)" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={overviewSubjectFilter}
+                onChange={(e) => setOverviewSubjectFilter(e.target.value)}
+                className="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-white font-medium cursor-pointer"
+              >
+                <option value="">
+                  {authTeacher?.role === "admin" || isClassTeacherForThisClass
+                    ? "All Subjects (Full Class Report Cards)"
+                    : "All My Subjects"}
+                </option>
+                {availableClassSubjects.map((sub: any) => (
+                  <option key={sub._id} value={sub._id}>
+                    {sub.name} {sub.isCompleted ? "✓ (Completed)" : sub.recordedCount > 0 ? "⚠ (Partial)" : ""}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
@@ -1542,90 +2413,137 @@ export default function TeacherReportCards() {
                   type="button"
                   onClick={handleSaveSubjectResults}
                   disabled={savingSubjectResults || isSheetLocked || sheetRows.length === 0}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition disabled:opacity-50 cursor-pointer"
                 >
                   <span>💾</span>
-                  {savingSubjectResults ? "Saving Results..." : "Save Subject Results"}
-                </button>
-
-                <button
-                  onClick={handleCalculate}
-                  disabled={calculating || !selectedClass}
-                  type="button"
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition disabled:opacity-50 cursor-pointer"
-                >
-                  <HiOutlineCalculator className={`w-4 h-4 ${calculating ? "animate-spin" : ""}`} />
-                  {calculating ? "Calculating..." : "Calculate Class Results"}
+                  {savingSubjectResults ? "Saving Results..." : "Save Draft"}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveTab("overview");
-                    setSearchParams({ tab: "overview" });
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition cursor-pointer"
+                  onClick={handlePublishAllToClassTeacher}
+                  disabled={savingSubjectResults || publishingAll || isSheetLocked || sheetRows.length === 0}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-xs text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
-                  <HiOutlineUserGroup className="w-4 h-4" />
-                  Class Results Overview
+                  <span>📢</span>
+                  {publishingAll ? "Publishing..." : "Publish All to Class Teacher"}
                 </button>
+
+                {!isScoreEntryPage && (
+                  <>
+                    <button
+                      onClick={handleCalculate}
+                      disabled={calculating || !selectedClass}
+                      type="button"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition disabled:opacity-50 cursor-pointer"
+                    >
+                      <HiOutlineCalculator className={`w-4 h-4 ${calculating ? "animate-spin" : ""}`} />
+                      {calculating ? "Calculating..." : "Calculate Class Results"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("overview");
+                        setSearchParams({ tab: "overview" });
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition cursor-pointer"
+                    >
+                      <HiOutlineUserGroup className="w-4 h-4" />
+                      Class Results Overview
+                    </button>
+                  </>
+                )}
+
+                {isScoreEntryPage && (isClassTeacherForThisClass || authTeacher?.role === "admin") && (
+                  <Link
+                    to="/teacher/class-results"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition cursor-pointer"
+                  >
+                    <HiOutlineUserGroup className="w-4 h-4" />
+                    View Class Student Report Cards →
+                  </Link>
+                )}
               </>
             ) : activeTab === "overview" ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("sheet");
-                    setSearchParams({ tab: "sheet" });
-                  }}
+                <Link
+                  to="/teacher/report-cards"
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition cursor-pointer"
                 >
                   <HiOutlineDocumentText className="w-4 h-4" />
                   Subject Score Entry
-                </button>
+                </Link>
 
-                <button
-                  onClick={handleCalculate}
-                  disabled={calculating || !selectedClass}
-                  type="button"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md transition disabled:opacity-50 cursor-pointer"
-                >
-                  <HiOutlineCalculator className={`w-4 h-4 ${calculating ? "animate-spin" : ""}`} />
-                  {calculating ? "Processing..." : "Calculate Class Results"}
-                </button>
-
-                {classReportCards.length > 0 &&
-                  (classStatus === "rejected" || classStatus === "returned_for_correction") && (
+                {isClassTeacherForThisClass || authTeacher?.role === "admin" ? (
+                  <>
                     <button
-                      onClick={handleResubmitToAdmin}
-                      disabled={submitting}
+                      onClick={handleCalculate}
+                      disabled={calculating || !selectedClass}
                       type="button"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-md transition disabled:opacity-50 cursor-pointer"
                     >
-                      <HiOutlinePaperAirplane className={`w-4 h-4 ${submitting ? "animate-spin" : ""}`} />
-                      {submitting ? "Resubmitting..." : "Resubmit Corrected Results to Admin"}
+                      <HiOutlineCalculator className={`w-4 h-4 ${calculating ? "animate-spin" : ""}`} />
+                      {calculating ? "Processing..." : "Calculate Class Results"}
                     </button>
-                  )}
 
-                {classReportCards.length > 0 &&
-                  (classStatus === "calculated" || classStatus === "draft") && (
-                    <button
-                      onClick={handleSubmitToAdmin}
-                      disabled={submitting}
-                      type="button"
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition disabled:opacity-50 cursor-pointer"
-                    >
-                      <HiOutlinePaperAirplane className={`w-4 h-4 ${submitting ? "animate-spin" : ""}`} />
-                      {submitting ? "Submitting..." : "Submit All Results to Admin"}
-                    </button>
-                  )}
+                    {(classStatus === "rejected" ||
+                      classStatus === "returned_for_correction" ||
+                      classOverviewData?.students?.some(
+                        (st: any) =>
+                          st.reportCard?.status === "returned_for_correction" ||
+                          st.reportCard?.status === "rejected"
+                      )) && (
+                      <button
+                        onClick={handleResubmitToAdmin}
+                        disabled={submitting}
+                        type="button"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-purple-600 hover:bg-purple-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                      >
+                        <HiOutlinePaperAirplane className={`w-4 h-4 ${submitting ? "animate-spin" : ""}`} />
+                        {submitting ? "Resubmitting..." : "Resubmit Corrected Results to Admin"}
+                      </button>
+                    )}
 
-                {classReportCards.length > 0 &&
-                  (classStatus === "submitted" || classStatus === "submitted_to_admin") && (
-                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                      <HiOutlineClock className="w-4 h-4" /> Submitted to Admin (Under Review)
-                    </span>
-                  )}
+                    {classStatus === "submitted" || classStatus === "submitted_to_admin" ? (
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <HiOutlineClock className="w-4 h-4" /> Submitted to Admin (Under Review)
+                      </span>
+                    ) : classStatus !== "published" ? (
+                      <button
+                        onClick={handleSubmitToAdmin}
+                        disabled={submitting || (classOverviewData?.students?.length || 0) === 0}
+                        type="button"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                      >
+                        <HiOutlinePaperAirplane className={`w-4 h-4 ${submitting ? "animate-spin" : ""}`} />
+                        {submitting ? "Publishing..." : "Publish All to Admin"}
+                      </button>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300">
+                        <HiOutlineCheckCircle className="w-4 h-4" /> Class Results Published
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  /* Subject Teacher action on Overview toolbar: Submit to Class Teacher */
+                  <button
+                    onClick={() => {
+                      if (selectedSubject && sheetRows.length > 0) {
+                        handlePublishAllToClassTeacher();
+                      } else {
+                        setActiveTab("sheet");
+                        setSearchParams({ tab: "sheet" });
+                      }
+                    }}
+                    disabled={publishingAll}
+                    type="button"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md transition disabled:opacity-50 cursor-pointer"
+                  >
+                    <HiOutlinePaperAirplane className={`w-4 h-4 ${publishingAll ? "animate-spin" : ""}`} />
+                    {publishingAll ? "Publishing..." : "Submit to Class Teacher"}
+                  </button>
+                )}
               </>
             ) : (
               <>
@@ -1685,11 +2603,11 @@ export default function TeacherReportCards() {
                   Different subject teachers contribute their results. Click any subject to open its result sheet.
                 </p>
               </div>
-              {availableClassSubjects.length > 0 && (
+              {sheetAvailableSubjects.length > 0 && (
                 <div className="flex items-center gap-3">
                   <div className="text-right">
                     <span className="text-xs font-bold text-gray-900 dark:text-white">
-                      {availableClassSubjects.filter((s: any) => s.isCompleted).length} / {availableClassSubjects.length} Completed
+                      {sheetAvailableSubjects.filter((s: any) => s.isCompleted).length} / {sheetAvailableSubjects.length} Completed
                     </span>
                   </div>
                   <div className="w-24 sm:w-32 bg-gray-200 dark:bg-gray-700 h-2 rounded-full overflow-hidden">
@@ -1697,10 +2615,10 @@ export default function TeacherReportCards() {
                       className="bg-emerald-500 h-full transition-all duration-300"
                       style={{
                         width: `${
-                          availableClassSubjects.length > 0
+                          sheetAvailableSubjects.length > 0
                             ? Math.round(
-                                (availableClassSubjects.filter((s: any) => s.isCompleted).length /
-                                  availableClassSubjects.length) *
+                                (sheetAvailableSubjects.filter((s: any) => s.isCompleted).length /
+                                  sheetAvailableSubjects.length) *
                                   100
                               )
                             : 0
@@ -1712,9 +2630,9 @@ export default function TeacherReportCards() {
               )}
             </div>
 
-            {/* Subjects Pills Grid */}
+            {/* Subjects Pills Grid (Strictly Teacher's Taught Subject) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-              {availableClassSubjects.map((sub: any) => {
+              {sheetAvailableSubjects.map((sub: any) => {
                 const isCurrent = selectedSubject === sub._id;
                 const hasRecorded = sub.recordedCount > 0;
                 const isDone = sub.isCompleted;
@@ -1806,7 +2724,16 @@ export default function TeacherReportCards() {
                   className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 shadow-sm transition disabled:opacity-50 cursor-pointer shrink-0"
                 >
                   <span>💾</span>
-                  {savingSubjectResults ? "Saving..." : "Save Subject Results"}
+                  {savingSubjectResults ? "Saving..." : "Save Draft"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePublishAllToClassTeacher}
+                  disabled={savingSubjectResults || publishingAll || isSheetLocked || sheetRows.length === 0}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-black rounded-xl text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-sm transition disabled:opacity-50 cursor-pointer shrink-0"
+                >
+                  <span>📢</span>
+                  {publishingAll ? "Publishing..." : "Publish All to Class Teacher"}
                 </button>
               </div>
             </div>
@@ -1835,12 +2762,14 @@ export default function TeacherReportCards() {
                     <th className="py-3.5 px-3 text-center">Grade</th>
                     <th className="py-3.5 px-4 text-center">Remark</th>
                     <th className="py-3.5 px-3 text-center">Status</th>
+                    <th className="py-3.5 px-3 text-center">Class Teacher</th>
+                    <th className="py-3.5 px-4 text-center">Actions / Publish</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {loadingSheet ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-gray-500">
+                      <td colSpan={10} className="py-12 text-center text-gray-500">
                         <div className="inline-flex items-center gap-2">
                           <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                           Loading student result sheet...
@@ -1849,7 +2778,7 @@ export default function TeacherReportCards() {
                     </tr>
                   ) : filteredSheetRows.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-12 text-center text-gray-500">
+                      <td colSpan={10} className="py-12 text-center text-gray-500">
                         <div className="flex flex-col items-center justify-center gap-2">
                           <span className="text-3xl">👥</span>
                           <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -1992,6 +2921,53 @@ export default function TeacherReportCards() {
                               </span>
                             )}
                           </td>
+
+                          {/* Class Teacher */}
+                          <td className="py-3 px-3 text-center">
+                            {row.classTeacherName ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                <span>👨‍🏫</span>
+                                {row.classTeacherName}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400 italic">Unassigned</span>
+                            )}
+                          </td>
+
+                          {/* Actions / Publish to Class Teacher */}
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              {row.isPublishedToClassTeacher ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700">
+                                  <HiOutlineCheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  Published
+                                </span>
+                              ) : null}
+
+                              <button
+                                type="button"
+                                onClick={() => handlePublishRowToClassTeacher(row)}
+                                disabled={
+                                  isSheetLocked ||
+                                  publishingSubjectId === row.studentId ||
+                                  (row.testScore === "" && row.examScore === "")
+                                }
+                                title={`Publish score to ${row.classTeacherName || "Class Teacher"}`}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition cursor-pointer disabled:opacity-40 ${
+                                  row.isPublishedToClassTeacher
+                                    ? "bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+                                    : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                }`}
+                              >
+                                <HiOutlinePaperAirplane className={`w-3.5 h-3.5 ${publishingSubjectId === row.studentId ? "animate-pulse" : ""}`} />
+                                {publishingSubjectId === row.studentId
+                                  ? "Publishing..."
+                                  : row.isPublishedToClassTeacher
+                                  ? "Re-publish"
+                                  : "Publish to CT"}
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })
@@ -2005,7 +2981,7 @@ export default function TeacherReportCards() {
               <div className="text-xs text-gray-500 dark:text-gray-400">
                 Showing {filteredSheetRows.length} of {sheetRows.length} students offering this subject
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={handleSaveSubjectResults}
@@ -2013,38 +2989,62 @@ export default function TeacherReportCards() {
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
                   <span>💾</span>
-                  {savingSubjectResults ? "Saving Results..." : "Save Subject Results"}
+                  {savingSubjectResults ? "Saving Results..." : "Save Draft"}
                 </button>
 
                 <button
                   type="button"
-                  onClick={handleCalculate}
-                  disabled={calculating || !selectedClass}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                  onClick={handlePublishAllToClassTeacher}
+                  disabled={savingSubjectResults || publishingAll || isSheetLocked || sheetRows.length === 0}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-xs sm:text-sm text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-md transition disabled:opacity-50 cursor-pointer"
                 >
-                  <HiOutlineCalculator className={`w-4 h-4 ${calculating ? "animate-spin" : ""}`} />
-                  Calculate Class Results
+                  <span>📢</span>
+                  {publishingAll ? "Publishing All..." : "Publish All to Class Teacher"}
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("overview");
-                    setSearchParams({ tab: "overview" });
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition cursor-pointer"
-                >
-                  <HiOutlineUserGroup className="w-4 h-4" />
-                  Class Results Overview
-                </button>
+                {!isScoreEntryPage && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCalculate}
+                      disabled={calculating || !selectedClass}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
+                    >
+                      <HiOutlineCalculator className={`w-4 h-4 ${calculating ? "animate-spin" : ""}`} />
+                      Calculate Class Results
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab("overview");
+                        setSearchParams({ tab: "overview" });
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition cursor-pointer"
+                    >
+                      <HiOutlineUserGroup className="w-4 h-4" />
+                      Class Results Overview
+                    </button>
+                  </>
+                )}
+
+                {isScoreEntryPage && (isClassTeacherForThisClass || authTeacher?.role === "admin") && (
+                  <Link
+                    to="/teacher/class-results"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 transition cursor-pointer"
+                  >
+                    <HiOutlineUserGroup className="w-4 h-4" />
+                    View Class Student Report Cards →
+                  </Link>
+                )}
               </div>
             </div>
           </div>
         </>
       )}
 
-      {/* VIEW 2: MODE B - CLASS RESULTS OVERVIEW */}
-      {activeTab === "overview" && (
+      {/* VIEW 2: MODE B - CLASS RESULTS OVERVIEW (Excluded from Subject Teacher Score Entry) */}
+      {activeTab === "overview" && !isScoreEntryPage && (
         <div className="space-y-6">
           {/* Summary KPI Cards & Readiness Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2210,6 +3210,22 @@ export default function TeacherReportCards() {
                   </button>
                 </div>
 
+                {selectedSubject && (
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs font-bold border border-indigo-200 dark:border-indigo-800 shrink-0">
+                    <span>
+                      Filtered by: <u>{availableClassSubjects.find((s) => s._id === selectedSubject)?.name || "Subject"}</u>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSubject("")}
+                      className="p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-800 rounded-md cursor-pointer text-indigo-600 dark:text-indigo-400 transition"
+                      title="Clear filter & view All Subjects"
+                    >
+                      <HiOutlineXMark className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="w-full sm:w-56">
                   <input
                     type="text"
@@ -2228,8 +3244,8 @@ export default function TeacherReportCards() {
                   <tr className="bg-gray-50 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300 font-bold uppercase text-[11px] tracking-wider border-b border-gray-200 dark:border-gray-700">
                     <th className="py-3 px-4 text-center">Rank</th>
                     <th className="py-3 px-4">Student</th>
-                    <th className="py-3 px-3 text-center">Registered</th>
-                    <th className="py-3 px-4 text-center">Submission Status</th>
+                    <th className="py-3 px-3 text-center">Status</th>
+                    <th className="py-3 px-4">Arranged Term Subject Results (Contributed by Subject Teachers)</th>
                     <th className="py-3 px-3 text-center">Total Marks</th>
                     <th className="py-3 px-3 text-center">Average %</th>
                     <th className="py-3 px-3 text-center">Grade</th>
@@ -2269,168 +3285,390 @@ export default function TeacherReportCards() {
                     filteredOverviewStudents.map((item, idx) => {
                       const isComplete = item.isFullySubmitted;
                       return (
-                        <tr
-                          key={item.student._id}
-                          className="hover:bg-gray-50/70 dark:hover:bg-gray-800/50 transition-colors"
-                        >
-                          {/* Rank */}
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                              {item.displayRank || `${idx + 1}`}
-                            </span>
-                          </td>
+                        <>
+                          <tr
+                            key={item.student._id}
+                            className="hover:bg-gray-50/70 dark:hover:bg-gray-800/50 transition-colors"
+                          >
+                            {/* Rank */}
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                {item.displayRank || item.positionFormatted || (item.position ? `${item.position}` : `${idx + 1}`)}
+                              </span>
+                            </td>
 
-                          {/* Student Info */}
-                          <td className="py-3.5 px-4">
-                            <div className="font-bold text-gray-900 dark:text-white">
-                              {item.student.name}
-                            </div>
-                            <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                              <span>{item.student.StudentId}</span>
-                              {item.student.program?.name && (
-                                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
-                                  • {item.student.program.name}
+                            {/* Student Info */}
+                            <td className="py-3.5 px-4">
+                              <button
+                                type="button"
+                                onClick={() => handleViewStudentCardResult(item)}
+                                className="font-bold text-gray-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 text-left transition cursor-pointer flex items-center gap-1.5 group"
+                                title="Click to view Student Card Result"
+                              >
+                                <span>{item.student.name}</span>
+                                <HiOutlineDocumentText className="w-3.5 h-3.5 text-indigo-500 opacity-60 group-hover:opacity-100 transition shrink-0" />
+                              </button>
+                              <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                <span>{item.student.StudentId}</span>
+                                {item.student.program?.name && (
+                                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                                    • {item.student.program.name}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Submission Progress & Status */}
+                            <td className="py-3.5 px-3 text-center">
+                              <div className="inline-flex flex-col items-center">
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                                    isComplete
+                                      ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
+                                      : "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300"
+                                  }`}
+                                >
+                                  {isComplete ? (
+                                    <>
+                                      <HiOutlineCheck className="w-3 h-3" /> Complete ({item.submittedCount}/{item.totalRegistered})
+                                    </>
+                                  ) : (
+                                    <>
+                                      <HiOutlineClock className="w-3 h-3" /> {item.pendingCount} Pending ({item.submittedCount}/{item.totalRegistered})
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Arranged Term Subject Results (Contributed by Subject Teachers) */}
+                            <td className="py-3.5 px-4 min-w-[280px]">
+                              <div className="space-y-2">
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(item.submittedSubjects || []).map((sub: any, sIdx: number) => (
+                                    <div
+                                      key={sub.subjectId || sIdx}
+                                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-xs shadow-2xs"
+                                      title={`Teacher: ${sub.recordedBy || "Subject Teacher"} | CA: ${sub.testScore ?? 0}/30, Exam: ${sub.examScore ?? 0}/70`}
+                                    >
+                                      <span className="font-bold text-gray-900 dark:text-white">
+                                        {sub.subjectName}:
+                                      </span>
+                                      <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono">
+                                        {sub.totalScore}/100
+                                      </span>
+                                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                        ({sub.letterGrade || sub.grade}%)
+                                      </span>
+                                      <span className="text-[10px] text-gray-400 dark:text-gray-500 border-l border-gray-200 dark:border-gray-700 pl-1.5 truncate max-w-[90px]">
+                                        by {sub.recordedBy || "Subject Teacher"}
+                                      </span>
+                                    </div>
+                                  ))}
+
+                                  {(item.pendingSubjects || []).map((pName: string, pIdx: number) => (
+                                    <div
+                                      key={pIdx}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300"
+                                      title={`Awaiting score submission from ${pName} teacher`}
+                                    >
+                                      <HiOutlineClock className="w-3 h-3 text-amber-500 shrink-0" />
+                                      <span className="font-semibold">{pName}:</span>
+                                      <span className="italic text-[10px]">Pending Teacher</span>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedStudentId(
+                                      expandedStudentId === item.student._id ? null : item.student._id
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition cursor-pointer"
+                                >
+                                  {expandedStudentId === item.student._id ? (
+                                    <>
+                                      <HiOutlineChevronUp className="w-3.5 h-3.5" />
+                                      Hide Subject Breakdown
+                                    </>
+                                  ) : (
+                                    <>
+                                      <HiOutlineChevronDown className="w-3.5 h-3.5" />
+                                      View Detailed Breakdown ({item.submittedCount}/{item.totalRegistered} Subjects)
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* Total Score */}
+                            <td className="py-3.5 px-3 text-center font-bold text-gray-900 dark:text-white">
+                              <span className="font-black text-sm">
+                                {item.totalScore}
+                              </span>
+                              <span className="text-[11px] text-gray-400 block font-normal">
+                                / {item.totalRegistered * 100}
+                              </span>
+                            </td>
+
+                            {/* Average % */}
+                            <td className="py-3.5 px-3 text-center">
+                              {isComplete && item.averageScore !== null ? (
+                                <span className="font-black text-indigo-600 dark:text-indigo-400">
+                                  {item.averageScore}%
+                                </span>
+                              ) : item.currentAverage !== null ? (
+                                <div>
+                                  <span className="font-black text-amber-600 dark:text-amber-400">
+                                    {item.currentAverage}%
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 block font-normal">
+                                    (running)
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
+                                  Pending
                                 </span>
                               )}
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Registered Subjects */}
-                          <td className="py-3.5 px-3 text-center text-gray-700 dark:text-gray-300 font-bold">
-                            {item.totalRegistered}
-                          </td>
-
-                          {/* Submission Progress & Status */}
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="inline-flex flex-col items-center">
-                              <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                                  isComplete
-                                    ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300"
-                                    : "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300"
-                                }`}
-                              >
-                                {isComplete ? (
-                                  <>
-                                    <HiOutlineCheck className="w-3 h-3" /> Complete ({item.submittedCount}/{item.totalRegistered})
-                                  </>
-                                ) : (
-                                  <>
-                                    <HiOutlineClock className="w-3 h-3" /> {item.pendingCount} Pending ({item.submittedCount}/{item.totalRegistered})
-                                  </>
-                                )}
+                            {/* Grade */}
+                            <td className="py-3.5 px-3 text-center">
+                              <span className="inline-block px-2 py-0.5 rounded text-xs font-bold font-mono bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
+                                {item.overallGrade || "—"}
                               </span>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Total Score */}
-                          <td className="py-3.5 px-3 text-center font-bold text-gray-900 dark:text-white">
-                            {item.totalScore}
-                          </td>
+                            {/* Teacher Comment Status */}
+                            <td className="py-3.5 px-4 text-center">
+                              {item.reportCard?.teacherComment ? (
+                                <span
+                                  title={item.reportCard.teacherComment}
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md"
+                                >
+                                  <HiOutlineCheck className="w-3.5 h-3.5" /> Added
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400 italic">Not Added</span>
+                              )}
+                            </td>
 
-                          {/* Average % */}
-                          <td className="py-3.5 px-3 text-center">
-                            {isComplete && item.averageScore !== null ? (
-                              <span className="font-black text-indigo-600 dark:text-indigo-400">
-                                {item.averageScore}%
-                              </span>
-                            ) : (
-                              <span className="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
-                                Pending
-                              </span>
-                            )}
-                          </td>
+                            {/* Actions */}
+                            <td className="py-3.5 px-4 text-center">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewStudentCardResult(item)}
+                                  disabled={loadingCardStudentId === item.student._id}
+                                  title="View & Print Official Student Card Result"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold text-xs shadow-sm transition cursor-pointer disabled:opacity-50"
+                                >
+                                  {loadingCardStudentId === item.student._id ? (
+                                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <HiOutlineDocumentText className="w-3.5 h-3.5" />
+                                  )}
+                                  Card Result
+                                </button>
 
-                          {/* Grade */}
-                          <td className="py-3.5 px-3 text-center">
-                            <span className="inline-block px-2 py-0.5 rounded text-xs font-bold font-mono bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
-                              {isComplete ? item.overallGrade || "—" : "—"}
-                            </span>
-                          </td>
-
-                          {/* Teacher Comment Status */}
-                          <td className="py-3.5 px-4 text-center">
-                            {item.reportCard?.teacherComment ? (
-                              <span
-                                title={item.reportCard.teacherComment}
-                                className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md"
-                              >
-                                <HiOutlineCheck className="w-3.5 h-3.5" /> Added
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-400 italic">Not Added</span>
-                            )}
-                          </td>
-
-                          {/* Actions */}
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedStudentId(item.student._id);
-                                  setActiveTab("studentReport");
-                                  setSearchParams({ tab: "studentReport", studentId: item.student._id });
-                                }}
-                                title="View & Review Individual Report (Mode A)"
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-bold text-xs transition cursor-pointer"
-                              >
-                                <HiOutlineEye className="w-3.5 h-3.5" />
-                                Review
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (item.reportCard) {
-                                    handleOpenCommentModal(item.reportCard);
-                                  } else {
+                                <button
+                                  type="button"
+                                  onClick={() => {
                                     setSelectedStudentId(item.student._id);
                                     setActiveTab("studentReport");
                                     setSearchParams({ tab: "studentReport", studentId: item.student._id });
-                                  }
-                                }}
-                                title="Add/Edit Teacher Comment"
-                                className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 hover:bg-purple-100 transition cursor-pointer"
-                              >
-                                <HiOutlinePencilSquare className="w-4 h-4" />
-                              </button>
+                                  }}
+                                  title="View & Review Individual Breakdown (Mode A)"
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-bold text-xs transition cursor-pointer"
+                                >
+                                  <HiOutlineEye className="w-3.5 h-3.5" />
+                                  Review
+                                </button>
 
-                              {/* Submit or Resubmit Result to Admin */}
-                              {item.reportCard?.status === "returned_for_correction" || item.reportCard?.status === "rejected" ? (
                                 <button
                                   type="button"
-                                  onClick={() => handleResubmitIndividual(item)}
-                                  disabled={submitting}
-                                  title="Resubmit Corrected Result to Admin"
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-bold text-xs transition cursor-pointer"
+                                  onClick={() => handleOpenStudentCommentModal(item)}
+                                  title="Add/Edit Teacher Comment"
+                                  className="p-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-300 hover:bg-purple-100 transition cursor-pointer"
                                 >
-                                  <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
-                                  Resubmit
+                                  <HiOutlinePencilSquare className="w-4 h-4" />
                                 </button>
-                              ) : item.reportCard?.status === "submitted_to_admin" || item.reportCard?.status === "submitted" ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-                                  Submitted
-                                </span>
-                              ) : item.reportCard?.published ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                  Published
-                                </span>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleSubmitIndividual(item)}
-                                  disabled={submitting || !isComplete}
-                                  title={!isComplete ? "Scores incomplete. Cannot submit to admin." : "Submit Result to Admin"}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs disabled:opacity-40 transition cursor-pointer"
-                                >
-                                  <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
-                                  Submit
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
+
+                                {/* Submit or Resubmit Result to Admin (or Class Teacher if Subject Teacher) */}
+                                {isClassTeacherForThisClass || authTeacher?.role === "admin" ? (
+                                  item.reportCard?.status === "returned_for_correction" || item.reportCard?.status === "rejected" ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleResubmitIndividual(item)}
+                                      disabled={submitting}
+                                      title="Publish/Resubmit Corrected Result to Admin"
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-bold text-xs transition cursor-pointer"
+                                    >
+                                      <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
+                                      Publish to Admin (Resubmit)
+                                    </button>
+                                  ) : item.reportCard?.status === "submitted_to_admin" || item.reportCard?.status === "submitted" ? (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                                      Submitted to Admin
+                                    </span>
+                                  ) : item.reportCard?.published ? (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                      Published
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSubmitIndividual(item)}
+                                      disabled={submitting || !isComplete}
+                                      title={!isComplete ? "Scores incomplete. Cannot publish to admin." : "Publish Result to Admin"}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-bold text-xs disabled:opacity-40 transition cursor-pointer"
+                                    >
+                                      <HiOutlinePaperAirplane className="w-3.5 h-3.5" />
+                                      Publish to Admin
+                                    </button>
+                                  )
+                                ) : (
+                                  /* Subject Teacher action in table row */
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePublishStudentSubjectToClassTeacher(item)}
+                                    disabled={publishingSubjectId === item.student._id}
+                                    title="Submit your subject scores for this student to the Class Teacher"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition disabled:opacity-50 cursor-pointer"
+                                  >
+                                    <HiOutlinePaperAirplane className={`w-3.5 h-3.5 ${publishingSubjectId === item.student._id ? "animate-spin" : ""}`} />
+                                    Submit to Class Teacher
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+
+                          {/* Expandable Breakdown Drawer per Student under one term result */}
+                          {expandedStudentId === item.student._id && (
+                            <tr key={`expanded-${item.student._id}`} className="bg-indigo-50/30 dark:bg-indigo-950/20">
+                              <td colSpan={9} className="p-4 border-y border-indigo-100 dark:border-indigo-900/40">
+                                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-indigo-200 dark:border-indigo-800 shadow-sm">
+                                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-base">📋</span>
+                                      <h5 className="font-bold text-sm text-gray-900 dark:text-white">
+                                        Arranged Term Subject Results for {item.student.name} ({item.student.StudentId})
+                                      </h5>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleViewStudentCardResult(item)}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition cursor-pointer"
+                                      >
+                                        <HiOutlineDocumentText className="w-3.5 h-3.5" />
+                                        Open Student Card Result
+                                      </button>
+                                      <span className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hidden md:inline">
+                                        • Multi-Subject Compilation
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs">
+                                      <thead>
+                                        <tr className="bg-gray-100 dark:bg-gray-700/60 text-gray-700 dark:text-gray-300 font-bold uppercase text-[10px]">
+                                          <th className="py-2.5 px-3">Subject</th>
+                                          <th className="py-2.5 px-3">Subject Teacher</th>
+                                          <th className="py-2.5 px-3 text-center">Test / CA (30)</th>
+                                          <th className="py-2.5 px-3 text-center">Exam (70)</th>
+                                          <th className="py-2.5 px-3 text-center">Total Score (100)</th>
+                                          <th className="py-2.5 px-3 text-center">Grade</th>
+                                          <th className="py-2.5 px-3 text-center">Remark</th>
+                                          <th className="py-2.5 px-3 text-center">Status</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                        {(item.submittedSubjects || []).map((sub: any) => (
+                                          <tr key={sub.subjectId} className="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                            <td className="py-2.5 px-3 font-bold text-gray-900 dark:text-white">
+                                              {sub.subjectName}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-gray-600 dark:text-gray-300">
+                                              <span className="inline-flex items-center gap-1 font-medium">
+                                                <span>👨‍🏫</span> {sub.recordedBy || "Subject Teacher"}
+                                              </span>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center font-mono font-semibold">
+                                              {sub.testScore !== null && sub.testScore !== undefined ? sub.testScore : "—"}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center font-mono font-semibold">
+                                              {sub.examScore !== null && sub.examScore !== undefined ? sub.examScore : "—"}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center font-mono font-black text-indigo-600 dark:text-indigo-400">
+                                              {sub.totalScore}/100
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center font-bold">
+                                              {sub.letterGrade || sub.grade}
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center">
+                                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getRemarkBadgeColor(sub.remark || calculateRemark(sub.grade || 0))}`}>
+                                                {sub.remark || calculateRemark(sub.grade || 0)}
+                                              </span>
+                                            </td>
+                                            <td className="py-2.5 px-3 text-center">
+                                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                                <HiOutlineCheckCircle className="w-3 h-3" /> Submitted
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+
+                                        {(item.pendingSubjects || []).map((pSub: string, pIdx: number) => (
+                                          <tr key={pIdx} className="bg-amber-50/30 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300">
+                                            <td className="py-2.5 px-3 font-bold">{pSub}</td>
+                                            <td className="py-2.5 px-3 italic text-gray-400">Awaiting Subject Teacher</td>
+                                            <td className="py-2.5 px-3 text-center text-gray-400">—</td>
+                                            <td className="py-2.5 px-3 text-center text-gray-400">—</td>
+                                            <td className="py-2.5 px-3 text-center text-gray-400">—</td>
+                                            <td className="py-2.5 px-3 text-center text-gray-400">—</td>
+                                            <td className="py-2.5 px-3 text-center text-gray-400">—</td>
+                                            <td className="py-2.5 px-3 text-center">
+                                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                                Pending
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+
+                                  {/* Term Summary Row inside Breakdown */}
+                                  <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex flex-wrap items-center justify-between text-xs gap-3">
+                                    <div className="flex flex-wrap items-center gap-4">
+                                      <span>Total Marks: <strong>{item.totalScore} / {item.totalRegistered * 100}</strong></span>
+                                      <span>Term Average: <strong className="text-indigo-600">{item.averageScore !== null ? `${item.averageScore}%` : item.currentAverage !== null ? `${item.currentAverage}% (running)` : "Pending"}</strong></span>
+                                      <span>Position: <strong>{item.displayRank || item.positionFormatted || (item.position ? `${item.position}` : "—")}</strong></span>
+                                      <span>Overall Grade: <strong className="text-emerald-600">{item.overallGrade}</strong></span>
+                                    </div>
+                                    <div>
+                                      {item.isFullySubmitted ? (
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                                          <HiOutlineCheck className="w-4 h-4" /> All subject scores received and compiled!
+                                        </span>
+                                      ) : (
+                                        <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                                          <HiOutlineClock className="w-4 h-4" /> {item.pendingCount} subjects still awaiting subject teachers
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       );
                     })
                   )}
@@ -2441,8 +3679,8 @@ export default function TeacherReportCards() {
         </div>
       )}
 
-      {/* VIEW 3: MODE A - INDIVIDUAL STUDENT REPORT */}
-      {activeTab === "studentReport" && (
+      {/* VIEW 3: MODE A - INDIVIDUAL STUDENT REPORT (Excluded from Subject Teacher Score Entry) */}
+      {activeTab === "studentReport" && !isScoreEntryPage && (
         <div className="space-y-6">
           {/* Navigation Bar: Student switcher & Back to Overview */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 sm:p-5 border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -2510,14 +3748,28 @@ export default function TeacherReportCards() {
                 type="button"
                 onClick={() => {
                   if (activeFullReportCard) {
-                    setPreviewCard(activeFullReportCard);
+                    if (authTeacher?.role !== "admin" && !isClassTeacherForThisClass) {
+                      const vRows = (activeFullReportCard.subjectResults || []).filter((s: any) =>
+                        isSubjectTaughtByTeacher(s.subject?._id || s.subject || s.subjectId, s.subjectName || s.subject?.name)
+                      );
+                      const vTotal = vRows.reduce((acc: number, curr: any) => acc + (curr.score ?? curr.totalScore ?? 0), 0);
+                      const vAvg = vRows.length > 0 ? Number((vTotal / vRows.length).toFixed(1)) : 0;
+                      setPreviewCard({
+                        ...activeFullReportCard,
+                        subjectResults: vRows,
+                        totalScore: vTotal,
+                        averageScore: vAvg,
+                      });
+                    } else {
+                      setPreviewCard(activeFullReportCard);
+                    }
                   }
                 }}
                 disabled={!activeFullReportCard}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl font-bold text-xs text-white bg-indigo-600 hover:bg-indigo-700 transition shadow-sm cursor-pointer ml-1"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl font-black text-xs text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition shadow-md cursor-pointer ml-1"
               >
-                <HiOutlinePrinter className="w-4 h-4" />
-                Print / PDF Preview
+                <HiOutlineDocumentText className="w-4 h-4" />
+                View Full Card Result
               </button>
             </div>
           </div>
@@ -2641,11 +3893,15 @@ export default function TeacherReportCards() {
                   <div className="flex items-center justify-between text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">
                     <span className="flex items-center gap-2">
                       <HiOutlineBookOpen className="w-4 h-4 text-indigo-500" />
-                      Submission Progress: {activeFullReportCard.progress?.submittedCount || 0} of{" "}
-                      {activeFullReportCard.progress?.totalRegisteredSubjects || 0} subjects submitted (
-                      {activeFullReportCard.progress?.completionPercentage || 0}%)
+                      Submission Progress: {authTeacher?.role === "admin" ? (activeFullReportCard.progress?.submittedCount || 0) : visibleFullReportSubmittedCount} of{" "}
+                      {authTeacher?.role === "admin" ? (activeFullReportCard.progress?.totalRegisteredSubjects || 0) : visibleFullReportSubjectResults.length} subjects submitted (
+                      {authTeacher?.role === "admin"
+                        ? (activeFullReportCard.progress?.completionPercentage || 0)
+                        : visibleFullReportSubjectResults.length > 0
+                        ? Math.round((visibleFullReportSubmittedCount / visibleFullReportSubjectResults.length) * 100)
+                        : 0}%)
                     </span>
-                    {!activeFullReportCard.progress?.isFullySubmitted && (
+                    {!(authTeacher?.role === "admin" ? activeFullReportCard.progress?.isFullySubmitted : (visibleFullReportSubjectResults.length > 0 && visibleFullReportSubmittedCount === visibleFullReportSubjectResults.length)) && (
                       <span className="text-amber-600 dark:text-amber-400 font-semibold text-[11px]">
                         Overall Average pending until all scores entered
                       </span>
@@ -2654,9 +3910,17 @@ export default function TeacherReportCards() {
                   <div className="w-full bg-gray-100 dark:bg-gray-700 h-2.5 rounded-full overflow-hidden">
                     <div
                       className={`h-full transition-all duration-500 ${
-                        activeFullReportCard.progress?.isFullySubmitted ? "bg-emerald-500" : "bg-amber-500"
+                        (authTeacher?.role === "admin" ? activeFullReportCard.progress?.isFullySubmitted : (visibleFullReportSubjectResults.length > 0 && visibleFullReportSubmittedCount === visibleFullReportSubjectResults.length)) ? "bg-emerald-500" : "bg-amber-500"
                       }`}
-                      style={{ width: `${activeFullReportCard.progress?.completionPercentage || 0}%` }}
+                      style={{
+                        width: `${
+                          authTeacher?.role === "admin"
+                            ? (activeFullReportCard.progress?.completionPercentage || 0)
+                            : visibleFullReportSubjectResults.length > 0
+                            ? Math.round((visibleFullReportSubmittedCount / visibleFullReportSubjectResults.length) * 100)
+                            : 0
+                        }%`,
+                      }}
                     />
                   </div>
                 </div>
@@ -2694,7 +3958,7 @@ export default function TeacherReportCards() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                      {(activeFullReportCard.subjectResults || []).map((sub: any, idx: number) => {
+                      {visibleFullReportSubjectResults.map((sub: any, idx: number) => {
                         const isSubPending = sub.status === "Pending";
                         return (
                           <tr
@@ -2734,10 +3998,10 @@ export default function TeacherReportCards() {
                             <td className="py-3.5 px-3 text-center">
                               <span
                                 className={`inline-block px-2 py-0.5 rounded text-xs font-bold ${
-                                  isSubPending
-                                    ? "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-300"
-                                    : getRemarkBadgeColor(sub.remark)
-                                }`}
+                                   isSubPending
+                                     ? "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950 dark:text-amber-300"
+                                     : getRemarkBadgeColor(sub.remark)
+                                 }`}
                               >
                                 {sub.remark || (isSubPending ? "Pending" : "—")}
                               </span>
@@ -2748,10 +4012,10 @@ export default function TeacherReportCards() {
                             <td className="py-3.5 px-3 text-center">
                               <span
                                 className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                                  isSubPending
-                                    ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300"
-                                    : "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300"
-                                }`}
+                                   isSubPending
+                                     ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300"
+                                     : "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300"
+                                 }`}
                               >
                                 {isSubPending ? "Pending" : "Submitted"}
                               </span>
@@ -2770,10 +4034,10 @@ export default function TeacherReportCards() {
                       Total Score
                     </span>
                     <span className="text-xl sm:text-2xl font-black text-indigo-900 dark:text-indigo-200 mt-1 block">
-                      {activeFullReportCard.totalScore}
+                      {visibleFullReportTotalScore}
                     </span>
                     <span className="text-[10px] text-gray-400">
-                      across {activeFullReportCard.progress?.submittedCount || 0} submitted subjects
+                      across {visibleFullReportSubmittedCount} submitted subjects
                     </span>
                   </div>
 
@@ -2782,12 +4046,12 @@ export default function TeacherReportCards() {
                       Overall Average
                     </span>
                     <span className="text-xl sm:text-2xl font-black text-purple-900 dark:text-purple-200 mt-1 block">
-                      {activeFullReportCard.averageScore !== null
-                        ? `${activeFullReportCard.averageScore}%`
+                      {visibleFullReportAverage !== null && visibleFullReportAverage !== undefined
+                        ? `${visibleFullReportAverage}%`
                         : "Pending"}
                     </span>
                     <span className="text-[10px] text-gray-400">
-                      Grade: {activeFullReportCard.averageScore !== null ? activeFullReportCard.overallGrade || "—" : "Pending"}
+                      Grade: {visibleFullReportAverage !== null && visibleFullReportAverage !== undefined ? (calculateLetterGrade(visibleFullReportAverage) || "—") : "Pending"}
                     </span>
                   </div>
 
@@ -2796,7 +4060,7 @@ export default function TeacherReportCards() {
                       Class Position
                     </span>
                     <span className="text-xl sm:text-2xl font-black text-amber-900 dark:text-amber-200 mt-1 block">
-                      {activeFullReportCard.positionFormatted || "—"}
+                      {activeFullReportCard.positionFormatted || (activeFullReportCard.position ? `${activeFullReportCard.position}` : "—")}
                     </span>
                     <span className="text-[10px] text-gray-400">Competition Ranking</span>
                   </div>
@@ -2882,24 +4146,78 @@ export default function TeacherReportCards() {
       {/* Modal: Full Report Card Document Preview */}
       {previewCard && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 relative shadow-2xl border border-gray-200 dark:border-gray-700">
-            <button
-              onClick={() => setPreviewCard(null)}
-              className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
-              <HiOutlineXMark className="w-6 h-6" />
-            </button>
+          <div className="bg-white dark:bg-gray-900 rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto p-4 sm:p-8 relative shadow-2xl border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📄</span>
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-gray-900 dark:text-white">
+                    Official Student Card Result
+                  </h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {previewCard.student?.name} ({previewCard.studentID || previewCard.student?.StudentId}) • {previewCard.classLevel?.name}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const studentItem = filteredOverviewStudents.find(
+                      (s) => (s.student?._id || s.student) === (previewCard.student?._id || previewCard.student)
+                    );
+                    if (studentItem) {
+                      handleOpenStudentCommentModal(studentItem);
+                    } else {
+                      setStudentForComment({
+                        studentId: previewCard.student?._id || (previewCard.student as any) || "",
+                        studentName: previewCard.student?.name || "Student",
+                        studentID: previewCard.studentID,
+                        reportCardId: previewCard._id,
+                        currentComment: previewCard.teacherComment || "",
+                      });
+                      setCommentInput(previewCard.teacherComment || "");
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-bold text-xs hover:bg-purple-100 transition cursor-pointer"
+                  title="Add or Edit Teacher Comment"
+                >
+                  <HiOutlinePencilSquare className="w-3.5 h-3.5" />
+                  Edit Comment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold text-xs hover:bg-indigo-100 transition cursor-pointer"
+                  title="Print or Save PDF"
+                >
+                  <HiOutlinePrinter className="w-3.5 h-3.5" />
+                  Print
+                </button>
+                <button
+                  onClick={() => setPreviewCard(null)}
+                  className="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
+                  title="Close Card Result"
+                >
+                  <HiOutlineXMark className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
             <ReportCardDocument reportCard={previewCard} />
           </div>
         </div>
       )}
 
       {/* Modal: Edit Teacher Comment */}
-      {editingCard && (
+      {/* Modal: Edit Teacher Comment */}
+      {(editingCard || studentForComment) && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 relative shadow-2xl border border-gray-200 dark:border-gray-700">
             <button
-              onClick={() => setEditingCard(null)}
+              onClick={() => {
+                setEditingCard(null);
+                setStudentForComment(null);
+              }}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
             >
               <HiOutlineXMark className="w-5 h-5" />
@@ -2909,7 +4227,11 @@ export default function TeacherReportCards() {
               Teacher's Evaluation Remark
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-              Student: <span className="font-semibold text-gray-700 dark:text-gray-200">{editingCard.student?.name}</span> ({editingCard.studentID})
+              Student:{" "}
+              <span className="font-semibold text-gray-700 dark:text-gray-200">
+                {studentForComment?.studentName || editingCard?.student?.name}
+              </span>{" "}
+              ({studentForComment?.studentID || editingCard?.studentID})
             </p>
 
             {/* Quick Comment Chips */}
@@ -2942,7 +4264,10 @@ export default function TeacherReportCards() {
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setEditingCard(null)}
+                onClick={() => {
+                  setEditingCard(null);
+                  setStudentForComment(null);
+                }}
                 className="px-4 py-2 text-xs font-semibold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200"
               >
                 Cancel
@@ -3224,11 +4549,18 @@ export default function TeacherReportCards() {
 
                 <datalist id="all-subjects-datalist">
                   {Array.from(
-                    new Set([
-                      ...allSubjects.map((s: any) => s.name),
-                      ...availableClassSubjects.map((s: any) => s.name),
-                      ...teacherAssignedSubjectNames,
-                    ])
+                    new Set(
+                      authTeacher?.role === "admin" || isClassTeacherForThisClass
+                        ? [
+                            ...allSubjects.map((s: any) => s.name),
+                            ...availableClassSubjects.map((s: any) => s.name),
+                            ...teacherAssignedSubjectNames,
+                          ]
+                        : [
+                            ...availableClassSubjects.map((s: any) => s.name),
+                            ...teacherAssignedSubjectNames,
+                          ]
+                    )
                   )
                     .filter(Boolean)
                     .map((name) => (

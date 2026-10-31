@@ -95,6 +95,9 @@ export default function StudentWriteExam() {
         if (isExamCompleted(found._id)) {
           // Already completed: cannot take/enter exam again, clean up URL route
           navigate("/student/exams", { replace: true });
+        } else if (found.examStatus !== "live") {
+          alert("This examination is currently pending and has not been launched live by the instructor. You cannot access it yet.");
+          navigate("/student/exams", { replace: true });
         } else {
           startExamSession(found);
         }
@@ -145,8 +148,10 @@ export default function StudentWriteExam() {
     if (
       Array.isArray(studentResults) &&
       studentResults.some((r: any) => {
-        const rExamId = r?.exam?._id || r?.exam || r?._id;
-        return rExamId?.toString() === sId;
+        const rExamId = (r?.exam?._id || r?.exam || r?._id)?.toString();
+        const examsTaken = Array.isArray(r?.examsTaken) ? r.examsTaken : [];
+        const inExamsTaken = examsTaken.some((eid: any) => (eid?._id || eid)?.toString() === sId);
+        return rExamId === sId || inExamsTaken;
       })
     ) {
       return true;
@@ -164,6 +169,11 @@ export default function StudentWriteExam() {
     }
     if (activeStudent?.isWithDrawn) {
       alert("Your account is marked as withdrawn. Access to exams is revoked.");
+      return;
+    }
+    // Block if exam is pending (not live)
+    if (exam.examStatus !== "live") {
+      alert("This examination is currently pending. You can only access and write this exam once your teacher clicks 'Send to Live'.");
       return;
     }
     // Block if already completed - student should NOT be able to click or start the exam again
@@ -382,6 +392,16 @@ export default function StudentWriteExam() {
     }
 
     return exams.filter((e) => {
+      // 0. Once a student writes/completes an exam, it must NOT show again on this page
+      if (isExamCompleted(e._id)) {
+        return false;
+      }
+
+      // 0b. Exam MUST be live! Until teacher sends it to live, it must NOT be viewed on student page!
+      if (e.examStatus !== "live") {
+        return false;
+      }
+
       // 1. Class Level Check
       const examClassNorm = normalizeClass(e.classLevel);
       if (studentClassNorm && examClassNorm && studentClassNorm !== examClassNorm) {
@@ -445,7 +465,15 @@ export default function StudentWriteExam() {
 
       return matchSearch && matchType;
     });
-  }, [exams, activeStudent, searchQuery, filterType]);
+  }, [
+    exams,
+    activeStudent,
+    searchQuery,
+    filterType,
+    writtenExamIds,
+    localCompletedIds,
+    studentExamResults,
+  ]);
 
   // Current Question Object
   const currentQuestion = activeExam?.questions?.[currentQuestionIndex];
@@ -1080,7 +1108,7 @@ export default function StudentWriteExam() {
           <div className="flex items-center gap-1.5 text-indigo-900 dark:text-indigo-200">
             <span className="font-semibold text-slate-500 dark:text-slate-400">Class:</span>
             <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 font-bold text-indigo-700 dark:text-indigo-300">
-              {activeStudent?.currentClassLevel || "Level 100"}
+              {activeStudent?.currentClassLevel || "Not Assigned"}
             </span>
           </div>
 
@@ -1157,49 +1185,40 @@ export default function StudentWriteExam() {
             📚
           </div>
           <h4 className="font-bold text-gray-900 dark:text-white text-base">
-            No Examinations Available For Your Class & Assigned Teacher
+            No Active Live Examinations Available
           </h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
-            You only see examinations set by your assigned teacher (
-            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-              {(typeof activeStudent?.assignedTeacher === "object" ? (activeStudent?.assignedTeacher as any)?.name : null) || "your assigned instructor"}
-            </span>
-            ) for your enrolled subject in{" "}
+            There are currently no active live examinations available for your enrolled courses in{" "}
             <span className="font-semibold text-indigo-600 dark:text-indigo-400">
               {activeStudent?.currentClassLevel || "your class"}
             </span>
-            . No examinations match this criteria at this time.
+            . Examinations only appear here once your instructor sends them live.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredExams.map((exam) => {
-            const isCompleted = isExamCompleted(exam._id);
             const qCount = exam.questions?.length || 0;
 
             return (
               <div
                 key={exam._id}
-                className={`rounded-3xl bg-white dark:bg-slate-900 border p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all ${
-                  isCompleted
-                    ? "border-emerald-500/40 bg-slate-50/50 dark:bg-slate-900/60"
-                    : "border-gray-200/80 dark:border-slate-800 hover:border-indigo-400"
-                }`}
+                className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 hover:border-emerald-500/50 p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-all"
               >
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-                      {exam.examType || "Quiz"}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                        {exam.examType || "Quiz"}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Live
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-slate-400">
+                      {exam.duration || "30m"}
                     </span>
-                    {isCompleted ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/50">
-                        <HiOutlineCheckCircle className="w-3.5 h-3.5" /> Completed
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-semibold text-slate-400">
-                        {exam.duration || "30m"}
-                      </span>
-                    )}
                   </div>
 
                   <div>
@@ -1247,26 +1266,14 @@ export default function StudentWriteExam() {
                 </div>
 
                 <div className="pt-6 mt-4">
-                  {isCompleted ? (
-                    <button
-                      type="button"
-                      disabled
-                      aria-disabled="true"
-                      className="w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 text-slate-400 dark:text-slate-500 font-bold text-xs flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80 pointer-events-none"
-                    >
-                      <HiOutlineCheckCircle className="w-4 h-4 text-emerald-500" />
-                      Exam Completed
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => startExamSession(exam)}
-                      className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
-                    >
-                      <HiOutlineClipboardDocumentCheck className="w-4 h-4" />
-                      Start Examination
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => startExamSession(exam)}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <HiOutlineClipboardDocumentCheck className="w-4 h-4" />
+                    Start Examination
+                  </button>
                 </div>
               </div>
             );

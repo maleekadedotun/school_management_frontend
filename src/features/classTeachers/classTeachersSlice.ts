@@ -96,6 +96,9 @@ export const fetchMyClassTeacherAssignments = createAsyncThunk(
   }
 );
 
+// Alias for convenience
+export const fetchMyAssignments = fetchMyClassTeacherAssignments;
+
 // Fetch eligible active teachers for dropdown (Admin)
 export const fetchEligibleTeachers = createAsyncThunk(
   "classTeachers/fetchEligibleTeachers",

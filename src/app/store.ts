@@ -23,6 +23,7 @@ import reportCardsReducer from "../features/reportCards/reportCardsSlice";
 import financeReducer from "../features/finance/financeSlice";
 import parentAuthReducer from "../features/parentAuth/parentAuthSlice";
 import classTeachersReducer from "../features/classTeachers/classTeachersSlice";
+import promotionsReducer from "../features/promotions/promotionsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -50,6 +51,7 @@ export const store = configureStore({
     reportCards: reportCardsReducer,
     finance: financeReducer,
     classTeachers: classTeachersReducer,
+    promotions: promotionsReducer,
   },
 });
 

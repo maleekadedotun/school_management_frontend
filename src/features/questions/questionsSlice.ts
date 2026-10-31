@@ -177,7 +177,16 @@ const questionsSlice = createSlice({
       // Create question
       .addCase(createQuestion.fulfilled, (state, action) => {
         const item = action.payload.data || action.payload;
-        if (item && item._id) state.teacherQuestions.unshift(item);
+        if (item && item._id) {
+          const argExamId = (action.meta?.arg as any)?.examId;
+          const enhancedItem = {
+            ...item,
+            exam: item.exam || argExamId,
+            examId: (item.exam?._id || item.exam || argExamId)?.toString(),
+          };
+          state.teacherQuestions.unshift(enhancedItem);
+          state.questions.unshift(enhancedItem);
+        }
       })
       // Update question
       .addCase(updateQuestion.fulfilled, (state, action) => {

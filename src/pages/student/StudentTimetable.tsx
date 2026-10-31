@@ -84,7 +84,7 @@ export default function StudentTimetable() {
             <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
               <span className="px-3 py-1 rounded-xl bg-slate-900/80 border border-slate-700/80 text-white font-semibold flex items-center gap-1.5">
                 <FiLayers className="w-3.5 h-3.5 text-amber-400" />
-                <span>Class: {student?.currentClassLevel || "Level 100"}</span>
+                <span>Class: {student?.currentClassLevel || "Not Assigned"}</span>
               </span>
 
               {student?.program && (
@@ -203,7 +203,7 @@ export default function StudentTimetable() {
           <div>
             <div className="text-[11px] text-slate-400 font-semibold uppercase">Current Class</div>
             <div className="text-xl font-bold text-white mt-0.5 truncate max-w-[120px]">
-              {student?.currentClassLevel || "Level 100"}
+              {student?.currentClassLevel || "Not Assigned"}
             </div>
           </div>
           <span className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400">

@@ -149,7 +149,7 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
 
   // Level Progression Milestone definitions matching student view
   const levelOrder = ["Level 100", "Level 200", "Level 300", "Level 400"];
-  const currentLevelStr = (childProfile?.currentClassLevel || "Level 100").trim();
+  const currentLevelStr = (childProfile?.currentClassLevel || "").trim();
   const currentLevelIndex = useMemo(() => {
     const idx = levelOrder.findIndex(
       (lvl) => lvl.toLowerCase() === currentLevelStr.toLowerCase()
@@ -240,7 +240,7 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
                   <span className="w-2 h-2 rounded-full bg-emerald-400" />
                   <span>{c.name}</span>
                   <span className="text-[10px] opacity-75">
-                    ({c.currentClassLevel || "Level 100"})
+                    ({c.currentClassLevel || "No Class Assigned"})
                   </span>
                 </button>
               );

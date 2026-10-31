@@ -661,11 +661,7 @@ export default function TeachersList() {
                         </option>
                       ))
                     ) : (
-                      ["Level 100", "Level 200", "Level 300", "Level 400"].map((lvl) => (
-                        <option key={lvl} value={lvl}>
-                          {lvl}
-                        </option>
-                      ))
+                      <option value="" disabled>No Class Levels found (create one first)</option>
                     )}
                   </select>
                 </div>
@@ -714,11 +710,11 @@ export default function TeachersList() {
 
       {/* Register Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-8 w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto modal-vertical-scrollbar custom-scrollbar shadow-2xl relative my-auto">
+            <div className="flex items-center justify-between mb-6 sticky -top-6 sm:-top-8 bg-[#0f1629] -mt-2 pt-2 pb-3 z-10 border-b border-white/10">
               <h2 className="text-xl font-bold text-white">Register Teacher</h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors cursor-pointer">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -897,24 +893,20 @@ export default function TeachersList() {
                       </option>
                     ))
                   ) : (
-                    ["Level 100", "Level 200", "Level 300", "Level 400"].map((lvl) => (
-                      <option key={lvl} value={lvl}>
-                        {lvl}
-                      </option>
-                    ))
+                    <option value="" disabled>No Class Levels found (create one first)</option>
                   )}
                 </select>
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors text-sm font-medium">Cancel</button>
+              <div className="flex gap-3 mt-6 pt-4 border-t border-white/10 sticky -bottom-6 sm:-bottom-8 bg-[#0f1629] -mb-2 pb-2 z-10">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors text-sm font-medium cursor-pointer">Cancel</button>
                 <button
                   type="submit"
                   id="teacher-register-submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white font-semibold text-sm disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-semibold text-sm disabled:opacity-50 transition-all cursor-pointer shadow-lg shadow-violet-600/30"
                 >
-                  {submitting ? "Registering..." : "Register"}
+                  {submitting ? "Registering..." : "Register Teacher"}
                 </button>
               </div>
             </form>

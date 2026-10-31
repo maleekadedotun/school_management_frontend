@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
@@ -6,15 +6,72 @@ import {
   fetchStudentEnrolledSubjects,
   updateStudentProfile,
 } from "../../features/students/studentsSlice";
+import {
+  HiOutlineChevronDown,
+  HiOutlineBookOpen,
+  HiOutlineAcademicCap,
+  HiOutlineClock,
+  HiOutlineCheckCircle,
+  HiOutlineSparkles,
+} from "react-icons/hi2";
 
 const StudentProfile: React.FC = () => {
   const dispatch = useAppDispatch();
   const studentState = useAppSelector((state) => state.students);
-  const { profile, student, currentStudent, allEnrolledSubjects, enrolledSubjectsByClass } = studentState;
+  const {
+    profile,
+    student,
+    currentStudent,
+    allEnrolledSubjects,
+    enrolledSubjectsByClass,
+    allExamResults: sliceAllExamResults,
+    writtenExamIds,
+  } = studentState;
 
   const currentStudentObj = profile || student || currentStudent;
 
-  const [activeTab, setActiveTab] = useState<"overview" | "academic" | "exams" | "settings">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "academic" | "exams" | "settings" | "subjects">(() => {
+    const hash = typeof window !== "undefined" ? window.location.hash.replace("#", "") : "";
+    if (["overview", "academic", "exams", "settings", "subjects"].includes(hash)) {
+      return hash as any;
+    }
+    const saved = typeof localStorage !== "undefined" ? localStorage.getItem("student_profile_active_tab") : null;
+    if (saved && ["overview", "academic", "exams", "settings", "subjects"].includes(saved)) {
+      return saved as any;
+    }
+    return "subjects"; // Default to subjects so user immediately sees their subjects upon opening / refreshing!
+  });
+
+  const handleTabChange = (tab: "overview" | "academic" | "exams" | "settings" | "subjects") => {
+    setActiveTab(tab);
+    try {
+      localStorage.setItem("student_profile_active_tab", tab);
+      window.location.hash = tab;
+    } catch {}
+  };
+
+  const [expandedClasses, setExpandedClasses] = useState<Record<string, boolean>>({});
+
+  const isClassExpanded = (lvl: string): boolean => {
+    const norm = (lvl || "").toLowerCase().trim();
+    if (expandedClasses[norm] !== undefined) {
+      return expandedClasses[norm];
+    }
+    // All classes start dropped down by default so subjects are visible immediately!
+    return true;
+  };
+
+  const toggleClassDropdown = (lvl: string) => {
+    const norm = (lvl || "").toLowerCase().trim();
+    setExpandedClasses((prev) => {
+      const current = prev[norm] !== undefined ? prev[norm] : true;
+      return {
+        ...prev,
+        [norm]: !current,
+      };
+    });
+  };
+
   const [copiedId, setCopiedId] = useState(false);
 
   // Profile Edit Form State
@@ -67,16 +124,186 @@ const StudentProfile: React.FC = () => {
       })
     : "September 15, 2022";
 
-  // Exam Performance Data (Only Admin-approved published results)
-  const examResults: any[] = (currentStudentObj?.examsResults || []).filter((r: any) => r?.isPublished === true);
-  const pendingTeacherCount = (currentStudentObj as any)?.pendingTeacherReviewCount || 0;
-  const pendingAdminCount = (currentStudentObj as any)?.pendingAdminReviewCount || 0;
+  // Helper to reliably display teacher name or "empty"
+  const getTeacherDisplayName = (teacher: any): string => {
+    if (!teacher) return "empty";
+    if (typeof teacher === "object" && teacher.name) {
+      const rawName = teacher.name;
+      if (rawName && !/^[0-9a-fA-F]{24}$/.test(rawName) && rawName.toLowerCase() !== "not assigned" && rawName !== "-") {
+        return rawName;
+      }
+      return "empty";
+    }
+    if (typeof teacher === "string") {
+      if (/^[0-9a-fA-F]{24}$/.test(teacher)) return "empty";
+      const trimmed = teacher.trim();
+      if (!trimmed || trimmed.toLowerCase() === "not assigned" || trimmed === "-" || trimmed.toLowerCase() === "empty") return "empty";
+      return trimmed;
+    }
+    return "empty";
+  };
+
+  const isCoreSubject = (name: string, isCoreFlag?: boolean) => {
+    if (isCoreFlag) return true;
+    return /^(math|mathematics|english|general math)/i.test(name || "");
+  };
+
+  const getSubjectsForClass = (targetClass: string) => {
+    const targetNorm = targetClass.toLowerCase().trim();
+    const targetDigits = targetNorm.match(/\d+/)?.[0] || "";
+
+    // 1. Check enrolledSubjectsByClass
+    const group = (enrolledSubjectsByClass || []).find((g) => {
+      const gName = (g.classLevel || g.shortCode || "").toLowerCase().trim();
+      const gDigits = gName.match(/\d+/)?.[0] || "";
+      if (targetDigits && gDigits) return targetDigits === gDigits;
+      return gName === targetNorm;
+    });
+
+    let subjects: any[] = [];
+    if (group && Array.isArray(group.subjects) && group.subjects.length > 0) {
+      subjects = [...group.subjects];
+    } else {
+      // 2. Filter allEnrolledSubjects
+      subjects = (allEnrolledSubjects || []).filter((s: any) => {
+        const sClass = (s.classLevel || "").toLowerCase().trim();
+        const sDigits = sClass.match(/\d+/)?.[0] || "";
+        if (targetDigits && sDigits) return targetDigits === sDigits;
+        return sClass === targetNorm;
+      });
+    }
+
+    // 3. For promoted classes (JSS 2 if promoted, JSS 3 if promoted), carry forward any subjects attended in JSS 1
+    if (targetDigits && Number(targetDigits) > 1 && Number(targetDigits) <= maxStudentStep) {
+      const jss1Group = (enrolledSubjectsByClass || []).find((g) => {
+        const gName = (g.classLevel || g.shortCode || "").toLowerCase().trim();
+        return gName.includes("jss 1") || gName === "jss 1" || (gName.match(/\d+/)?.[0] === "1" && gName.includes("jss"));
+      });
+      const jss1Subjects = (jss1Group && Array.isArray(jss1Group.subjects) && jss1Group.subjects.length > 0)
+        ? jss1Group.subjects
+        : (allEnrolledSubjects || []).filter((s: any) => {
+            const sClass = (s.classLevel || "").toLowerCase().trim();
+            return sClass.includes("jss 1") || sClass === "jss 1" || (sClass.match(/\d+/)?.[0] === "1" && sClass.includes("jss"));
+          });
+
+      jss1Subjects.forEach((j1Sub: any) => {
+        const alreadyExists = subjects.some(
+          (s: any) => (s.name || "").toLowerCase().trim() === (j1Sub.name || "").toLowerCase().trim()
+        );
+        if (!alreadyExists) {
+          subjects.push({
+            ...j1Sub,
+            classLevel: targetClass,
+            teacher: null, // Unassigned in this class level -> displays "empty"
+          });
+        }
+      });
+    }
+
+    return subjects;
+  };
+
+  // Determine the highest class level the student has been promoted to
+  const maxStudentStep = useMemo(() => {
+    const curLevel = (currentStudentObj?.currentClassLevel || "").toLowerCase();
+    const classLevelsList: string[] = Array.isArray(currentStudentObj?.classLevels)
+      ? (currentStudentObj.classLevels as string[])
+      : typeof currentStudentObj?.classLevels === "string"
+      ? [currentStudentObj.classLevels]
+      : [];
+    const allStrings = [curLevel, ...classLevelsList.map((c) => (c || "").toLowerCase())];
+    if (allStrings.some((c) => /(?:jss|sss|js|ss)\s*3|three|\b3\b/i.test(c))) return 3;
+    if (allStrings.some((c) => /(?:jss|sss|js|ss)\s*2|two|\b2\b/i.test(c))) return 2;
+    return 1;
+  }, [currentStudentObj?.currentClassLevel, currentStudentObj?.classLevels]);
+
+  const availableClassLevels = useMemo(() => {
+    const curLevel = (currentStudentObj?.currentClassLevel || "").toLowerCase();
+    const classLevelsList: string[] = Array.isArray(currentStudentObj?.classLevels)
+      ? (currentStudentObj.classLevels as string[])
+      : typeof currentStudentObj?.classLevels === "string"
+      ? [currentStudentObj.classLevels]
+      : [];
+    const isSSS =
+      curLevel.includes("sss") ||
+      curLevel.startsWith("ss") ||
+      classLevelsList.some((c) => (c || "").toLowerCase().includes("sss"));
+    const prefix = isSSS ? "SSS" : "JSS";
+
+    const list: string[] = [`${prefix} 1`];
+    if (maxStudentStep >= 2 && !list.includes(`${prefix} 2`)) {
+      list.push(`${prefix} 2`);
+    }
+    if (maxStudentStep >= 3 && !list.includes(`${prefix} 3`)) {
+      list.push(`${prefix} 3`);
+    }
+
+    // Only include classes from enrolledSubjectsByClass if student has actually reached them
+    (enrolledSubjectsByClass || []).forEach((g) => {
+      const name = (g.classLevel || "").trim();
+      const gDigits = name.match(/\d+/)?.[0];
+      if (gDigits && Number(gDigits) > maxStudentStep) {
+        return; // Never show next/future class!
+      }
+      if (name && !list.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
+        list.push(name);
+      }
+    });
+    return list;
+  }, [maxStudentStep, enrolledSubjectsByClass, currentStudentObj?.currentClassLevel, currentStudentObj?.classLevels]);
+
+  // Exam Performance Data (Evaluations taken by student)
+  const allTakenList: any[] = useMemo(() => {
+    const list =
+      (currentStudentObj as any)?.allExamResults ||
+      (currentStudentObj as any)?.allExamsTaken ||
+      sliceAllExamResults ||
+      (Array.isArray(currentStudentObj?.examsResults) ? currentStudentObj.examsResults : []);
+    return Array.isArray(list) ? list : [];
+  }, [currentStudentObj, sliceAllExamResults]);
+
+  const totalExamsTaken = useMemo(() => {
+    if ((currentStudentObj as any)?.totalExamsTaken !== undefined && (currentStudentObj as any)?.totalExamsTaken !== null) {
+      return Number((currentStudentObj as any).totalExamsTaken);
+    }
+    if ((currentStudentObj as any)?.examsTakenCount !== undefined && (currentStudentObj as any)?.examsTakenCount !== null) {
+      return Number((currentStudentObj as any).examsTakenCount);
+    }
+    if (allTakenList.length > 0) return allTakenList.length;
+    if (writtenExamIds && writtenExamIds.length > 0) return writtenExamIds.length;
+    return 0;
+  }, [currentStudentObj, allTakenList, writtenExamIds]);
+
+  const passedExamsCount = useMemo(() => {
+    if ((currentStudentObj as any)?.passedExamsCount !== undefined && (currentStudentObj as any)?.passedExamsCount !== null) {
+      return Number((currentStudentObj as any).passedExamsCount);
+    }
+    return allTakenList.filter(
+      (r) => r?.status === "Pass" || r?.status === "Passed" || (r?.score && Number(r?.score) >= 50)
+    ).length;
+  }, [currentStudentObj, allTakenList]);
+
+  const averageScore = useMemo(() => {
+    if (allTakenList.length > 0) {
+      const sum = allTakenList.reduce((acc, r) => acc + (Number(r?.score) || 0), 0);
+      return Math.round(sum / allTakenList.length);
+    }
+    if ((currentStudentObj as any)?.averageScore) {
+      return Number((currentStudentObj as any).averageScore);
+    }
+    return 84;
+  }, [allTakenList, currentStudentObj]);
+
+  const pendingTeacherCount =
+    (currentStudentObj as any)?.pendingTeacherReviewCount ??
+    (allTakenList.filter((r) => !r?.isTeacherPublished).length || 0);
+  const pendingAdminCount =
+    (currentStudentObj as any)?.pendingAdminReviewCount ??
+    (allTakenList.filter((r) => r?.isTeacherPublished === true && !r?.isPublished).length || 0);
   const hasPendingReview = pendingTeacherCount > 0 || pendingAdminCount > 0;
-  const totalExams = examResults.length;
-  const passedExams = examResults.filter((r) => r?.status === "Pass" || (r?.score && r?.score >= 50)).length;
-  const averageScore = totalExams > 0
-    ? Math.round(examResults.reduce((acc, r) => acc + (Number(r?.score) || 0), 0) / totalExams)
-    : 84;
+
+  const publishedExamResults = allTakenList.filter((r: any) => r?.isPublished === true);
+  const examResultsToDisplay = allTakenList.length > 0 ? allTakenList : publishedExamResults;
 
   const handleCopyId = () => {
     navigator.clipboard.writeText(studentId);
@@ -250,8 +477,8 @@ const StudentProfile: React.FC = () => {
             Exams Taken
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-white flex items-baseline gap-2">
-            <span>{totalExams}</span>
-            <span className="text-xs text-emerald-400 font-normal">{passedExams} Passed</span>
+            <span>{totalExamsTaken}</span>
+            <span className="text-xs text-emerald-400 font-normal">{passedExamsCount} Passed</span>
           </div>
           <p className="text-[11px] text-slate-400">Official graded evaluations</p>
         </div>
@@ -262,7 +489,9 @@ const StudentProfile: React.FC = () => {
           </span>
           <div className="text-2xl sm:text-3xl font-extrabold text-indigo-300 flex items-baseline gap-2">
             <span>{averageScore}%</span>
-            <span className="text-xs text-slate-300 font-normal">Grade A</span>
+            <span className="text-xs text-slate-300 font-normal">
+              {averageScore >= 70 ? "Grade A" : averageScore >= 60 ? "Grade B" : "Grade C"}
+            </span>
           </div>
           <p className="text-[11px] text-slate-400">Cumulative academic marks</p>
         </div>
@@ -282,7 +511,7 @@ const StudentProfile: React.FC = () => {
       <div className="flex border-b border-white/10 overflow-x-auto no-scrollbar gap-2">
         <button
           type="button"
-          onClick={() => setActiveTab("overview")}
+          onClick={() => handleTabChange("overview")}
           className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === "overview"
               ? "text-indigo-400 border-indigo-500 font-bold"
@@ -294,7 +523,7 @@ const StudentProfile: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setActiveTab("academic")}
+          onClick={() => handleTabChange("academic")}
           className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === "academic"
               ? "text-indigo-400 border-indigo-500 font-bold"
@@ -306,19 +535,19 @@ const StudentProfile: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setActiveTab("exams")}
+          onClick={() => handleTabChange("exams")}
           className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === "exams"
               ? "text-indigo-400 border-indigo-500 font-bold"
               : "text-slate-400 border-transparent hover:text-slate-200"
           }`}
         >
-          📝 Examination Results ({totalExams})
+          📝 Examination Results ({totalExamsTaken})
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab("settings")}
+          onClick={() => handleTabChange("settings")}
           className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
             activeTab === "settings"
               ? "text-indigo-400 border-indigo-500 font-bold"
@@ -326,6 +555,18 @@ const StudentProfile: React.FC = () => {
           }`}
         >
           ⚙️ Account & Credentials
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange("subjects")}
+          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+            activeTab === "subjects"
+              ? "text-indigo-400 border-indigo-500 font-bold"
+              : "text-slate-400 border-transparent hover:text-slate-200"
+          }`}
+        >
+          📚 Student Subjects
         </button>
       </div>
 
@@ -651,9 +892,9 @@ const StudentProfile: React.FC = () => {
             </div>
           )}
 
-          {examResults.length > 0 ? (
+          {examResultsToDisplay.length > 0 ? (
             <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left text-xs border-collapse min-w-[580px]">
+              <table className="w-full text-left text-xs border-collapse min-w-[640px]">
                 <thead>
                   <tr className="border-b border-white/10 text-slate-400 text-[11px] uppercase tracking-wider">
                     <th className="py-3 px-4">Exam / Course</th>
@@ -662,17 +903,20 @@ const StudentProfile: React.FC = () => {
                     <th className="py-3 px-4">Score</th>
                     <th className="py-3 px-4">Grade</th>
                     <th className="py-3 px-4">Status</th>
+                    <th className="py-3 px-4">Publication</th>
                     <th className="py-3 px-4">Remarks</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-slate-300">
-                  {examResults.map((result: any, idx: number) => {
+                  {examResultsToDisplay.map((result: any, idx: number) => {
                     const examName = result?.exam?.name || result?.examName || `Examination #${idx + 1}`;
                     const subjectName = result?.exam?.subject?.name || result?.subject?.name || result?.subject || "General Subject";
                     const classLevel = result?.classLevel?.name || result?.classLevel || currentLevel;
                     const score = Number(result?.score) || 0;
                     const grade = result?.grade || (score >= 70 ? "A" : score >= 60 ? "B" : score >= 50 ? "C" : "D");
                     const status = result?.status || (score >= 50 ? "Pass" : "Fail");
+                    const isFullyPublished = result?.isPublished === true;
+                    const isAwaitingAdmin = result?.isTeacherPublished === true && !result?.isPublished;
 
                     return (
                       <tr key={result._id || idx} className="hover:bg-white/[0.02] transition-colors">
@@ -693,11 +937,26 @@ const StudentProfile: React.FC = () => {
                         </td>
                         <td className="py-3.5 px-4">
                           <span className={`inline-flex items-center gap-1 font-semibold ${
-                            status === "Pass" ? "text-emerald-400" : "text-rose-400"
+                            status === "Pass" || status === "Passed" ? "text-emerald-400" : "text-rose-400"
                           }`}>
-                            <span>{status === "Pass" ? "✓" : "✗"}</span>
+                            <span>{status === "Pass" || status === "Passed" ? "✓" : "✗"}</span>
                             <span>{status}</span>
                           </span>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          {isFullyPublished ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              ✓ Published
+                            </span>
+                          ) : isAwaitingAdmin ? (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                              ⏳ Admin Review
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              ⏳ Teacher Review
+                            </span>
+                          )}
                         </td>
                         <td className="py-3.5 px-4 text-slate-400 italic">
                           {result?.remarks || "Satisfactory academic performance"}
@@ -850,6 +1109,231 @@ const StudentProfile: React.FC = () => {
                 <span>Log out after using public campus library workstations</span>
               </li>
             </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Content 5: Student Subjects */}
+      {activeTab === "subjects" && (
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="p-3.5 rounded-2xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                <HiOutlineBookOpen className="w-8 h-8" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="text-xl font-bold text-white tracking-tight">
+                    Student Subjects & Curriculum History
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <HiOutlineSparkles className="w-3.5 h-3.5" />
+                    Official Attended Records
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl leading-relaxed">
+                  Review the subjects you partook in for each class level. Click on any class tier below (e.g. <strong>JSS 1</strong>) to drop down the complete subjects table with assigned teachers and curriculum duration.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="px-4 py-2 rounded-2xl bg-white/[0.03] border border-white/10 text-right">
+                <span className="text-[10px] text-slate-400 block uppercase tracking-wider font-semibold">Active Class</span>
+                <span className="text-sm font-bold text-indigo-300 font-mono">{currentLevel}</span>
+              </div>
+              <div className="px-4 py-2 rounded-2xl bg-white/[0.03] border border-white/10 text-right">
+                <span className="text-[10px] text-slate-400 block uppercase tracking-wider font-semibold">Total Subjects</span>
+                <span className="text-sm font-bold text-emerald-400 font-mono">{allEnrolledSubjects.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Collapsible Class Level Sections */}
+          <div className="space-y-4">
+            {availableClassLevels.map((lvl) => {
+              const classSubjects = getSubjectsForClass(lvl);
+              const isExpanded = isClassExpanded(lvl);
+              const isJss1 = lvl.toLowerCase().includes("jss 1") || lvl.toLowerCase().includes("jss1");
+              const isCurrent = currentLevel.toLowerCase().includes(lvl.toLowerCase().replace(/\s+/g, ""));
+
+              return (
+                <div
+                  key={lvl}
+                  className="rounded-3xl bg-slate-900/60 border border-white/10 overflow-hidden backdrop-blur-xl shadow-xl transition-all"
+                >
+                  {/* Dropdown Header Trigger */}
+                  <button
+                    type="button"
+                    onClick={() => toggleClassDropdown(lvl)}
+                    className="w-full p-5 sm:p-6 flex items-center justify-between gap-4 text-left hover:bg-white/[0.02] transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div
+                        className={`p-3 rounded-2xl border shrink-0 transition-transform group-hover:scale-105 ${
+                          isJss1
+                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                            : isCurrent
+                            ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                            : "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                        }`}
+                      >
+                        <HiOutlineAcademicCap className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base sm:text-lg font-bold text-white tracking-tight group-hover:text-indigo-300 transition-colors">
+                            {lvl} Subjects
+                          </h3>
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
+                              isJss1
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                                : isCurrent
+                                ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30"
+                                : "bg-slate-700/50 text-slate-300 border-slate-600/30"
+                            }`}
+                          >
+                            {isJss1
+                              ? "Attended & Completed"
+                              : isCurrent
+                              ? "Current Class Level"
+                              : "Attended Curriculum"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {isJss1
+                            ? "Official curriculum and subjects completed during JSS 1 academic session."
+                            : `Subjects registered and attended under ${lvl}.`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/5 text-slate-300 border border-white/10">
+                        {classSubjects.length} {classSubjects.length === 1 ? "Subject" : "Subjects"}
+                      </span>
+                      <div
+                        className={`p-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 transition-transform duration-300 ${
+                          isExpanded ? "rotate-180 text-indigo-400 bg-indigo-500/10 border-indigo-500/30" : ""
+                        }`}
+                      >
+                        <HiOutlineChevronDown className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Dropdown Subjects Table */}
+                  {isExpanded && (
+                    <div className="border-t border-white/5 p-4 sm:p-6 bg-slate-950/40">
+                      {classSubjects.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-xs">
+                          No registered subjects found for {lvl}.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-900/40">
+                          <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                            <thead>
+                              <tr className="border-b border-white/10 bg-white/[0.03] text-slate-400 text-[11px] uppercase tracking-wider">
+                                <th className="py-3.5 px-3 sm:px-4 font-semibold w-12 text-center">#</th>
+                                <th className="py-3.5 px-3 sm:px-4 font-semibold">Subject Name</th>
+                                <th className="py-3.5 px-3 sm:px-4 font-semibold">Class Level</th>
+                                <th className="py-3.5 px-3 sm:px-4 font-semibold">Assigned Teacher</th>
+                                <th className="py-3.5 px-3 sm:px-4 font-semibold">Duration</th>
+                                <th className="py-3.5 px-3 sm:px-4 font-semibold">Type</th>
+                                <th className="py-3.5 px-3 sm:px-4 font-semibold text-center">Progression Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                              {classSubjects.map((sub: any, idx: number) => {
+                                const isCore = isCoreSubject(sub.name, sub.isCore);
+                                const teacherName = getTeacherDisplayName(sub.teacher);
+                                return (
+                                  <tr
+                                    key={sub._id || `${sub.name}-${idx}`}
+                                    className="hover:bg-white/[0.03] transition-colors"
+                                  >
+                                    {/* Index */}
+                                    <td className="py-3.5 px-3 sm:px-4 text-center font-medium text-slate-500">
+                                      {idx + 1}
+                                    </td>
+
+                                    {/* Subject Name */}
+                                    <td className="py-3.5 px-3 sm:px-4 font-medium text-white">
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shrink-0">
+                                          <HiOutlineBookOpen className="w-4 h-4" />
+                                        </div>
+                                        <span className="font-semibold text-slate-200">{sub.name}</span>
+                                      </div>
+                                    </td>
+
+                                    {/* Class Level */}
+                                    <td className="py-3.5 px-3 sm:px-4 text-slate-300">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        {lvl}
+                                      </span>
+                                    </td>
+
+                                    {/* Assigned Teacher */}
+                                    <td className="py-3.5 px-3 sm:px-4 text-slate-300 whitespace-nowrap">
+                                      {teacherName === "empty" || teacherName === "-" ? (
+                                        <span className="text-slate-400 italic font-medium text-xs">
+                                          empty
+                                        </span>
+                                      ) : (
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-6 h-6 rounded-full bg-indigo-600/30 border border-indigo-400/30 flex items-center justify-center text-[10px] font-bold text-indigo-200">
+                                            {teacherName.charAt(0).toUpperCase()}
+                                          </div>
+                                          <span className="text-slate-200 font-medium text-xs">
+                                            {teacherName}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </td>
+
+                                    {/* Duration */}
+                                    <td className="py-3.5 px-3 sm:px-4 text-slate-400 text-xs whitespace-nowrap">
+                                      <div className="flex items-center gap-1.5">
+                                        <HiOutlineClock className="w-3.5 h-3.5 text-slate-500" />
+                                        <span>{sub.duration || "3 months"}</span>
+                                      </div>
+                                    </td>
+
+                                    {/* Subject Type */}
+                                    <td className="py-3.5 px-3 sm:px-4 whitespace-nowrap">
+                                      {isCore ? (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                          CORE
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-700/50 text-slate-300 border border-slate-600/30">
+                                          Elective
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    {/* Status */}
+                                    <td className="py-3.5 px-3 sm:px-4 text-center whitespace-nowrap">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        <HiOutlineCheckCircle className="w-3.5 h-3.5" />
+                                        Attended
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

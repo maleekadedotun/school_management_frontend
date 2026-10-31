@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import api from "../../services/api";
 import {
@@ -14,9 +14,13 @@ import {
   type Student,
 } from "../../features/students/studentsSlice";
 import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice";
+import { fetchMyAssignments } from "../../features/classTeachers/classTeachersSlice";
+import { transitionStudentToSss } from "../../features/promotions/promotionsSlice";
+import toast from "react-hot-toast";
 
 export default function StudentsList() {
   const dispatch = useAppDispatch();
+  const location = useLocation();
   const authState = useAppSelector((s) => s.auth);
   const teacherState = useAppSelector((s) => s.teacherAuth);
   const storedRole = localStorage.getItem("userRole");
@@ -24,12 +28,52 @@ export default function StudentsList() {
     teacherState.teacher?.role === "teacher" ||
     storedRole === "teacher" ||
     (!authState.admin && !!localStorage.getItem("teacherToken"));
+  const isClassStudentsView = isTeacher && location.pathname.includes("/class-students");
+  const { myAssignments } = useAppSelector((s) => s.classTeachers);
 
-  const { students, teacherClassStudents, teacherClassLevel, teacherProgram, loading, error } = useAppSelector((s) => s.students);
+  const { students, teacherClassStudents, teacherClassLevel, teacherSubject: stateTeacherSubject, teacherSubjects: stateTeacherSubjects, teacherProgram, loading, error } = useAppSelector((s) => s.students);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+
+  // Move Graduated JSS Student to SSS state
+  const [transitioningStudent, setTransitioningStudent] = useState<{ id: string; name: string } | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  const isGraduatedJssStudent = (s: any) => {
+    if (!s || !s.isGraduated) return false;
+    const classLvl = (
+      s.currentClassLevel ||
+      (Array.isArray(s.classLevels) ? s.classLevels[s.classLevels.length - 1] : s.classLevels) ||
+      ""
+    ).toString().toUpperCase();
+    return classLvl.includes("JSS") || classLvl.includes("BASIC 9") || classLvl.includes("JS");
+  };
+
+  const handleConfirmTransitionToSss = async () => {
+    if (!transitioningStudent) return;
+    setIsTransitioning(true);
+    try {
+      const resAction = await dispatch(
+        transitionStudentToSss({
+          studentId: transitioningStudent.id,
+          customRemarks: `Moved graduated student "${transitioningStudent.name}" into SSS 1 by Administrator.`,
+        })
+      );
+      if (transitionStudentToSss.fulfilled.match(resAction)) {
+        toast.success(resAction.payload?.message || `Successfully moved ${transitioningStudent.name} to SSS 1!`);
+        setTransitioningStudent(null);
+        dispatch(fetchAllStudents());
+      } else {
+        toast.error((resAction.payload as string) || "Failed to move student to SSS");
+      }
+    } catch {
+      toast.error("Failed to move student to SSS.");
+    } finally {
+      setIsTransitioning(false);
+    }
+  };
 
   // Student Results Modal state
   const [resultsStudent, setResultsStudent] = useState<Student | null>(null);
@@ -79,10 +123,12 @@ export default function StudentsList() {
   const [classLevels, setClassLevels] = useState<any[]>([]);
   const [academicYears, setAcademicYears] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [classTeacherAssignments, setClassTeacherAssignments] = useState<any[]>([]);
 
   useEffect(() => {
     if (isTeacher) {
-      dispatch(fetchTeacherClassStudents());
+      dispatch(fetchMyAssignments());
+      dispatch(fetchTeacherClassStudents(isClassStudentsView ? "class" : "subject"));
       dispatch(fetchTeacherProfile());
     } else {
       dispatch(fetchAllStudents());
@@ -92,15 +138,17 @@ export default function StudentsList() {
         api.get("/class-levels"),
         api.get("/academic-years"),
         api.get("/teachers/admin"),
-      ]).then(([pRes, sRes, cRes, yRes, tRes]) => {
+        api.get("/class-teachers"),
+      ]).then(([pRes, sRes, cRes, yRes, tRes, ctaRes]) => {
         if (pRes.status === "fulfilled") setPrograms(pRes.value.data?.data || []);
         if (sRes.status === "fulfilled") setSubjects(sRes.value.data?.data || []);
         if (cRes.status === "fulfilled") setClassLevels(cRes.value.data?.data || []);
         if (yRes.status === "fulfilled") setAcademicYears(yRes.value.data?.data || []);
         if (tRes.status === "fulfilled") setTeachers(tRes.value.data?.data || []);
+        if (ctaRes.status === "fulfilled") setClassTeacherAssignments(ctaRes.value.data?.data || []);
       });
     }
-  }, [dispatch, isTeacher]);
+  }, [dispatch, isTeacher, isClassStudentsView]);
 
   // Helper to categorize subjects by student's program and class level
   const categorizeStudentSubjects = (
@@ -304,7 +352,7 @@ export default function StudentsList() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-white/10">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-white uppercase tracking-wider">
+              <span className="text-xs font-bold text-dark uppercase tracking-wider">
                 Enrolled Subject(s)
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
@@ -555,21 +603,166 @@ export default function StudentsList() {
 
 
 
-  // Preview the teacher auto-picked by the system for the chosen subject and class level
-  const matchedTeacherPreview = useMemo(() => {
-    if (!editForm.subject || !editForm.classLevels) return null;
-    const sub = editForm.subject.toLowerCase().trim();
+  // Resolve class teacher assigned to student according to class level and program
+  const resolveClassTeacher = (s: Student | null | undefined, teachersList: any[] = teachers) => {
+    if (!s) return null;
+    const sClass = s.currentClassLevel || (Array.isArray(s.classLevels) ? s.classLevels[s.classLevels.length - 1] : "") || "";
+    const sClassDigits = sClass.match(/\d+/)?.[0];
+    const sClassNorm = sClass.toLowerCase().trim();
+
+    const progName = typeof s.program === "object" ? s.program?.name : s.program;
+    const progId = typeof s.program === "object" ? s.program?._id : (s.program || "");
+    const progNorm = (progName || "").toString().toLowerCase().trim();
+
+    // 1. Check ClassTeacherAssignment records (active CTA takes top authority)
+    if (classTeacherAssignments && classTeacherAssignments.length > 0) {
+      const activeCta = classTeacherAssignments.find((cta: any) => {
+        if (!cta.isActive && cta.status !== "active") return false;
+        const ctaClass = cta.classLevel?.name || cta.classLevel || "";
+        const ctaClassDigits = (ctaClass || "").toString().match(/\d+/)?.[0];
+        const classMatches = (sClassDigits && ctaClassDigits) ? sClassDigits === ctaClassDigits : ctaClass.toString().toLowerCase().trim() === sClassNorm;
+
+        const ctaProg = cta.program?.name || cta.program || "";
+        const ctaProgId = cta.program?._id || (typeof cta.program === "string" ? cta.program : "");
+        const progMatches = (ctaProg && progNorm && ctaProg.toString().toLowerCase().trim() === progNorm) || (progId && ctaProgId === progId);
+
+        return classMatches && progMatches;
+      });
+      if (activeCta?.teacher) return activeCta.teacher;
+    }
+
+    // 2. Check student's populated assignedTeacher from backend
+    if (s.assignedTeacher) {
+      return typeof s.assignedTeacher === "object" ? s.assignedTeacher : { name: s.assignedTeacher };
+    }
+
+    // 3. Fallback: match teachersList on class level and program
+    if (teachersList && teachersList.length > 0) {
+      const exactMatch = teachersList.find((t: any) => {
+        const tClass = (t.classLevel || "").toString().trim();
+        const tClassDigits = tClass.match(/\d+/)?.[0];
+        const classMatches = (sClassDigits && tClassDigits) ? sClassDigits === tClassDigits : tClass.toLowerCase().trim() === sClassNorm;
+
+        const tProg = (t.program || "").toString().toLowerCase().trim();
+        const progMatches = (tProg && progNorm && tProg === progNorm) || (progId && t.program === progId);
+        return classMatches && progMatches;
+      });
+      if (exactMatch) return exactMatch;
+
+      const classMatch = teachersList.find((t: any) => {
+        const tClass = (t.classLevel || "").toString().trim();
+        const tClassDigits = tClass.match(/\d+/)?.[0];
+        const classMatches = (sClassDigits && tClassDigits) ? sClassDigits === tClassDigits : tClass.toLowerCase().trim() === sClassNorm;
+        return classMatches && (!t.program || !progNorm);
+      });
+      if (classMatch) return classMatch;
+    }
+
+    return null;
+  };
+
+  // Preview the Class Teacher for the Edit modal
+  const matchedClassTeacherPreview = useMemo(() => {
+    if (!editForm.classLevels) return null;
     const clsDigits = editForm.classLevels.toString().match(/\d+/)?.[0];
+    const clsNorm = editForm.classLevels.toLowerCase().trim();
+
+    let progNorm = "";
+    let progId = editForm.program;
+    if (editForm.program) {
+      const pDoc = programs.find((p: any) => p._id === editForm.program || p.name === editForm.program);
+      progNorm = (pDoc?.name || editForm.program).toLowerCase().trim();
+      progId = pDoc?._id || editForm.program;
+    }
+
+    // 1. Check ClassTeacherAssignment records
+    if (classTeacherAssignments && classTeacherAssignments.length > 0) {
+      const activeCta = classTeacherAssignments.find((cta: any) => {
+        if (!cta.isActive && cta.status !== "active") return false;
+        const ctaClass = cta.classLevel?.name || cta.classLevel || "";
+        const ctaClassDigits = (ctaClass || "").toString().match(/\d+/)?.[0];
+        const classMatches = (clsDigits && ctaClassDigits) ? clsDigits === ctaClassDigits : ctaClass.toString().toLowerCase().trim() === clsNorm;
+
+        const ctaProg = cta.program?.name || cta.program || "";
+        const ctaProgId = cta.program?._id || (typeof cta.program === "string" ? cta.program : "");
+        const progMatches = (ctaProg && progNorm && ctaProg.toString().toLowerCase().trim() === progNorm) || (progId && ctaProgId === progId);
+
+        return classMatches && (progNorm ? progMatches : true);
+      });
+      if (activeCta?.teacher) return activeCta.teacher;
+    }
+
+    // 2. Strict match on BOTH class level and program in teachers
+    if (progNorm) {
+      const match = teachers.find((t: any) => {
+        const tDigits = (t.classLevel || "").toString().match(/\d+/)?.[0];
+        const classMatch = clsDigits && tDigits
+          ? clsDigits === tDigits
+          : (t.classLevel || "").toLowerCase().trim() === clsNorm;
+        const progMatch = (t.program || "").toLowerCase().trim() === progNorm || t.program === editForm.program;
+        return classMatch && progMatch;
+      });
+      if (match) return match;
+    }
+
     return teachers.find((t: any) => {
-      const tSub = (t.subject || "").toLowerCase().trim();
       const tDigits = (t.classLevel || "").toString().match(/\d+/)?.[0];
-      const subMatch = tSub === sub;
-      const classMatch = clsDigits && tDigits
+      return clsDigits && tDigits
         ? clsDigits === tDigits
-        : (t.classLevel || "").toLowerCase().trim() === editForm.classLevels.toLowerCase().trim();
-      return subMatch && classMatch;
+        : (t.classLevel || "").toLowerCase().trim() === clsNorm;
     });
-  }, [editForm.subject, editForm.classLevels, teachers]);
+  }, [editForm.classLevels, editForm.program, teachers, programs, classTeacherAssignments]);
+
+  // Preview the Class Teacher for the Register modal
+  const registerClassTeacherPreview = useMemo(() => {
+    if (!form.classLevels) return null;
+    const clsDigits = form.classLevels.toString().match(/\d+/)?.[0];
+    const clsNorm = form.classLevels.toLowerCase().trim();
+
+    let progNorm = "";
+    let progId = form.program;
+    if (form.program) {
+      const pDoc = programs.find((p: any) => p._id === form.program || p.name === form.program);
+      progNorm = (pDoc?.name || form.program).toLowerCase().trim();
+      progId = pDoc?._id || form.program;
+    }
+
+    // 1. Check ClassTeacherAssignment records
+    if (classTeacherAssignments && classTeacherAssignments.length > 0) {
+      const activeCta = classTeacherAssignments.find((cta: any) => {
+        if (!cta.isActive && cta.status !== "active") return false;
+        const ctaClass = cta.classLevel?.name || cta.classLevel || "";
+        const ctaClassDigits = (ctaClass || "").toString().match(/\d+/)?.[0];
+        const classMatches = (clsDigits && ctaClassDigits) ? clsDigits === ctaClassDigits : ctaClass.toString().toLowerCase().trim() === clsNorm;
+
+        const ctaProg = cta.program?.name || cta.program || "";
+        const ctaProgId = cta.program?._id || (typeof cta.program === "string" ? cta.program : "");
+        const progMatches = (ctaProg && progNorm && ctaProg.toString().toLowerCase().trim() === progNorm) || (progId && ctaProgId === progId);
+
+        return classMatches && (progNorm ? progMatches : true);
+      });
+      if (activeCta?.teacher) return activeCta.teacher;
+    }
+
+    if (progNorm) {
+      const match = teachers.find((t: any) => {
+        const tDigits = (t.classLevel || "").toString().match(/\d+/)?.[0];
+        const classMatch = clsDigits && tDigits
+          ? clsDigits === tDigits
+          : (t.classLevel || "").toLowerCase().trim() === clsNorm;
+        const progMatch = (t.program || "").toLowerCase().trim() === progNorm || t.program === form.program;
+        return classMatch && progMatch;
+      });
+      if (match) return match;
+    }
+
+    return teachers.find((t: any) => {
+      const tDigits = (t.classLevel || "").toString().match(/\d+/)?.[0];
+      return clsDigits && tDigits
+        ? clsDigits === tDigits
+        : (t.classLevel || "").toLowerCase().trim() === clsNorm;
+    });
+  }, [form.classLevels, form.program, teachers, programs, classTeacherAssignments]);
 
   const handleViewResults = async (s: Student) => {
     setResultsStudent(s);
@@ -604,7 +797,46 @@ export default function StudentsList() {
   };
 
   const currentTeacher = teacherState.teacher as any;
-  const teacherSubject = (currentTeacher?.subject?.name || currentTeacher?.subject || "").toString().trim().toLowerCase();
+  const teacherSubject = (currentTeacher?.subject?.name || currentTeacher?.subject || stateTeacherSubject || "").toString().trim().toLowerCase();
+
+  // Collect all assigned subject names for the teacher (handles single subject, subjects array, and state)
+  const teacherAssignedSubjectNames = useMemo<string[]>(() => {
+    if (!isTeacher) return [];
+    const names = new Set<string>();
+    const addName = (val: any) => {
+      if (!val) return;
+      if (typeof val === "object") {
+        if (val.name) names.add(val.name.trim().toLowerCase());
+        if (val.subject) {
+          if (typeof val.subject === "object" && val.subject.name) {
+            names.add(val.subject.name.trim().toLowerCase());
+          } else if (typeof val.subject === "string") {
+            const s = val.subject.trim().toLowerCase();
+            if (!/^[0-9a-fA-F]{24}$/.test(s)) names.add(s);
+          }
+        }
+      } else {
+        const str = val.toString().trim().toLowerCase();
+        if (str && !/^[0-9a-fA-F]{24}$/.test(str)) {
+          names.add(str);
+        }
+      }
+    };
+
+    if (Array.isArray(currentTeacher?.subjects)) {
+      currentTeacher.subjects.forEach(addName);
+    }
+    if (currentTeacher?.subject) {
+      addName(currentTeacher.subject);
+    }
+    if (stateTeacherSubject) {
+      addName(stateTeacherSubject);
+    }
+    if (Array.isArray(stateTeacherSubjects)) {
+      stateTeacherSubjects.forEach(addName);
+    }
+    return Array.from(names);
+  }, [isTeacher, currentTeacher, stateTeacherSubject, stateTeacherSubjects]);
 
   const targetClassLevel =
     (teacherState.teacher as any)?.classLevel?.name ||
@@ -614,7 +846,7 @@ export default function StudentsList() {
 
   const teacherScopedList = useMemo<Student[]>(() => {
     if (!isTeacher) return students;
-    if (!targetClassLevel && !teacherSubject) return teacherClassStudents;
+    if (!targetClassLevel && !teacherSubject && teacherAssignedSubjectNames.length === 0) return teacherClassStudents;
     const teacherDigits = targetClassLevel ? targetClassLevel.toString().match(/\d+/)?.[0] : null;
 
     return teacherClassStudents.filter((s: Student) => {
@@ -623,52 +855,77 @@ export default function StudentsList() {
 
       // 1. If teacher has a class level specified, student's class level MUST strictly match!
       if (targetClassLevel) {
-        if (teacherDigits && studentDigits) {
-          if (studentDigits !== teacherDigits) return false;
-        } else if (studentLevel.toLowerCase() !== targetClassLevel.toString().toLowerCase()) {
-          return false;
+        const cleanT = targetClassLevel.toString().trim().toLowerCase().replace(/class/g, "").replace(/\s+/g, "");
+        const cleanS = studentLevel.toLowerCase().replace(/class/g, "").replace(/\s+/g, "");
+        let classMatches = false;
+
+        if (cleanT === cleanS) {
+          classMatches = true;
+        } else if (cleanT.includes(cleanS) || cleanS.includes(cleanT)) {
+          const numT = (cleanT.match(/\d+/) || [])[0];
+          const numS = (cleanS.match(/\d+/) || [])[0];
+          const isJssT = cleanT.includes("jss");
+          const isJssS = cleanS.includes("jss");
+          const isSssT = cleanT.includes("sss");
+          const isSssS = cleanS.includes("sss");
+          if (numT && numS && numT !== numS) {
+            classMatches = false;
+          } else if ((isJssT && isSssS) || (isSssT && isJssS)) {
+            classMatches = false;
+          } else {
+            classMatches = true;
+          }
+        } else if (teacherDigits && studentDigits) {
+          const isJssT = cleanT.includes("jss");
+          const isJssS = cleanS.includes("jss");
+          const isSssT = cleanT.includes("sss");
+          const isSssS = cleanS.includes("sss");
+          if (!((isJssT && isSssS) || (isSssT && isJssS))) {
+            classMatches = teacherDigits === studentDigits;
+          }
         }
+        if (!classMatches) return false;
       }
 
-      // 2. If teacher has a program specified (via class teacher assignment or profile), student MUST belong to this program!
-      const targetProg = (teacherProgram || (currentTeacher?.program?.name || currentTeacher?.program) || "").toString().trim().toLowerCase();
-      if (targetProg) {
-        const progObj = typeof s.program === "object" && s.program !== null ? (s.program as any) : null;
-        const studentProgName = (progObj?.name || (typeof s.program === "string" ? s.program : "")).toString().trim().toLowerCase();
-        if (studentProgName && !studentProgName.includes(targetProg) && !targetProg.includes(studentProgName)) {
-          return false;
+      // 2. Mode-specific filtering:
+      if (isClassStudentsView) {
+        // "Class Students" view: strictly for the class AND program the teacher is assigned to!
+        const targetProg = (teacherProgram || (currentTeacher?.program?.name || currentTeacher?.program) || "").toString().trim().toLowerCase();
+        if (targetProg) {
+          const progObj = typeof s.program === "object" && s.program !== null ? (s.program as any) : null;
+          const studentProgName = (progObj?.name || (typeof s.program === "string" ? s.program : "")).toString().trim().toLowerCase();
+          if (studentProgName && !studentProgName.includes(targetProg) && !targetProg.includes(studentProgName)) {
+            return false;
+          }
         }
-      }
+      } else {
+        // "Students List" view: for ALL students taking the teacher's subject(s) in this class level, across ANY program
+        if (teacherAssignedSubjectNames.length > 0) {
+          const studentSub = (s.subject || "").toString().trim().toLowerCase();
+          const matchesDirectSub = teacherAssignedSubjectNames.some(
+            (t) => studentSub === t || studentSub.includes(t) || t.includes(studentSub)
+          );
 
-      // 3. If teacher is NOT assigned to a program, restrict to teacher's subject
-      if (teacherSubject && !targetProg) {
-        const studentSub = (s.subject || "").toString().trim().toLowerCase();
-        const matchesDirectSub =
-          studentSub === teacherSubject ||
-          studentSub.includes(teacherSubject) ||
-          teacherSubject.includes(studentSub);
+          const matchesEnrolledSub =
+            Array.isArray((s as any).enrolledSubjects) &&
+            (s as any).enrolledSubjects.some((es: any) => {
+              const esSub = es?.subject;
+              const esName = typeof esSub === "object" ? (esSub?.name || "") : (es?.name || "");
+              const cleanEsName = esName.toString().trim().toLowerCase();
+              return teacherAssignedSubjectNames.some(
+                (t) => cleanEsName === t || cleanEsName.includes(t) || t.includes(cleanEsName)
+              );
+            });
 
-        const matchesEnrolledSub =
-          Array.isArray((s as any).enrolledSubjects) &&
-          (s as any).enrolledSubjects.some((es: any) => {
-            const esSub = es?.subject;
-            const esName = typeof esSub === "object" ? (esSub?.name || "") : (es?.name || "");
-            const cleanEsName = esName.toString().trim().toLowerCase();
-            return (
-              cleanEsName === teacherSubject ||
-              cleanEsName.includes(teacherSubject) ||
-              teacherSubject.includes(cleanEsName)
-            );
-          });
-
-        if (!matchesDirectSub && !matchesEnrolledSub) {
-          return false;
+          if (!matchesDirectSub && !matchesEnrolledSub) {
+            return false;
+          }
         }
       }
 
       return true;
     });
-  }, [isTeacher, students, teacherClassStudents, targetClassLevel, teacherSubject, teacherProgram, currentTeacher]);
+  }, [isTeacher, students, teacherClassStudents, targetClassLevel, teacherSubject, teacherAssignedSubjectNames, teacherProgram, currentTeacher, isClassStudentsView]);
 
   const rawList: Student[] = teacherScopedList;
 
@@ -706,14 +963,14 @@ export default function StudentsList() {
     );
     await dispatch(fetchAllStudents());
     if (isTeacher) {
-      await dispatch(fetchTeacherClassStudents());
+      await dispatch(fetchTeacherClassStudents(isClassStudentsView ? "class" : "subject"));
     }
     setSubmitting(false);
     setShowModal(false);
     setForm({ name: "", email: "", password: "", classLevels: "", subject: "", subjects: [], program: "" });
   };
 
-  // Helper to reliably resolve and extract all subject names enrolled by student
+  // Helper to reliably resolve and extract subject names enrolled by student
   const getStudentDisplaySubjects = (s: any): string[] => {
     const list: string[] = [];
     const addSub = (val: any) => {
@@ -739,6 +996,20 @@ export default function StudentsList() {
     } else if (s?.subject) {
       addSub(s.subject);
     }
+
+    // Role-based subject visibility:
+    // Admin sees all subjects the student is offering.
+    // Teacher should ONLY see the subject(s) he or she is teaching the student!
+    // (e.g. A teacher teaching Biology will not see that the student is also attending Maths class).
+    if (isTeacher && teacherAssignedSubjectNames.length > 0) {
+      return list.filter((name) => {
+        const clean = name.trim().toLowerCase();
+        return teacherAssignedSubjectNames.some(
+          (tName) => clean === tName || clean.includes(tName) || tName.includes(clean)
+        );
+      });
+    }
+
     return list;
   };
 
@@ -767,7 +1038,7 @@ export default function StudentsList() {
     await dispatch(updateStudentAdmin({ id: editingStudent._id, updates: editForm }));
     await dispatch(fetchAllStudents());
     if (isTeacher) {
-      await dispatch(fetchTeacherClassStudents());
+      await dispatch(fetchTeacherClassStudents(isClassStudentsView ? "class" : "subject"));
     }
     setSubmitting(false);
     setEditingStudent(null);
@@ -780,19 +1051,29 @@ export default function StudentsList() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold text-dark">
-              {isTeacher ? "My Class Students" : "Students"}
+              {isTeacher ? (isClassStudentsView ? "Class Students" : "Students List") : "Students"}
             </h1>
             {isTeacher && teacherClassLevel && (
               <span className="px-3 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-semibold">
                 Class: {teacherClassLevel}
               </span>
             )}
+            {isTeacher && isClassStudentsView && (teacherProgram || (currentTeacher?.program?.name || currentTeacher?.program)) && (
+              <span className="px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">
+                Program: {teacherProgram || (currentTeacher?.program?.name || currentTeacher?.program)}
+              </span>
+            )}
+            {isTeacher && !isClassStudentsView && teacherAssignedSubjectNames.length > 0 && (
+              <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+                Offering: {teacherAssignedSubjectNames.map((s) => s.toUpperCase()).join(", ")}
+              </span>
+            )}
           </div>
           <p className="text-dark-400 text-sm mt-1">
             {isTeacher
-              ? teacherClassLevel
-                ? `Showing ${rawList.length} student${rawList.length === 1 ? "" : "s"} enrolled in your assigned class (${teacherClassLevel}).`
-                : "Students enrolled in your assigned class."
+              ? isClassStudentsView
+                ? `Showing ${rawList.length} student${rawList.length === 1 ? "" : "s"} enrolled in your assigned class and program (${teacherClassLevel}${(teacherProgram || currentTeacher?.program?.name) ? ` - ${teacherProgram || currentTeacher?.program?.name}` : ""}).`
+                : `Showing all ${rawList.length} student${rawList.length === 1 ? "" : "s"} taking your subject${teacherAssignedSubjectNames.length > 1 ? "s" : ""} in ${teacherClassLevel || "your class"}.`
               : `${students.length} total students enrolled`}
           </p>
         </div>
@@ -809,8 +1090,8 @@ export default function StudentsList() {
                 Class Exam Results
               </Link>
               <button
-                onClick={() => dispatch(fetchTeacherClassStudents())}
-                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-medium transition-all flex items-center gap-1.5"
+                onClick={() => dispatch(fetchTeacherClassStudents(isClassStudentsView ? "class" : "subject"))}
+                className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer"
               >
                 <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -872,6 +1153,25 @@ export default function StudentsList() {
         </div>
       )}
 
+      {/* Class Teacher assignment check for Class Students view */}
+      {isTeacher && isClassStudentsView && !loading && Array.isArray(myAssignments) && !myAssignments.some((a: any) => a.isActive) && (
+        <div className="p-8 text-center rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-3">
+          <span className="text-4xl block">🔒</span>
+          <h3 className="text-lg font-bold text-white">Class Teacher Assignment Required</h3>
+          <p className="text-sm text-slate-300 max-w-lg mx-auto">
+            You are not currently assigned as a Class Teacher. The administrator must assign you as a Class Teacher for your class students to appear here.
+          </p>
+          <div className="pt-2">
+            <Link
+              to="/teacher/students"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition"
+            >
+              <span>👨‍🏫</span> View Your Subject Students List →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative">
         <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -899,11 +1199,12 @@ export default function StudentsList() {
                 <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">Student</th>
                 <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">ID</th>
                 <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">Class Level</th>
-                <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">Subject</th>
-                <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">Teacher</th>
+                <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">{isTeacher ? "Teaching Subject" : "Subject"}</th>
+                <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">Class Teacher</th>
                 <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">Program</th>
                 <th className="text-left px-6 py-4  text-xs font-semibold  tracking-wider">Status</th>
-                <th className="text-right px-6 py-4  text-xs font-semibold  tracking-wider">Action</th>
+                <th className="text-right px-6 py-4  text-xs font-semibold  tracking-wider">Created Date</th>
+                <th className=" px-6 py-4  text-xs font-semibold  tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -942,7 +1243,13 @@ export default function StudentsList() {
                     <td className="px-6 py-4 text-dark-300 text-sm">
                       {(() => {
                         const list = getStudentDisplaySubjects(s);
-                        if (list.length === 0) return "—";
+                        if (list.length === 0) {
+                          return (
+                            <span className="text-slate-500 text-xs italic">
+                              {isTeacher ? "Not enrolled in your subject" : "—"}
+                            </span>
+                          );
+                        }
                         return (
                           <div className="flex flex-wrap gap-1 max-w-[220px]">
                             {list.map((name, idx) => (
@@ -955,14 +1262,18 @@ export default function StudentsList() {
                       })()}
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      {s.assignedTeacher ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-dark-300 text-xs font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
-                          {typeof s.assignedTeacher === "object" ? s.assignedTeacher?.name : s.assignedTeacher}
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 text-xs">Unassigned</span>
-                      )}
+                      {(() => {
+                        const ct = resolveClassTeacher(s, teachers);
+                        if (ct) {
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-dark-300 text-xs font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+                              {ct.name}
+                            </span>
+                          );
+                        }
+                        return <span className="text-slate-500 text-xs">Unassigned</span>;
+                      })()}
                     </td>
                     <td className="px-6 py-4 text-dark-300 text-sm">{typeof s.program === "object" ? s.program?.name : (s.program || "—")}</td>
                     <td className="px-6 py-4">
@@ -997,6 +1308,19 @@ export default function StudentsList() {
                         </button>
                         {!isTeacher && (
                           <>
+                            {isGraduatedJssStudent(s) && (
+                              <button
+                                onClick={() => setTransitioningStudent({ id: s._id, name: s.name })}
+                                title="Move graduated JSS student into SSS 1"
+                                className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600/30 to-violet-600/30 hover:from-indigo-600/50 hover:to-violet-600/50 text-indigo-200 text-xs font-semibold transition-all border border-indigo-400/40 flex items-center gap-1.5 shadow-sm shadow-indigo-500/20"
+                              >
+                                <svg className="w-3.5 h-3.5 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                                </svg>
+                                <span>Move to SSS</span>
+                              </button>
+                            )}
                             <button
                               onClick={() => openEditModal(s as Student)}
                               className="px-3 py-1.5 rounded-lg bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 text-xs font-medium transition-all border border-violet-500/30 flex items-center gap-1"
@@ -1116,10 +1440,16 @@ export default function StudentsList() {
               {[
                 { label: "Student ID", value: selectedStudent.StudentId || "N/A" },
                 {
-                  label: "Enrolled Subject(s)",
-                  value: getStudentDisplaySubjects(selectedStudent).join(", ") || "N/A"
+                  label: isTeacher ? "Teaching Subject" : "Enrolled Subject(s)",
+                  value: getStudentDisplaySubjects(selectedStudent).join(", ") || (isTeacher ? "Not enrolled in your subject" : "N/A")
                 },
-                { label: "Assigned Teacher", value: typeof selectedStudent.assignedTeacher === "object" ? selectedStudent.assignedTeacher?.name : (selectedStudent.assignedTeacher || "None") },
+                {
+                  label: "Class Teacher",
+                  value: (() => {
+                    const ct = resolveClassTeacher(selectedStudent, teachers);
+                    return ct?.name || "None";
+                  })()
+                },
                 { label: "Program", value: typeof selectedStudent.program === "object" ? selectedStudent.program?.name : (selectedStudent.program || "N/A") },
                 { label: "Date Admitted", value: selectedStudent.dateAdmitted ? new Date(selectedStudent.dateAdmitted).toLocaleDateString() : "N/A" },
               ].map((item) => (
@@ -1144,6 +1474,25 @@ export default function StudentsList() {
                 </span>
               </div>
             </div>
+
+            {/* Move graduated JSS student to SSS button */}
+            {!isTeacher && isGraduatedJssStudent(selectedStudent) && (
+              <button
+                type="button"
+                onClick={() => {
+                  const s = selectedStudent;
+                  setSelectedStudent(null);
+                  setTransitioningStudent({ id: s._id, name: s.name });
+                }}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                </svg>
+                🎓 Move Graduated Student to SSS 1
+              </button>
+            )}
 
             {/* Direct button to view this student's exam results */}
             <button
@@ -1416,11 +1765,7 @@ export default function StudentsList() {
                         </option>
                       ))
                     ) : (
-                      ["jss 1", "JSS 2 Class", "JSS 3 class"].map((lvl) => (
-                        <option key={lvl} value={lvl}>
-                          {lvl}
-                        </option>
-                      ))
+                      <option value="" disabled>No Class Levels found (create one first)</option>
                     )}
                   </select>
                 </div>
@@ -1503,22 +1848,22 @@ export default function StudentsList() {
                 />
               </div>
 
-              {/* Auto-selected Teacher Preview */}
-              {matchedTeacherPreview ? (
+              {/* Auto-selected Class Teacher Preview */}
+              {matchedClassTeacherPreview ? (
                 <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
                   <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>
-                    Auto-selected Teacher: <strong className="text-white">{matchedTeacherPreview.name}</strong> ({matchedTeacherPreview.subject} · {matchedTeacherPreview.classLevel})
+                    Class Teacher: <strong className="text-white">{matchedClassTeacherPreview.name}</strong> (Class: {matchedClassTeacherPreview.classLevel || editForm.classLevels} · Program: {matchedClassTeacherPreview.program || "General"})
                   </span>
                 </div>
-              ) : editForm.subject && editForm.classLevels ? (
+              ) : editForm.classLevels ? (
                 <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
                   <svg className="w-4 h-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>No teacher currently registered for <strong>{editForm.subject}</strong> in <strong>{editForm.classLevels}</strong>. System will auto-assign when a matching teacher is assigned.</span>
+                  <span>No class teacher currently assigned for <strong>{editForm.classLevels}</strong>{editForm.program ? ` (${programs.find((p: any) => p._id === editForm.program)?.name || editForm.program})` : ""}. System will auto-assign when a matching teacher is configured.</span>
                 </div>
               ) : null}
 
@@ -1566,14 +1911,14 @@ export default function StudentsList() {
 
       {/* Register Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 sm:p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
-            <div className="flex items-center justify-between mb-6 sticky -top-8 bg-[#0f1629] -mt-2 pt-2 pb-2 z-10 border-b border-white/10">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 sm:p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto modal-vertical-scrollbar custom-scrollbar shadow-2xl relative my-auto">
+            <div className="flex items-center justify-between mb-6 sticky -top-6 sm:-top-8 bg-[#0f1629] -mt-2 pt-2 pb-3 z-10 border-b border-white/10">
               <div>
                 <h2 className="text-xl font-bold text-white">Register Student</h2>
                 <p className="text-xs text-slate-400 mt-0.5">Create a new student and enroll them in academic subjects under their program & class</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">
+              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors cursor-pointer">
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -1671,9 +2016,7 @@ export default function StudentsList() {
                         </option>
                       ))
                     ) : (
-                      ["Level 100", "Level 200", "Level 300", "Level 400"].map((l) => (
-                        <option key={l} value={l}>{l}</option>
-                      ))
+                      <option value="" disabled>No Class Levels found (create one first)</option>
                     )}
                   </select>
                 </div>
@@ -1696,20 +2039,82 @@ export default function StudentsList() {
                   allProgramsList={programs}
                 />
               </div>
-              <div className="flex gap-3 mt-6">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors text-sm font-medium">
+
+              {/* Class Teacher Preview */}
+              {registerClassTeacherPreview ? (
+                <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+                  <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>
+                    Class Teacher: <strong className="text-white">{registerClassTeacherPreview.name}</strong> (Class: {registerClassTeacherPreview.classLevel || form.classLevels} · Program: {registerClassTeacherPreview.program || "General"})
+                  </span>
+                </div>
+              ) : form.classLevels ? (
+                <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
+                  <svg className="w-4 h-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>No class teacher currently assigned for <strong>{form.classLevels}</strong>{form.program ? ` (${programs.find((p: any) => p._id === form.program)?.name || form.program})` : ""}. System will auto-assign when a matching teacher is configured.</span>
+                </div>
+              ) : null}
+              <div className="flex gap-3 mt-6 pt-4 border-t border-white/10 sticky -bottom-6 sm:-bottom-8 bg-[#0f1629] -mb-2 pb-2 z-10">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors text-sm font-medium cursor-pointer">
                   Cancel
                 </button>
                 <button
                   type="submit"
                   id="student-register-submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white font-semibold text-sm disabled:opacity-50 transition-all"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm disabled:opacity-50 transition-all cursor-pointer shadow-lg shadow-indigo-600/30"
                 >
-                  {submitting ? "Registering..." : "Register"}
+                  {submitting ? "Registering..." : "Register Student"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MOVE GRADUATED JSS STUDENT TO SSS CONFIRMATION MODAL */}
+      {transitioningStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-3xl bg-slate-900 border border-indigo-500/30 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Move Student to SSS Class</h3>
+                <p className="text-xs text-slate-400">Promote graduated JSS student into Senior Secondary</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Are you sure you want to transition <strong className="text-white">{transitioningStudent.name}</strong> into <span className="text-indigo-400 font-bold">SSS 1</span>? This will move their enrollment to the Senior Secondary track, register their new class, and assign the SSS 1 class curriculum.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                disabled={isTransitioning}
+                onClick={() => setTransitioningStudent(null)}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isTransitioning}
+                onClick={handleConfirmTransitionToSss}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <span>{isTransitioning ? "Moving to SSS 1..." : "Confirm Move to SSS 1"}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

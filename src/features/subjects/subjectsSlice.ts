@@ -31,10 +31,51 @@ export const deleteSubject = createAsyncThunk("subjects/delete", async (id: stri
   catch (err: any) { return rejectWithValue(err.response?.data?.message || "Failed"); }
 });
 
+export const fetchStudentClassSubjects = createAsyncThunk(
+  "subjects/fetchStudentClassSubjects",
+  async (_, { rejectWithValue }) => {
+    try {
+      const { data } = await api.get("/subjects/student/class-subjects");
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to load class subjects");
+    }
+  }
+);
+
+interface SubjectsState {
+  items: any[];
+  loading: boolean;
+  error: string | null;
+  studentClassSubjects: any[];
+  studentClassLevel: string | null;
+  loadingStudentSubjects: boolean;
+  studentSubjectsError: string | null;
+}
+
+const initialState: SubjectsState = {
+  items: [],
+  loading: false,
+  error: null,
+  studentClassSubjects: [],
+  studentClassLevel: null,
+  loadingStudentSubjects: false,
+  studentSubjectsError: null,
+};
+
 const slice = createSlice({
   name: "subjects",
-  initialState: { items: [] as any[], loading: false, error: null as string | null },
-  reducers: { clearError: (state) => { state.error = null; } },
+  initialState,
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearStudentSubjects: (state) => {
+      state.studentClassSubjects = [];
+      state.studentClassLevel = null;
+      state.studentSubjectsError = null;
+    },
+  },
   extraReducers: (b) => {
     b.addCase(fetchSubjects.pending, (s) => { s.loading = true; })
      .addCase(fetchSubjects.fulfilled, (s, a) => { s.loading = false; s.items = a.payload.data || []; })
@@ -49,8 +90,22 @@ const slice = createSlice({
          s.items = s.items.map((i) => (i._id === updated._id ? updated : i));
        }
      })
-     .addCase(deleteSubject.fulfilled, (s, a) => { s.items = s.items.filter(i => i._id !== a.payload); });
+     .addCase(deleteSubject.fulfilled, (s, a) => { s.items = s.items.filter(i => i._id !== a.payload); })
+     // Student class-specific subjects
+     .addCase(fetchStudentClassSubjects.pending, (s) => {
+       s.loadingStudentSubjects = true;
+       s.studentSubjectsError = null;
+     })
+     .addCase(fetchStudentClassSubjects.fulfilled, (s, a) => {
+       s.loadingStudentSubjects = false;
+       s.studentClassSubjects = a.payload.data || [];
+       s.studentClassLevel = a.payload.classLevel || null;
+     })
+     .addCase(fetchStudentClassSubjects.rejected, (s, a) => {
+       s.loadingStudentSubjects = false;
+       s.studentSubjectsError = a.payload as string;
+     });
   },
 });
-export const { clearError } = slice.actions;
+export const { clearError, clearStudentSubjects } = slice.actions;
 export default slice.reducer;

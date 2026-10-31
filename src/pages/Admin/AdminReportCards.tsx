@@ -16,6 +16,7 @@ import { fetchAcademicYears } from "../../features/academicYears/academicYearsSl
 import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
 import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import { fetchPrograms } from "../../features/programs/programsSlice";
+import { fetchAllStudents } from "../../features/students/studentsSlice";
 import { ReportCardDocument } from "../../components/reportCard/ReportCardDocument";
 import {
   HiOutlineCheckBadge,
@@ -110,6 +111,8 @@ export default function AdminReportCards() {
   }, [dispatch, selectedClass, selectedYear, selectedTerm, selectedProgram]);
 
   const handleRefresh = () => {
+    dispatch(fetchClassLevels());
+    dispatch(fetchAllStudents());
     dispatch(
       fetchAdminReportCardOverview({
         academicYearId: overviewYear || undefined,
@@ -938,8 +941,8 @@ export default function AdminReportCards() {
                               ) : (
                                 <button
                                   onClick={() => handlePublishIndividual(card, true)}
-                                  disabled={actionLoading || isReturned}
-                                  title={isReturned ? "Cannot publish returned result until corrected" : "Publish this student's result individually to portal"}
+                                  disabled={actionLoading}
+                                  title="Publish this student's result individually to portal"
                                   type="button"
                                   className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-300 dark:border-emerald-700 disabled:opacity-40 transition"
                                 >

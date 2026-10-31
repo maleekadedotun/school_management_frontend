@@ -38,6 +38,18 @@ export default function SubjectsList() {
     dispatch(fetchAcademicTerms());
   }, [dispatch]);
 
+  const getAcademicTermName = (term: any) => {
+    if (!term) return "—";
+    if (typeof term === "object" && term.name) return term.name;
+    const termId = term.toString();
+    const found = academicTerms.find(
+      (t: any) =>
+        (t._id && t._id.toString() === termId) ||
+        (t.name && t.name.toLowerCase() === termId.toLowerCase())
+    );
+    return found ? found.name : termId;
+  };
+
   const filtered = subjects.filter((s) =>
     s.name?.toLowerCase().includes(search.toLowerCase()) ||
     s.description?.toLowerCase().includes(search.toLowerCase())
@@ -87,6 +99,7 @@ export default function SubjectsList() {
       setShowModal(false);
       setEditingId(null);
       setForm({ name: "", description: "", programId: "", academicTerms: "" });
+      dispatch(fetchSubjects());
     } else {
       setFormError((result.payload as string) || "Operation failed.");
     }
@@ -199,7 +212,7 @@ export default function SubjectsList() {
                     </td>
                     <td className="px-5 py-4">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                        {typeof item.academicTerms === "object" ? item.academicTerms?.name : item.academicTerms || "—"}
+                        {getAcademicTermName(item.academicTerms)}
                       </span>
                     </td>
                     <td className="px-5 py-4 text-xs">
@@ -294,7 +307,7 @@ export default function SubjectsList() {
               {[
                 { label: "Subject Name", value: viewItem.name },
                 { label: "Description", value: viewItem.description || "—" },
-                { label: "Academic Term", value: typeof viewItem.academicTerms === "object" ? viewItem.academicTerms?.name : viewItem.academicTerms || "—" },
+                { label: "Academic Term", value: getAcademicTermName(viewItem.academicTerms) },
                 { label: "Created", value: viewItem.createdAt ? new Date(viewItem.createdAt).toLocaleString() : "—" },
                 { label: "Last Updated", value: viewItem.updatedAt ? new Date(viewItem.updatedAt).toLocaleString() : "—" },
               ].map((f) => (

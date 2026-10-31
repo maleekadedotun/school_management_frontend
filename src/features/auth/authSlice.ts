@@ -13,6 +13,7 @@ interface AuthState {
   token: string | null;
   loading: boolean;
   error: string | null;
+  registerSuccess: boolean;
 }
 
 const initialAdmin = localStorage.getItem("admin");
@@ -21,7 +22,29 @@ const initialState: AuthState = {
   token: localStorage.getItem("token") !== "undefined" ? localStorage.getItem("token") : null,
   loading: false,
   error: null,
+  registerSuccess: false,
 };
+
+export const registerAdmin = createAsyncThunk(
+  "auth/register",
+  async (
+    adminData: { name: string; email: string; password: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      const { data } = await api.post("/admin/register", adminData);
+      // Backend returns: { status: "Success", user, message: "Admin register successfully" }
+      if (data?.status === "Success" || data?.user) {
+        return data;
+      }
+      return rejectWithValue(data?.message || "Registration failed");
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Registration failed"
+      );
+    }
+  }
+);
 
 export const loginAdmin = createAsyncThunk(
   "auth/login",
@@ -101,9 +124,28 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    resetRegisterSuccess: (state) => {
+      state.registerSuccess = false;
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
+      .addCase(registerAdmin.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+        state.registerSuccess = false;
+      })
+      .addCase(registerAdmin.fulfilled, (state) => {
+        state.loading = false;
+        state.error = null;
+        state.registerSuccess = true;
+      })
+      .addCase(registerAdmin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = (action.payload as string) || "Registration failed";
+        state.registerSuccess = false;
+      })
       .addCase(loginAdmin.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -136,5 +178,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, resetRegisterSuccess } = authSlice.actions;
 export default authSlice.reducer;

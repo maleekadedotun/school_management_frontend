@@ -92,7 +92,7 @@ export default function TeacherAttendance() {
   // Primary Filters
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [selectedClassLevel, setSelectedClassLevel] = useState<string>(
-    activeTeacher?.classLevel || "Level 100"
+    activeTeacher?.classLevel || ""
   );
   const [selectedSubject, setSelectedSubject] = useState<string>(
     activeTeacher?.subject || "General Subject"
@@ -138,7 +138,7 @@ export default function TeacherAttendance() {
 
   // Sync Teacher Class & Subject default
   useEffect(() => {
-    if (activeTeacher?.classLevel && selectedClassLevel === "Level 100") {
+    if (activeTeacher?.classLevel && !selectedClassLevel) {
       setSelectedClassLevel(activeTeacher.classLevel);
     }
     if (activeTeacher?.subject && selectedSubject === "General Subject") {
@@ -893,6 +893,7 @@ export default function TeacherAttendance() {
                   onChange={(e) => setSelectedClassLevel(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-xs font-semibold text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500 transition-all cursor-pointer"
                 >
+                  <option value="">Select Class Level...</option>
                   {classLevelsList && classLevelsList.length > 0 ? (
                     classLevelsList.map((lvl: any) => (
                       <option key={lvl._id} value={lvl.name}>
@@ -900,12 +901,7 @@ export default function TeacherAttendance() {
                       </option>
                     ))
                   ) : (
-                    <>
-                      <option value="Level 100">Level 100</option>
-                      <option value="Level 200">Level 200</option>
-                      <option value="Level 300">Level 300</option>
-                      <option value="Level 400">Level 400</option>
-                    </>
+                    <option value="" disabled>No Class Levels found</option>
                   )}
                 </select>
               </div>

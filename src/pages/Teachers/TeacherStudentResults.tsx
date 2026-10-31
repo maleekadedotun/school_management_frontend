@@ -88,7 +88,42 @@ export default function TeacherStudentResults() {
   }, [dispatch]);
 
 
-  // Subjects list available for the selected student
+  // Collect all assigned subject names for the teacher
+  const teacherAssignedSubjectNames = useMemo<string[]>(() => {
+    const names = new Set<string>();
+    const addName = (val: any) => {
+      if (!val) return;
+      if (typeof val === "object") {
+        if (val.name) names.add(val.name.trim().toLowerCase());
+        if (val.subject) {
+          if (typeof val.subject === "object" && val.subject.name) {
+            names.add(val.subject.name.trim().toLowerCase());
+          } else if (typeof val.subject === "string") {
+            const s = val.subject.trim().toLowerCase();
+            if (!/^[0-9a-fA-F]{24}$/.test(s)) names.add(s);
+          }
+        }
+      } else {
+        const str = val.toString().trim().toLowerCase();
+        if (str && !/^[0-9a-fA-F]{24}$/.test(str)) {
+          names.add(str);
+        }
+      }
+    };
+
+    if (Array.isArray(currentTeacher?.subjects)) {
+      currentTeacher.subjects.forEach(addName);
+    }
+    if (currentTeacher?.subject) {
+      addName(currentTeacher.subject);
+    }
+    if (stateTeacherSubject) {
+      addName(stateTeacherSubject);
+    }
+    return Array.from(names);
+  }, [currentTeacher, stateTeacherSubject]);
+
+  // Subjects list available for the selected student (restricted strictly to teacher's subjects)
   const studentAvailableSubjects = useMemo(() => {
     const subjectsMap = new Map<string, { id: string; name: string }>();
 
@@ -107,8 +142,16 @@ export default function TeacherStudentResults() {
       subjectsMap.set(sName, { id: sName, name: sName });
     }
 
-    return Array.from(subjectsMap.values());
-  }, [populatedStudent]);
+    const allSubs = Array.from(subjectsMap.values());
+    if (teacherAssignedSubjectNames.length > 0) {
+      const filtered = allSubs.filter((s) => {
+        const sLower = s.name.toLowerCase();
+        return teacherAssignedSubjectNames.some((t) => sLower === t || sLower.includes(t) || t.includes(sLower));
+      });
+      return filtered;
+    }
+    return allSubs;
+  }, [populatedStudent, teacherAssignedSubjectNames]);
 
   // Auto-pair subject and exam for a student
   const autoPairSubjectAndExam = (student: any) => {
@@ -136,11 +179,10 @@ export default function TeacherStudentResults() {
     }
 
     // Check if any of the student's registered subjects matches the teacher's subject
-    const tSub = currentTeacher?.subject;
-    const tName = tSub ? (typeof tSub === "object" ? tSub.name : tSub).toString().trim().toLowerCase() : "";
-    const tId = tSub && typeof tSub === "object" ? tSub._id?.toString() : tSub?.toString();
-
-    let chosen = studentSubjects.find((s) => (tId && s.id === tId) || (tName && s.name.toLowerCase() === tName));
+    let chosen = studentSubjects.find((s) => {
+      const sLower = s.name.toLowerCase();
+      return teacherAssignedSubjectNames.some((t) => sLower === t || sLower.includes(t) || t.includes(sLower));
+    });
     if (!chosen) {
       chosen = studentSubjects[0];
     }
@@ -336,8 +378,12 @@ export default function TeacherStudentResults() {
           grade,
           status,
           remarks,
+          position: existing.position || item.position,
+          positionFormatted: existing.positionFormatted || item.positionFormatted,
           isTeacherPublished: existing.isTeacherPublished || item.isTeacherPublished,
           isPublished: existing.isPublished || item.isPublished,
+          isUnderCorrection: (existing as any).isUnderCorrection || (item as any).isUnderCorrection,
+          correctionReason: (existing as any).correctionReason || (item as any).correctionReason,
         });
       }
     });
@@ -355,10 +401,12 @@ export default function TeacherStudentResults() {
       const matchStatus = statusFilter === "all" || item.status === statusFilter;
 
       let matchPublish = true;
-      if (publishFilter === "pending_teacher") {
-        matchPublish = !item.isTeacherPublished;
+      if (publishFilter === "correction_required") {
+        matchPublish = !!(item as any).isUnderCorrection;
+      } else if (publishFilter === "pending_teacher") {
+        matchPublish = !item.isTeacherPublished && !(item as any).isUnderCorrection;
       } else if (publishFilter === "pending_admin") {
-        matchPublish = !!item.isTeacherPublished && !item.isPublished;
+        matchPublish = !!item.isTeacherPublished && !item.isPublished && !(item as any).isUnderCorrection;
       } else if (publishFilter === "published") {
         matchPublish = !!item.isPublished;
       }
@@ -561,16 +609,16 @@ export default function TeacherStudentResults() {
           </div>
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             <Link
-              to="/teacher/report-cards?tab=sheet"
+              to="/teacher/report-cards"
               className="px-4 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/25 cursor-pointer"
             >
-              <span>📋 Shared Class Result Sheet →</span>
+              <span>📝 Subject Teacher Score Entry →</span>
             </Link>
             <Link
-              to="/teacher/report-cards"
+              to="/teacher/class-results"
               className="px-4 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/25 cursor-pointer"
             >
-              <span>Term Report Cards & Ranking →</span>
+              <span>📊 Class Student Report Cards →</span>
             </Link>
             <button
               onClick={() => setIsEnterModalOpen(true)}
@@ -774,6 +822,18 @@ export default function TeacherStudentResults() {
           </button>
           <button
             type="button"
+            onClick={() => setPublishFilter("correction_required")}
+            className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border flex items-center gap-1.5 ${
+              publishFilter === "correction_required"
+                ? "bg-rose-600 text-white border-rose-500 shadow-md"
+                : "bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20"
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
+            ⚠️ Needs Correction ({teacherResults.filter((r) => (r as any).isUnderCorrection).length})
+          </button>
+          <button
+            type="button"
             onClick={() => setPublishFilter("pending_teacher")}
             className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all border flex items-center gap-1.5 ${
               publishFilter === "pending_teacher"
@@ -782,7 +842,7 @@ export default function TeacherStudentResults() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            ⏳ Needs Teacher Publish ({teacherResults.filter((r) => !r.isTeacherPublished).length})
+            ⏳ Needs Teacher Publish ({teacherResults.filter((r) => !r.isTeacherPublished && !(r as any).isUnderCorrection).length})
           </button>
           <button
             type="button"
@@ -794,7 +854,7 @@ export default function TeacherStudentResults() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-indigo-400" />
-            📨 Forwarded to Admin ({teacherResults.filter((r) => r.isTeacherPublished && !r.isPublished).length})
+            📨 Forwarded to Admin ({teacherResults.filter((r) => r.isTeacherPublished && !r.isPublished && !(r as any).isUnderCorrection).length})
           </button>
           <button
             type="button"
@@ -905,7 +965,7 @@ export default function TeacherStudentResults() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-slate-300">
-                  {paginated.map((item) => {
+                  {paginated.map((item, idx) => {
                     const name = item.student?.name || `Student (${item.studentID})`;
                     const sid = item.student?.StudentId || item.studentID;
                     const studentClass = item.student?.currentClassLevel || item.currentClassLevel || "Class";
@@ -913,8 +973,8 @@ export default function TeacherStudentResults() {
                     const subject = item.subjectName || item.subject?.name || item.exam?.subject?.name || item.exam?.name || "Subject";
                     const scoreColor =
                       item.score >= 75 ? "text-emerald-400" : item.score >= 50 ? "text-amber-400" : "text-rose-400";
-                    const rankNum = item.position;
-                    const rankStr = item.positionFormatted || formatOrdinal(rankNum);
+                    const rankNum = item.position || (idx + 1);
+                    const rankStr = item.positionFormatted || (item.position ? formatOrdinal(item.position) : formatOrdinal(idx + 1));
 
                     return (
                       <tr key={item._id} className="hover:bg-white/5 transition-colors group">
@@ -1015,7 +1075,19 @@ export default function TeacherStudentResults() {
 
                         {/* Publication State */}
                         <td className="px-5 py-4">
-                          {!item.isTeacherPublished ? (
+                          {(item as any).isUnderCorrection ? (
+                            <div className="space-y-1">
+                              <span className="px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 w-fit bg-rose-500/20 text-rose-300 border-rose-400/50 animate-pulse">
+                                <span>⚠️</span>
+                                Correction Required
+                              </span>
+                              {(item as any).correctionReason && (
+                                <p className="text-[10px] text-amber-200/80 max-w-xs truncate" title={(item as any).correctionReason}>
+                                  Note: {(item as any).correctionReason}
+                                </p>
+                              )}
+                            </div>
+                          ) : !item.isTeacherPublished ? (
                             <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 w-fit bg-amber-500/15 text-amber-300 border-amber-500/40">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                               Pending Teacher Review

@@ -15,6 +15,14 @@ export interface SubjectResultItem {
   letterGrade: string;
   remarks: string;
   status: "Passed" | "Failed" | string;
+  firstTermTotal?: number | null;
+  secondTermTotal?: number | null;
+  thirdTermTestScore?: number | null;
+  thirdTermExamScore?: number | null;
+  thirdTermTotal?: number | null;
+  annualAverage?: number | null;
+  annualGrade?: string;
+  annualRemark?: string;
 }
 
 export interface ReportCardItem {
@@ -27,6 +35,10 @@ export interface ReportCardItem {
     currentClassLevel?: string;
     program?: { _id: string; name: string };
     dateAdmitted?: string;
+    gender?: string;
+    sex?: string;
+    dateOfBirth?: string;
+    dob?: string;
   };
   studentID: string;
   academicYear: { _id: string; name: string };
@@ -45,7 +57,8 @@ export interface ReportCardItem {
   program?: { _id: string; name: string; code?: string } | null;
   principalComment: string;
   promoted: boolean;
-  promotionStatus: "Promoted" | "Promoted on Trial" | "Repeat" | "Pending" | string;
+  promotionStatus: "Promoted" | "Failed to Promote" | "Pending Results" | "Promoted on Trial" | "Repeat" | "Pending" | "Graduated" | string;
+  promotionTarget?: number | null;
   status:
     | "draft"
     | "saved"
@@ -60,6 +73,11 @@ export interface ReportCardItem {
     | string;
   isComplete?: boolean;
   published: boolean;
+  isTeacherPublished?: boolean;
+  isBlurred?: boolean;
+  isUnderCorrection?: boolean;
+  correctionReason?: string;
+  classTeacher?: any;
   publishedAt?: string;
   publishedBy?: { _id: string; name: string };
   approvedBy?: { _id: string; name: string };
@@ -71,6 +89,16 @@ export interface ReportCardItem {
   rejectedAt?: string | null;
   resubmittedBy?: { _id: string; name: string; teacherId?: string } | null;
   resubmittedAt?: string | null;
+  isThirdTerm?: boolean;
+  overallAnnualAverage?: number | null;
+  overallAnnualGrade?: string;
+  overallAnnualRemark?: string;
+  attendance?: {
+    daysOpened?: number;
+    daysPresent?: number;
+    daysAbsent?: number;
+    attendancePercentage?: number;
+  };
   reviewHistory?: Array<{
     _id?: string;
     action: string;
@@ -103,6 +131,9 @@ export interface ClassSubjectSheetStudent {
   remark: string;
   status: string;
   isRegistered?: boolean;
+  isPublishedToClassTeacher?: boolean;
+  classTeacher?: string | null;
+  classTeacherName?: string | null;
   recordedAt?: string | null;
 }
 
@@ -139,6 +170,7 @@ export interface ClassSubjectSheetData {
   totalStudents: number;
   recordedCount: number;
   isCompleted: boolean;
+  classTeacher?: { _id: string; name: string; email: string } | null;
   students: ClassSubjectSheetStudent[];
 }
 
@@ -180,9 +212,12 @@ export interface ClassOverviewStudentItem {
   isFullySubmitted: boolean;
   totalScore: number;
   averageScore: number | null;
+  currentAverage?: number | null;
   overallGrade: string;
   overallRemark: string;
   displayRank: string;
+  position?: number;
+  positionFormatted?: string;
   submittedSubjects: any[];
   reportCard?: any;
   status: string;
@@ -345,6 +380,7 @@ export const saveClassSubjectResults = createAsyncThunk(
       academicYearId: string;
       academicTermId: string;
       subjectId: string;
+      publishToClassTeacher?: boolean;
       results: Array<{ studentId: string; testScore: number | string; examScore: number | string }>;
     },
     { rejectWithValue }
@@ -354,6 +390,30 @@ export const saveClassSubjectResults = createAsyncThunk(
       return res.data;
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.message || "Failed to save subject results");
+    }
+  }
+);
+
+// 0d. Publish single student subject result to class teacher
+export const publishSubjectResultToClassTeacher = createAsyncThunk(
+  "reportCards/publishSubjectResultToClassTeacher",
+  async (
+    payload: {
+      studentId: string;
+      classLevelId: string;
+      academicYearId: string;
+      academicTermId: string;
+      subjectId: string;
+      testScore: number | string;
+      examScore: number | string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await api.post("/report-cards/subject-results/publish-to-class-teacher", payload);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || "Failed to publish subject result to class teacher");
     }
   }
 );
@@ -604,11 +664,22 @@ export const fetchStudentPublishedReportCards = createAsyncThunk(
 // 11. Student or Parent view specific term report card
 export const fetchStudentTermReportCard = createAsyncThunk(
   "reportCards/fetchStudentTermReportCard",
-  async (params: { termId: string; academicYearId?: string; studentId?: string }, { rejectWithValue }) => {
+  async (
+    params: {
+      termId: string;
+      academicYearId?: string;
+      classLevelId?: string;
+      reportCardId?: string;
+      studentId?: string;
+    },
+    { rejectWithValue }
+  ) => {
     try {
       const res = await api.get(`/report-cards/student/term/${params.termId}`, {
         params: {
           academicYearId: params.academicYearId,
+          ...(params.classLevelId ? { classLevelId: params.classLevelId } : {}),
+          ...(params.reportCardId ? { reportCardId: params.reportCardId } : {}),
           ...(params.studentId ? { studentId: params.studentId } : {}),
         },
       });

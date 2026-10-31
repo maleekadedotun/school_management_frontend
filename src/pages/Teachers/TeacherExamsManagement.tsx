@@ -12,6 +12,7 @@ import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSl
 import { fetchAcademicYears } from "../../features/academicYears/academicYearsSlice";
 import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice";
+import toast from "react-hot-toast";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -40,6 +41,7 @@ const emptyExamForm = {
   academicYear: "",
   passMark: 40,
   totalMark: 70,
+  examStatus: "pending" as "pending" | "live",
 };
 
 const emptyQForm = {
@@ -55,6 +57,7 @@ export default function TeacherExamsManagement() {
   const dispatch = useAppDispatch();
   const { teacher } = useAppSelector((s) => s.teacherAuth);
   const { items: exams, loading, error } = useAppSelector((s) => s.exams);
+  const { teacherQuestions } = useAppSelector((s) => s.questions);
   const { items: subjects } = useAppSelector((s) => s.subjects);
   const { items: programs } = useAppSelector((s) => s.programs);
   const { items: academicTerms } = useAppSelector((s) => s.academicTerms);
@@ -65,6 +68,7 @@ export default function TeacherExamsManagement() {
   const [statusFilter, setStatusFilter] = useState<"all" | "live" | "pending">("all");
   const [viewScope, setViewScope] = useState<"accessible" | "admin" | "my" | "all">("accessible");
   const [page, setPage] = useState(1);
+  const [togglingExamId, setTogglingExamId] = useState<string | null>(null);
 
   // Exam modal
   const [showExamModal, setShowExamModal] = useState(false);
@@ -118,6 +122,20 @@ export default function TeacherExamsManagement() {
         (ex: any) => (ex?._id || ex)?.toString() === e._id?.toString()
       );
     return Boolean(isCreator || inExamsCreated);
+  };
+
+  // Helper to accurately calculate questions for an exam in real-time
+  const getExamQuestionCount = (exam: any): number => {
+    if (!exam) return 0;
+    const examId = (exam._id || exam.id)?.toString();
+    const fromExam = Array.isArray(exam.questions) ? exam.questions.length : 0;
+    const fromTeacherQuestions = Array.isArray(teacherQuestions)
+      ? teacherQuestions.filter((q: any) => {
+          const qExamId = (q.exam?._id || q.exam || (q as any).examId)?.toString();
+          return qExamId && examId && qExamId === examId;
+        }).length
+      : 0;
+    return Math.max(fromExam, fromTeacherQuestions);
   };
 
   const adminExamsCount = useMemo(() => {
@@ -177,9 +195,36 @@ export default function TeacherExamsManagement() {
       academicYear: exam.academicYear?._id || exam.academicYear || "",
       passMark: exam.passMark !== undefined ? exam.passMark : (isTest ? 15 : 40),
       totalMark: exam.totalMark !== undefined ? exam.totalMark : (isTest ? 30 : 70),
+      examStatus: (exam.examStatus === "live" ? "live" : "pending") as "pending" | "live",
     });
     setExamError("");
     setShowExamModal(true);
+  };
+
+  const handleToggleLiveStatus = async (exam: any, targetStatus: "live" | "pending") => {
+    const examId = exam._id || exam.id;
+    if (!examId) return;
+    setTogglingExamId(examId);
+    const actionLabel = targetStatus === "live" ? "Live" : "Pending";
+    try {
+      const res = await dispatch(updateExam({ id: examId, examStatus: targetStatus }));
+      if (updateExam.fulfilled.match(res)) {
+        if (targetStatus === "live") {
+          toast.success(`Exam "${exam.name}" is now LIVE! Students can now access and write this exam on their portal.`);
+        } else {
+          toast(`Exam "${exam.name}" has been set to PENDING. Students can no longer access it until sent live.`, {
+            icon: "🟡",
+          });
+        }
+        dispatch(fetchExams());
+      } else {
+        toast.error((res.payload as string) || `Failed to update exam status to ${actionLabel}`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || `Failed to update exam status to ${actionLabel}`);
+    } finally {
+      setTogglingExamId(null);
+    }
   };
   const handleExamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,11 +238,28 @@ export default function TeacherExamsManagement() {
     }
     setExamSubmitting(false);
     if (createExam.fulfilled.match(result) || updateExam.fulfilled.match(result)) {
+      toast.success(editingExam ? "Exam updated successfully!" : "Exam created successfully!");
       setShowExamModal(false);
       setEditingExam(null);
       dispatch(fetchExams());
     } else {
-      setExamError((result.payload as string) || "Operation failed.");
+      const errMsg = (result.payload as string) || "Operation failed.";
+      setExamError(errMsg);
+      toast.error(errMsg);
+    }
+  };
+
+  const handleDeleteExam = async (examId: string, examName?: string) => {
+    if (!window.confirm(`Are you sure you want to delete the exam "${examName || 'this exam'}"? All questions under this exam will also be deleted.`)) {
+      return;
+    }
+    const res = await dispatch(deleteExam(examId));
+    if (deleteExam.fulfilled.match(res)) {
+      toast.success("Exam deleted successfully!");
+      dispatch(fetchExams());
+      dispatch(fetchTeacherQuestions());
+    } else {
+      toast.error((res.payload as string) || "Failed to delete exam");
     }
   };
 
@@ -224,6 +286,7 @@ export default function TeacherExamsManagement() {
       setShowQModal(false);
       setEditingQ(null);
       dispatch(fetchTeacherQuestions());
+      dispatch(fetchExams());
     } else {
       setQError((result.payload as string) || "Operation failed.");
     }
@@ -237,7 +300,7 @@ export default function TeacherExamsManagement() {
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
             <span>📝</span> Exams Management
           </h1>
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-dark-400 text-sm mt-1">
             {accessibleExamsCount} accessible ({adminExamsCount} Admin · {myExamsCount} authored) · {exams.length} school total ·{" "}
             {exams.filter((e) => e.examStatus === "live").length} live ·{" "}
             {exams.filter((e) => e.examStatus === "pending").length} pending
@@ -279,13 +342,13 @@ export default function TeacherExamsManagement() {
             className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               viewScope === "admin"
                 ? "bg-gradient-to-r from-indigo-500 to-blue-500 text-white shadow-lg shadow-indigo-500/25"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
+                : "text-slate-400 hover:text-black hover:bg-white/5"
             }`}
           >
             <span>🏛️</span>
             <span>Admin Created</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-              viewScope === "admin" ? "bg-white/20 text-white" : "bg-white/10 text-slate-300"
+              viewScope === "admin" ? "bg-white/20 text-dark" : "bg-white/10 text-dark"
             }`}>
               {adminExamsCount}
             </span>
@@ -296,13 +359,13 @@ export default function TeacherExamsManagement() {
             className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               viewScope === "my"
                 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-lg shadow-emerald-500/25"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
+                : "text-slate-400 hover:text-black hover:bg-white/5"
             }`}
           >
             <span>✍️</span>
             <span>My Authored Exams</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-              viewScope === "my" ? "bg-black/20 text-black" : "bg-white/10 text-slate-300"
+              viewScope === "my" ? "bg-black/20 text-black" : "bg-white/10 text-dark-300"
             }`}>
               {myExamsCount}
             </span>
@@ -313,20 +376,20 @@ export default function TeacherExamsManagement() {
             className={`px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 cursor-pointer ${
               viewScope === "all"
                 ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-lg shadow-emerald-500/25"
-                : "text-slate-400 hover:text-white hover:bg-white/5"
+                : "text-slate-400 hover:text-black hover:bg-white/5"
             }`}
           >
             <span>🏫</span>
             <span>All School Exams</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-              viewScope === "all" ? "bg-black/20 text-black" : "bg-white/10 text-slate-300"
+              viewScope === "all" ? "bg-black/20 text-black" : "bg-white/10 text-dark-300"
             }`}>
               {exams.length}
             </span>
           </button>
         </div>
 
-        <div className="text-xs text-slate-400 px-3">
+        <div className="text-xs text-dark-400 px-3">
           {viewScope === "accessible"
             ? `Showing all ${adminExamsCount} Admin exams + ${myExamsCount} exams authored by you`
             : viewScope === "admin"
@@ -348,7 +411,7 @@ export default function TeacherExamsManagement() {
             placeholder="Search exams by title, description..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-dark placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
           />
         </div>
         <div className="flex gap-2">
@@ -384,13 +447,13 @@ export default function TeacherExamsManagement() {
           <div className="px-6 py-16 text-center">
             <span className="text-4xl">📝</span>
             <h3 className="mt-3 text-white font-semibold text-lg">No Exams Found</h3>
-            <p className="mt-1 text-slate-400 text-sm">Click "Create Exam" to add your first exam.</p>
+            <p className="mt-1 text-dark-400 text-sm">Click "Create Exam" to add your first exam.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/10 bg-white/5 text-slate-400 text-xs font-semibold uppercase tracking-wider">
+                <tr className="border-b border-white/10 bg-white/5 text-dark-400 text-xs font-semibold uppercase tracking-wider">
                   <th className="px-5 py-4">Exam</th>
                   <th className="px-5 py-4">Type</th>
                   <th className="px-5 py-4">Date</th>
@@ -406,43 +469,43 @@ export default function TeacherExamsManagement() {
                     <td className="px-5 py-4">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <p className="font-semibold text-white">{exam.name}</p>
+                          <p className="font-semibold text-dark">{exam.name}</p>
                           {isCreatedByAdmin(exam) ? (
                             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
                               🏛️ Created by Admin
                             </span>
-                          ) : isCreatedByMe(exam) ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                              ✍️ Created by You
-                            </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-500/20 text-slate-300 border border-slate-500/30 flex items-center gap-1">
-                              👤 {exam.createdBy?.name || "Teacher"}
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 ${
+                              isCreatedByMe(exam)
+                                ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                                : "bg-slate-500/20 text-dark border-slate-500/30"
+                            }`}>
+                              👤 {exam.createdBy?.name || (isCreatedByMe(exam) ? teacher?.name : null) || "Teacher"}
                             </span>
                           )}
                         </div>
-                        <p className="text-slate-500 text-xs mt-0.5 line-clamp-1">{exam.description || "—"}</p>
+                        <p className="text-dark-500 text-xs mt-0.5 line-clamp-1">{exam.description || "—"}</p>
                       </div>
                     </td>
                     <td className="px-5 py-4">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                         {exam.examType || "Exam"}
                       </span>
-                      <span className="block text-[11px] text-slate-400 mt-1">
+                      <span className="block text-[11px] text-dark-400 mt-1">
                         Pass: {exam.passMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 15 : 40)} / Max: {exam.totalMark || (["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase()) ? 30 : 70)}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-slate-300">
+                    <td className="px-5 py-4 text-dark-300">
                       {exam.examDate ? new Date(exam.examDate).toLocaleDateString() : "—"}
-                      {exam.examTime && <span className="block text-xs text-slate-500">{exam.examTime}</span>}
+                      {exam.examTime && <span className="block text-xs text-dark">{exam.examTime}</span>}
                     </td>
-                    <td className="px-5 py-4 text-slate-300">{exam.duration || "—"}</td>
+                    <td className="px-5 py-4 text-dark-300">{exam.duration || "—"}</td>
                     <td className="px-5 py-4">
                       <button
                         onClick={() => openCreateQ(exam)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-medium hover:bg-teal-500/20 transition-all"
                       >
-                        <span>{exam.questions?.length ?? 0}</span>
+                        <span>{getExamQuestionCount(exam)}</span>
                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                         </svg>
@@ -450,42 +513,82 @@ export default function TeacherExamsManagement() {
                       </button>
                     </td>
                     <td className="px-5 py-4">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                        exam.examStatus === "live"
-                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                          : "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                      }`}>
-                        {exam.examStatus === "live" ? "🟢 Live" : "🟡 Pending"}
-                      </span>
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
+                          exam.examStatus === "live"
+                            ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            : "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                        }`}>
+                          <span className={`w-2 h-2 rounded-full ${exam.examStatus === "live" ? "bg-emerald-400 animate-pulse" : "bg-amber-400"}`} />
+                          {exam.examStatus === "live" ? "Live" : "Pending"}
+                        </span>
+
+                        {exam.examStatus === "live" ? (
+                          <button
+                            type="button"
+                            disabled={togglingExamId === exam._id}
+                            onClick={() => handleToggleLiveStatus(exam, "pending")}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            title="Revert to pending so students cannot access this exam"
+                          >
+                            {togglingExamId === exam._id ? (
+                              <span>Updating...</span>
+                            ) : (
+                              <>
+                                <span>⏸️</span>
+                                <span>Revert to Pending</span>
+                              </>
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={togglingExamId === exam._id}
+                            onClick={() => handleToggleLiveStatus(exam, "live")}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black shadow-md shadow-emerald-500/25 transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                            title="Click to send this exam Live so students can access it on their portal"
+                          >
+                            {togglingExamId === exam._id ? (
+                              <span>Sending Live...</span>
+                            ) : (
+                              <>
+                                <span>🟢</span>
+                                <span>Send to Live</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {isCreatedByMe(exam) ? (
-                          <>
-                            <button
-                              onClick={() => openEditExam(exam)}
-                              className="p-2 rounded-lg text-blue-400 hover:bg-blue-500/10 transition-colors"
-                              title="Edit Exam"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
-                            </button>
-                            <button
-                              onClick={() => { if (window.confirm("Delete this exam?")) dispatch(deleteExam(exam._id)); }}
-                              className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
-                              title="Delete Exam"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </>
-                        ) : (
-                          <span className="text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded-md">
-                            🏛️ Admin Exam
+                      <div className="flex items-center justify-end gap-1.5">
+                        {isCreatedByAdmin(exam) && (
+                          <span className="text-[10px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded mr-1">
+                            🏛️ Admin
                           </span>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => openEditExam(exam)}
+                          className="px-2.5 py-1 rounded-lg text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-all flex items-center gap-1 text-xs font-medium cursor-pointer"
+                          title="Edit Exam"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExam(exam._id, exam.name)}
+                          className="px-2.5 py-1 rounded-lg text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center gap-1 text-xs font-medium cursor-pointer"
+                          title="Delete Exam"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          <span>Delete</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -662,6 +765,60 @@ export default function TeacherExamsManagement() {
                     <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Duration</label>
                     <input type="text" value={examForm.duration} onChange={(e) => setExamForm({ ...examForm, duration: e.target.value })}
                       placeholder="e.g. 2 hours" className="w-full px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-emerald-500 transition-all" />
+                  </div>
+
+                  {/* Exam Status: Live vs Pending */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                      Exam Initial Status
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        examForm.examStatus === "pending"
+                          ? "bg-amber-500/10 border-amber-500/50 text-white"
+                          : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="examStatus"
+                          value="pending"
+                          checked={examForm.examStatus === "pending"}
+                          onChange={() => setExamForm({ ...examForm, examStatus: "pending" })}
+                          className="mt-0.5 accent-amber-500"
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-amber-300 flex items-center gap-1">
+                            <span>🟡</span> Pending (Draft)
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                            Students cannot access or write this exam until you click "Send to Live".
+                          </p>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                        examForm.examStatus === "live"
+                          ? "bg-emerald-500/10 border-emerald-500/50 text-white"
+                          : "bg-white/5 border-white/10 text-slate-400 hover:bg-white/10"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="examStatus"
+                          value="live"
+                          checked={examForm.examStatus === "live"}
+                          onChange={() => setExamForm({ ...examForm, examStatus: "live" })}
+                          className="mt-0.5 accent-emerald-500"
+                        />
+                        <div>
+                          <p className="text-xs font-bold text-emerald-300 flex items-center gap-1">
+                            <span>🟢</span> Send to Live
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                            Immediately accessible. Eligible students can see and start the exam on their portal.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">

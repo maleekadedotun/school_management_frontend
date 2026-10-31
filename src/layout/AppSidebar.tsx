@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { fetchStudentEnrolledSubjects, fetchStudentProfile } from "../features/students/studentsSlice";
+import { fetchStudentClassSubjects } from "../features/subjects/subjectsSlice";
+import { fetchMyAssignments } from "../features/classTeachers/classTeachersSlice";
 import {
   CalenderIcon,
   ChevronDownIcon,
@@ -55,6 +57,7 @@ type SubItem = {
   path: string;
   badge?: number | string;
   icon?: React.ReactNode;
+  onClick?: () => void;
   children?: {
     name: string;
     path: string;
@@ -66,6 +69,7 @@ type NavItem = {
   icon: React.ReactNode;
   path?: string;
   badge?: number | string;
+  onClick?: () => void;
   subItems?: SubItem[];
 };
 
@@ -92,27 +96,33 @@ const adminNavGroups: NavGroup[] = [
     ],
   },
   {
-    title: "People Management",
+    title: "School Administration",
     items: [
       {
-        name: "Students",
+        name: "People Management",
         icon: <UserCircleIcon />,
-        path: "/students",
-      },
-      {
-        name: "Teachers",
-        icon: <ListIcon />,
-        path: "/teachers",
-      },
-      {
-        name: "Class Teachers",
-        icon: <UserCircleIcon />,
-        path: "/admin/class-teachers",
-      },
-      {
-        name: "Parents",
-        icon: <UserCircleIcon />,
-        path: "/admin/parents",
+        subItems: [
+          {
+            name: "Students",
+            icon: <UserCircleIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/students",
+          },
+          {
+            name: "Teachers",
+            icon: <ListIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/teachers",
+          },
+          {
+            name: "Class Teachers",
+            icon: <UserCircleIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/class-teachers",
+          },
+          {
+            name: "Parents",
+            icon: <UserCircleIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/parents",
+          },
+        ],
       },
     ],
   },
@@ -142,43 +152,49 @@ const adminNavGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Exams & Evaluation",
+    title: "Examinations",
     items: [
       {
-        name: "Manage Exams",
+        name: "Exams & Evaluation",
         icon: <TaskIcon />,
-        path: "/exams",
+        subItems: [
+          {
+            name: "Manage Exams",
+            icon: <TaskIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/exams",
+          },
+          {
+            name: "Teacher Exams",
+            icon: <ListIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/teacher-exams",
+          },
+          {
+            name: "Question Bank",
+            icon: <TableIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/questions",
+          },
+          {
+            name: "Student Results",
+            icon: <PageIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/results",
+          },
+          {
+            name: "Term Report Cards",
+            icon: <FileIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/report-cards",
+          },
+          {
+            name: "Class Promotions",
+            icon: <TaskIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/promotions",
+          },
+          {
+            name: "Assignments Portal",
+            icon: <FileIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/assignments",
+          },
+        ],
       },
-      {
-        name: "Teacher Exams",
-        icon: <ListIcon />,
-        path: "/admin/teacher-exams",
-      },
-      {
-        name: "Question Bank",
-        icon: <TableIcon />,
-        path: "/admin/questions",
-      },
-      {
-        name: "Student Results",
-        icon: <PageIcon />,
-        path: "/admin/results",
-      },
-      {
-        name: "Term Report Cards",
-        icon: <FileIcon />,
-        path: "/admin/report-cards",
-      },
-      {
-        name: "Assignments Portal",
-        icon: <FileIcon />,
-        path: "/assignments",
-      },
-    ],
-  },
-  {
-    title: "Reports & Monitoring",
-    items: [
       {
         name: "Class Performance Reports",
         icon: <FileIcon />,
@@ -187,32 +203,38 @@ const adminNavGroups: NavGroup[] = [
     ],
   },
   {
-    title: "Finance & Bursary",
+    title: "Finance & Accounts",
     items: [
       {
-        name: "Finance Overview",
-        icon: <GridIcon />,
-        path: "/admin/finance",
-      },
-      {
-        name: "Fee Structures",
+        name: "Finance & Bursary",
         icon: <TableIcon />,
-        path: "/admin/finance/fee-structures",
-      },
-      {
-        name: "Student Invoices",
-        icon: <FileIcon />,
-        path: "/admin/finance/invoices",
-      },
-      {
-        name: "Transactions Ledger",
-        icon: <TaskIcon />,
-        path: "/admin/finance/transactions",
-      },
-      {
-        name: "Parents Directory",
-        icon: <UserCircleIcon />,
-        path: "/admin/finance/parents",
+        subItems: [
+          {
+            name: "Finance Overview",
+            icon: <GridIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/finance",
+          },
+          {
+            name: "Fee Structures",
+            icon: <TableIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/finance/fee-structures",
+          },
+          {
+            name: "Student Invoices",
+            icon: <FileIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/finance/invoices",
+          },
+          {
+            name: "Transactions Ledger",
+            icon: <TaskIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/finance/transactions",
+          },
+          {
+            name: "Parents Directory",
+            icon: <UserCircleIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />,
+            path: "/admin/finance/parents",
+          },
+        ],
       },
     ],
   },
@@ -288,14 +310,14 @@ const teacherNavGroups: NavGroup[] = [
     title: "Class Teacher",
     items: [
       {
-        name: "My Class Results",
+        name: "Class Student Report Card",
         icon: <TableIcon />,
         path: "/teacher/class-results",
       },
       {
         name: "Class Students",
         icon: <UserCircleIcon />,
-        path: "/teacher/students",
+        path: "/teacher/class-students",
       },
     ],
   },
@@ -358,7 +380,7 @@ const teacherNavGroups: NavGroup[] = [
         path: "/teacher/questions",
       },
       {
-        name: "Term Report Cards",
+        name: "Subject Teacher Score Entry",
         icon: <FileIcon />,
         path: "/teacher/report-cards",
       },
@@ -392,7 +414,7 @@ const AppSidebar: React.FC = () => {
   const teacherState = useAppSelector((state) => state.teacherAuth);
   const studentState = useAppSelector((state) => state.students);
   const parentState = useAppSelector((state) => state.parentAuth);
-  const { enrolledSubjectsByClass, allEnrolledSubjects } = studentState;
+  const { myAssignments } = useAppSelector((state) => state.classTeachers);
 
   // Safely resolve active role
   const getUserFromStorage = (key: string) => {
@@ -441,89 +463,17 @@ const AppSidebar: React.FC = () => {
   // Fetch enrolled subjects & student profile ONLY if logged-in user is a student AND currently in student portal
   useEffect(() => {
     if (userRole === "student" && (location.pathname.startsWith("/student/") || location.pathname === "/student")) {
+      dispatch(fetchStudentClassSubjects());
       dispatch(fetchStudentEnrolledSubjects());
       dispatch(fetchStudentProfile());
     }
-  }, [userRole, location.pathname, dispatch]);
+    if (userRole === "teacher") {
+      dispatch(fetchMyAssignments());
+    }
+  }, [userRole, location.pathname, studentObj?.currentClassLevel, dispatch]);
 
-  // Construct dynamic student navigation groups arranged by educational track (JSS, SSS, or Tertiary)
+  // Construct dynamic student navigation groups
   const dynamicStudentNavGroups: NavGroup[] = useMemo(() => {
-    const rawClass = (studentObj?.currentClassLevel || "").toLowerCase();
-    const classHist = (
-      Array.isArray(studentObj?.classLevels)
-        ? studentObj.classLevels
-        : studentObj?.classLevels
-        ? [studentObj.classLevels]
-        : []
-    ).map((l: any) =>
-      (typeof l === "object" ? l?.name || "" : l?.toString() || "").toLowerCase()
-    );
-
-    const isJSS =
-      rawClass.includes("jss") ||
-      rawClass.includes("js ") ||
-      rawClass.startsWith("js") ||
-      rawClass.includes("junior") ||
-      classHist.some((l: string) => l.includes("jss") || l.includes("junior"));
-
-    const isSSS =
-      !isJSS && (
-        rawClass.includes("sss") ||
-        rawClass.includes("ss ") ||
-        rawClass.startsWith("ss") ||
-        rawClass.includes("senior") ||
-        classHist.some((l: string) => l.includes("sss") || l.includes("senior"))
-      );
-
-    const defaultTrackGroups = isJSS
-      ? [
-          { classLevel: "jss 1", shortCode: "JSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "JSS 2 Class", shortCode: "JSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "JSS 3 class", shortCode: "JSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
-        ]
-      : isSSS
-      ? [
-          { classLevel: "sss 1", shortCode: "SSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "sss 2", shortCode: "SSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "sss 3", shortCode: "SSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
-        ]
-      : [
-          { classLevel: "Level 100", shortCode: "Level 100", isCurrent: false, isCompleted: true, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "Level 200", shortCode: "Level 200", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "Level 300", shortCode: "Level 300", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-          { classLevel: "Level 400", shortCode: "Level 400", isCurrent: true, isCompleted: false, isFinal: true, count: 0, subjects: [] },
-        ];
-
-    const classGroups =
-      enrolledSubjectsByClass && enrolledSubjectsByClass.length > 0
-        ? enrolledSubjectsByClass
-        : defaultTrackGroups;
-
-    // Each class's subjects in one file, all grouped inside a folder
-    const classFiles: SubItem[] = [
-      {
-        name: "All Classes Overview",
-        path: "/student/subjects",
-        badge: allEnrolledSubjects.length > 0 ? allEnrolledSubjects.length : undefined,
-        icon: <TableIcon className="w-4 h-4 text-indigo-400" />,
-      },
-      ...classGroups.map((group) => {
-        const hasSubjects = group.subjects && group.subjects.length > 0;
-        return {
-          name: `${group.shortCode} Subjects`,
-          path: `/student/subjects?class=${encodeURIComponent(group.classLevel)}`,
-          badge: group.count,
-          icon: <FileIcon className="w-4 h-4 text-indigo-400 shrink-0" />,
-          children: hasSubjects
-            ? group.subjects.map((sub) => ({
-                name: sub.name,
-                path: `/student/subjects?class=${encodeURIComponent(group.classLevel)}&subject=${encodeURIComponent(sub.name)}`,
-              }))
-            : [],
-        };
-      }),
-    ];
-
     return [
       {
         title: "Overview",
@@ -547,12 +497,6 @@ const AppSidebar: React.FC = () => {
             name: "My Timetable",
             icon: <CalenderIcon />,
             path: "/student/timetable",
-          },
-          {
-            name: "Class Subjects",
-            icon: <BookIcon />,
-            badge: allEnrolledSubjects.length > 0 ? `${allEnrolledSubjects.length}` : undefined,
-            subItems: classFiles,
           },
           {
             name: "My Program",
@@ -579,11 +523,6 @@ const AppSidebar: React.FC = () => {
             name: "Assignments & Tasks",
             icon: <FileIcon />,
             path: "/student/assignments",
-          },
-          {
-            name: "Check Exam Results",
-            icon: <PageIcon />,
-            path: "/student/results",
           },
           {
             name: "My Report Card",
@@ -613,12 +552,21 @@ const AppSidebar: React.FC = () => {
         ],
       },
     ];
-  }, [enrolledSubjectsByClass, allEnrolledSubjects, studentObj]);
+  }, []);
+
+  // If admin has NOT assigned teacher as a Class Teacher, he/she should NOT see the "Class Teacher" module / "Class Students"!
+  const dynamicTeacherNavGroups: NavGroup[] = useMemo(() => {
+    const isAssignedClassTeacher = Array.isArray(myAssignments) && myAssignments.some((a: any) => a.isActive);
+    if (isAssignedClassTeacher) {
+      return teacherNavGroups;
+    }
+    return teacherNavGroups.filter((g) => g.title !== "Class Teacher");
+  }, [myAssignments]);
 
   // Select groups according to active role
   const navGroups =
     userRole === "teacher"
-      ? teacherNavGroups
+      ? dynamicTeacherNavGroups
       : userRole === "student"
       ? dynamicStudentNavGroups
       : userRole === "parent"
@@ -643,12 +591,8 @@ const AppSidebar: React.FC = () => {
       ? "Parent Portal"
       : "Admin Control";
 
-  const [openSubmenu, setOpenSubmenu] = useState<{
-    groupIndex: number;
-    itemIndex: number;
-  } | null>(null);
+  const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
   const [expandedFile, setExpandedFile] = useState<string | null>(null);
-
 
   useEffect(() => {
     if (isMobileOpen) {
@@ -701,47 +645,34 @@ const AppSidebar: React.FC = () => {
   );
 
   useEffect(() => {
-    let submenuMatched = false;
-
-    navGroups.forEach((group, gIdx) => {
-      group.items.forEach((item, iIdx) => {
+    navGroups.forEach((group) => {
+      group.items.forEach((item) => {
         if (item.subItems) {
-          item.subItems.forEach((subItem) => {
-            if (isActive(subItem.path)) {
-              setOpenSubmenu({ groupIndex: gIdx, itemIndex: iIdx });
-              submenuMatched = true;
-            }
+          const hasActiveChild = item.subItems.some((subItem) => {
+            if (isActive(subItem.path)) return true;
             if (subItem.children) {
-              subItem.children.forEach((child) => {
-                if (isActive(child.path)) {
-                  setOpenSubmenu({ groupIndex: gIdx, itemIndex: iIdx });
-                  setExpandedFile(subItem.name);
-                  submenuMatched = true;
-                }
-              });
+              const childActive = subItem.children.some((child) => isActive(child.path));
+              if (childActive) {
+                setExpandedFile(subItem.name);
+                return true;
+              }
             }
+            return false;
           });
+
+          if (hasActiveChild) {
+            setOpenSubmenus((prev) => (prev[item.name] ? prev : { ...prev, [item.name]: true }));
+          }
         }
       });
     });
+  }, [location.pathname, location.search, isActive, navGroups]);
 
-    if (!submenuMatched) {
-      setOpenSubmenu(null);
-    }
-  }, [location, isActive, navGroups]);
-
-
-  const handleSubmenuToggle = (groupIndex: number, itemIndex: number) => {
-    setOpenSubmenu((prev) => {
-      if (
-        prev &&
-        prev.groupIndex === groupIndex &&
-        prev.itemIndex === itemIndex
-      ) {
-        return null;
-      }
-      return { groupIndex, itemIndex };
-    });
+  const handleSubmenuToggle = (itemName: string) => {
+    setOpenSubmenus((prev) => ({
+      ...prev,
+      [itemName]: !prev[itemName],
+    }));
   };
 
   return (
@@ -797,12 +728,19 @@ const AppSidebar: React.FC = () => {
       {/* Navigation List */}
       <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear flex-1 pr-1">
         <nav className="mb-6 space-y-6">
-          {navGroups.map((group, gIdx) => (
+          {navGroups.map((group) => (
             <div key={group.title}>
               <h2
-                className={`mb-3 flex text-[11px] font-semibold text-slate-400 uppercase tracking-wider ${
-                  !isExpanded && !isHovered ? "xl:justify-center" : "justify-start px-2"
-                }`}
+                onClick={() => {
+                  if (group.items.length === 1 && group.items[0].subItems) {
+                    handleSubmenuToggle(group.items[0].name);
+                  }
+                }}
+                className={cn(
+                  "mb-3 flex text-[11px] font-semibold text-slate-400 uppercase tracking-wider",
+                  !isExpanded && !isHovered ? "xl:justify-center" : "justify-start px-2",
+                  group.items.length === 1 && group.items[0].subItems ? "cursor-pointer hover:text-slate-200 transition-colors" : ""
+                )}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
                   group.title
@@ -812,27 +750,37 @@ const AppSidebar: React.FC = () => {
               </h2>
 
               <ul className="flex flex-col gap-1.5">
-                {group.items.map((item, iIdx) => {
-                  const isSubOpen =
-                    openSubmenu?.groupIndex === gIdx &&
-                    openSubmenu?.itemIndex === iIdx;
+                {group.items.map((item) => {
+                  const isSubOpen = Boolean(openSubmenus[item.name]);
+                  const hasActiveChild = Boolean(
+                    item.subItems?.some((subItem) => {
+                      if (isActive(subItem.path)) return true;
+                      if (subItem.children) {
+                        return subItem.children.some((child) => isActive(child.path));
+                      }
+                      return false;
+                    })
+                  );
 
                   return (
                     <li key={item.name}>
                       {item.subItems ? (
                         <button
-                          onClick={() => handleSubmenuToggle(gIdx, iIdx)}
+                          type="button"
+                          onClick={() => handleSubmenuToggle(item.name)}
                           className={cn(
                             "group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer",
                             isSubOpen
                               ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
+                              : hasActiveChild
+                              ? "bg-indigo-500/10 text-indigo-200 border border-indigo-500/20"
                               : "text-slate-300 hover:bg-white/5 hover:text-white border border-transparent",
                             !isExpanded && !isHovered
                               ? "xl:justify-center px-0"
                               : "xl:justify-start"
                           )}
                         >
-                          <span className={cn("size-5 shrink-0", isSubOpen ? "text-indigo-400" : "text-slate-400 group-hover:text-white")}>
+                          <span className={cn("size-5 shrink-0", isSubOpen || hasActiveChild ? "text-indigo-400" : "text-slate-400 group-hover:text-white")}>
                             {item.icon}
                           </span>
 
@@ -854,6 +802,30 @@ const AppSidebar: React.FC = () => {
                                 isSubOpen ? "rotate-180 text-indigo-400" : ""
                               )}
                             />
+                          )}
+                        </button>
+                      ) : item.onClick ? (
+                        <button
+                          type="button"
+                          onClick={item.onClick}
+                          className={cn(
+                            "group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer text-left",
+                            "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/20 hover:text-white shadow-xs",
+                            !isExpanded && !isHovered ? "xl:justify-center px-0" : "xl:justify-start"
+                          )}
+                        >
+                          <span className="size-5 shrink-0 text-emerald-400 group-hover:text-emerald-300">
+                            {item.icon}
+                          </span>
+                          {(isExpanded || isHovered || isMobileOpen) && (
+                            <span className="flex-1 flex items-center justify-between pr-1">
+                              <span className="truncate">{item.name}</span>
+                              {item.badge !== undefined && (
+                                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </span>
                           )}
                         </button>
                       ) : (
@@ -898,27 +870,53 @@ const AppSidebar: React.FC = () => {
                             {item.subItems.map((subItem) => (
                               <li key={subItem.name} className="relative group/file">
                                 <div className="flex items-center justify-between rounded-lg transition-colors">
-                                  <Link
-                                    to={subItem.path}
-                                    className={cn(
-                                      "flex-1 flex items-center gap-2 py-2 px-2.5 rounded-lg text-xs font-medium transition-all min-w-0",
-                                      isActive(subItem.path)
-                                        ? "text-indigo-300 bg-indigo-500/20 font-semibold shadow-xs border border-indigo-500/30"
-                                        : "text-slate-400 hover:text-white hover:bg-white/5"
-                                    )}
-                                  >
-                                    {subItem.icon ? (
-                                      <span className="shrink-0">{subItem.icon}</span>
-                                    ) : (
-                                      <FileIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />
-                                    )}
-                                    <span className="truncate">{subItem.name}</span>
-                                    {subItem.badge !== undefined && (
-                                      <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
-                                        {subItem.badge}
-                                      </span>
-                                    )}
-                                  </Link>
+                                  {subItem.onClick ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        subItem.onClick!();
+                                      }}
+                                      className={cn(
+                                        "flex-1 flex items-center gap-2 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all min-w-0 text-left cursor-pointer",
+                                        "text-emerald-300 hover:text-white hover:bg-emerald-500/15 bg-emerald-500/10 border border-emerald-500/30 shadow-xs"
+                                      )}
+                                    >
+                                      {subItem.icon ? (
+                                        <span className="shrink-0">{subItem.icon}</span>
+                                      ) : (
+                                        <FileIcon className="w-4 h-4 text-emerald-400 group-hover/file:text-emerald-200 shrink-0" />
+                                      )}
+                                      <span className="truncate">{subItem.name}</span>
+                                      {subItem.badge !== undefined && (
+                                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
+                                          {subItem.badge}
+                                        </span>
+                                      )}
+                                    </button>
+                                  ) : (
+                                    <Link
+                                      to={subItem.path}
+                                      className={cn(
+                                        "flex-1 flex items-center gap-2 py-2 px-2.5 rounded-lg text-xs font-medium transition-all min-w-0",
+                                        isActive(subItem.path)
+                                          ? "text-indigo-300 bg-indigo-500/20 font-semibold shadow-xs border border-indigo-500/30"
+                                          : "text-slate-400 hover:text-white hover:bg-white/5"
+                                      )}
+                                    >
+                                      {subItem.icon ? (
+                                        <span className="shrink-0">{subItem.icon}</span>
+                                      ) : (
+                                        <FileIcon className="w-4 h-4 text-slate-400 group-hover/file:text-slate-200 shrink-0" />
+                                      )}
+                                      <span className="truncate">{subItem.name}</span>
+                                      {subItem.badge !== undefined && (
+                                        <span className="ml-auto px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                                          {subItem.badge}
+                                        </span>
+                                      )}
+                                    </Link>
+                                  )}
                                   {subItem.children && subItem.children.length > 0 && (
                                     <button
                                       type="button"

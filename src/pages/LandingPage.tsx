@@ -175,15 +175,28 @@ export default function LandingPage() {
                 </p>
               </div>
 
-              <Link
-                to="/admin/login"
-                className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-violet-600/30 flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <span>Admin Login</span>
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </Link>
+              <div className="space-y-2.5">
+                <Link
+                  to="/admin/login"
+                  className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-semibold text-sm transition-all duration-200 shadow-lg shadow-violet-600/30 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <span>Admin Login</span>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </Link>
+                <div className="text-center">
+                  <Link
+                    to="/admin/register"
+                    className="text-xs text-violet-400 hover:text-violet-300 font-medium transition inline-flex items-center gap-1"
+                  >
+                    <span>Register New Admin</span>
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -151,7 +151,7 @@ export default function TimetableManagement() {
     setFormError(null);
 
     const defaultProg = programs[0]?._id || "";
-    const defaultClass = classOptions[0] || (classLevels[0] as any)?.name || "Level 100";
+    const defaultClass = classOptions[0] || (classLevels[0] as any)?.name || "";
     const defaultSub = subjects[0]?._id || "";
     const defaultTeach = teachers[0]?._id || "";
     const targetPeriod = presetPeriod || 1;

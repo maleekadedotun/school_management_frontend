@@ -9,7 +9,7 @@ import {
   clearCurrentQuestion,
   type QuestionItem,
 } from "../../features/questions/questionsSlice";
-import { fetchExams, createExam } from "../../features/exams/examsSlice";
+import { fetchExams, createExam, updateExam, deleteExam } from "../../features/exams/examsSlice";
 import { fetchAcademicYears } from "../../features/academicYears/academicYearsSlice";
 import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
 import { fetchSubjects } from "../../features/subjects/subjectsSlice";
@@ -101,6 +101,7 @@ export default function TeacherQuestionsList() {
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateExamModal, setShowCreateExamModal] = useState(false);
+  const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -177,6 +178,7 @@ export default function TeacherQuestionsList() {
 
       map[exam._id] = {
         id: exam._id,
+        rawExam: exam,
         name: exam.name,
         description: exam.description || "",
         examType: isTest ? "Test" : (rawType || "Exam"),
@@ -186,7 +188,10 @@ export default function TeacherQuestionsList() {
         academicTerm: termName || "First Term",
         academicTermId: getObjId(exam.academicTerm),
         subject: subName,
+        subjectId: getObjId(exam.subject),
         classLevel: className,
+        classLevelId: getObjId(exam.classLevel),
+        programId: getObjId(exam.program),
         passMark: exam.passMark ?? (isTest ? 15 : 40),
         totalMark: exam.totalMark ?? (isTest ? 30 : 70),
         duration: exam.duration || "30 mins",
@@ -213,16 +218,19 @@ export default function TeacherQuestionsList() {
 
         map[examId] = {
           id: examId,
+          rawExam: associatedExam,
           name: associatedExam?.name || "Exam / Assessment",
           description: associatedExam?.description || "",
           examType: isTest ? "Test" : (rawType || "Exam"),
           rawExamType: rawType,
           academicYear: yearName,
-          academicYearId: "",
+          academicYearId: getObjId(associatedExam?.academicYear),
           academicTerm: termName,
-          academicTermId: "",
-          subject: associatedExam?.subject || "",
-          classLevel: associatedExam?.classLevel || "",
+          academicTermId: getObjId(associatedExam?.academicTerm),
+          subject: associatedExam?.subject?.name || associatedExam?.subject || "",
+          subjectId: getObjId(associatedExam?.subject),
+          classLevel: associatedExam?.classLevel?.name || associatedExam?.classLevel || "",
+          classLevelId: getObjId(associatedExam?.classLevel),
           passMark: associatedExam?.passMark ?? 40,
           totalMark: associatedExam?.totalMark ?? 70,
           duration: associatedExam?.duration || "30 mins",
@@ -559,7 +567,54 @@ export default function TeacherQuestionsList() {
     }
   };
 
-  // Submit Quick Create Assessment (Exam or Test)
+  // Open Edit Assessment Modal
+  const handleOpenEditExamModal = (assessment: any) => {
+    setEditingExamId(assessment.id);
+    const raw = assessment.rawExam || exams.find((ex: any) => ex._id === assessment.id) || {};
+    const rawType = (raw.examType || assessment.rawExamType || assessment.examType || "Exam").trim();
+    const isTest = ["test", "quiz", "continuous assessment", "ca"].includes(rawType.toLowerCase());
+
+    const yearId = raw.academicYear?._id || raw.academicYear || assessment.academicYearId || "";
+    const termId = raw.academicTerm?._id || raw.academicTerm || assessment.academicTermId || "";
+    const subId = raw.subject?._id || raw.subject || assessment.subjectId || "";
+    const classId = raw.classLevel?._id || raw.classLevel || assessment.classLevelId || "";
+    const progId = raw.program?._id || raw.program || assessment.programId || (programs[0]?._id ?? "");
+
+    setExamForm({
+      name: raw.name || assessment.name || "",
+      description: raw.description || assessment.description || "",
+      examType: isTest ? "Test" : "Exam",
+      academicYear: yearId,
+      academicTerm: termId,
+      subject: subId,
+      classLevel: classId,
+      program: progId,
+      duration: raw.duration || assessment.duration || "30 minutes",
+      examDate: raw.examDate ? raw.examDate.slice(0, 10) : new Date().toISOString().split("T")[0],
+      examTime: raw.examTime || assessment.examTime || "09:00",
+      passMark: raw.passMark !== undefined ? raw.passMark : (isTest ? 15 : 40),
+      totalMark: raw.totalMark !== undefined ? raw.totalMark : (isTest ? 30 : 70),
+    });
+    setFormError("");
+    setShowCreateExamModal(true);
+  };
+
+  // Delete Assessment
+  const handleDeleteExam = async (examId: string, examName?: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${examName || 'this exam'}"? All associated questions will also be deleted.`)) {
+      return;
+    }
+    const res = await dispatch(deleteExam(examId));
+    if (deleteExam.fulfilled.match(res)) {
+      toast.success("Exam deleted successfully!");
+      dispatch(fetchExams());
+      dispatch(fetchTeacherQuestions());
+    } else {
+      toast.error((res.payload as string) || "Failed to delete exam");
+    }
+  };
+
+  // Submit Quick Create or Update Assessment (Exam or Test)
   const handleCreateExamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
@@ -591,19 +646,26 @@ export default function TeacherQuestionsList() {
       program: examForm.program || (programs[0]?._id ?? ""),
     };
 
-    const res = await dispatch(createExam(payload));
+    let res: any;
+    if (editingExamId) {
+      res = await dispatch(updateExam({ id: editingExamId, ...payload }));
+    } else {
+      res = await dispatch(createExam(payload));
+    }
     setIsSubmitting(false);
 
-    if (createExam.fulfilled.match(res)) {
-      toast.success(`${examForm.examType} "${examForm.name}" created successfully!`);
+    if (createExam.fulfilled.match(res) || updateExam.fulfilled.match(res)) {
+      toast.success(editingExamId ? `Exam "${examForm.name}" updated successfully!` : `${examForm.examType} "${examForm.name}" created successfully!`);
       setShowCreateExamModal(false);
+      setEditingExamId(null);
       const newExam = res.payload.data || res.payload;
       if (newExam?._id) {
         setExpandedExamIds((prev) => [...prev, newExam._id]);
       }
       dispatch(fetchExams());
+      dispatch(fetchTeacherQuestions());
     } else {
-      const err = (res.payload as string) || "Failed to create examination.";
+      const err = (res.payload as string) || "Failed to save examination.";
       setFormError(err);
       toast.error(err);
     }
@@ -668,6 +730,7 @@ export default function TeacherQuestionsList() {
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <button
               onClick={() => {
+                setEditingExamId(null);
                 setExamForm({
                   ...emptyExamForm,
                   academicYear: availableYears[0] || "",
@@ -1074,6 +1137,34 @@ export default function TeacherQuestionsList() {
                               <span>+</span>
                               <span className="hidden sm:inline">Add Q</span>
                             </button>
+
+                            {assessment.id !== "general-unlinked" && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditExamModal(assessment)}
+                                  className="px-2.5 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 text-xs font-semibold border border-blue-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Edit Examination Details"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                  <span className="hidden md:inline">Edit</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteExam(assessment.id, assessment.name)}
+                                  className="px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs font-semibold border border-red-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Delete Examination and its questions"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                  <span className="hidden md:inline">Delete</span>
+                                </button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1474,13 +1565,20 @@ export default function TeacherQuestionsList() {
           <div className="bg-[#0b1329] border border-emerald-500/30 rounded-3xl p-6 sm:p-8 w-full max-w-2xl shadow-2xl space-y-6 my-8 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
-                <h3 className="text-xl font-bold text-white">Create Examination / Test</h3>
+                <h3 className="text-xl font-bold text-white">
+                  {editingExamId ? "Edit Examination / Test" : "Create Examination / Test"}
+                </h3>
                 <p className="text-xs text-slate-400">
-                  Create a new assessment to house question banks for an academic year
+                  {editingExamId
+                    ? "Modify parameters for this examination or test"
+                    : "Create a new assessment to house question banks for an academic year"}
                 </p>
               </div>
               <button
-                onClick={() => setShowCreateExamModal(false)}
+                onClick={() => {
+                  setShowCreateExamModal(false);
+                  setEditingExamId(null);
+                }}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
               >
                 ✕
@@ -1629,9 +1727,9 @@ export default function TeacherQuestionsList() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 cursor-pointer"
                 >
-                  {isSubmitting ? "Creating..." : "Save Examination"}
+                  {isSubmitting ? "Saving..." : editingExamId ? "Update Examination" : "Save Examination"}
                 </button>
               </div>
             </form>

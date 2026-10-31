@@ -229,7 +229,11 @@
   }
 }
 
-/* Custom horizontal scrollbar for tables and overflow tabs */
+/* Custom horizontal & vertical scrollbars */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.5) rgba(15, 23, 42, 0.4);
+}
 .custom-scrollbar::-webkit-scrollbar {
   height: 6px;
   width: 6px;
@@ -244,6 +248,31 @@
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(99, 102, 241, 0.7);
+}
+
+/* Dedicated visible vertical scrollbar for register modals and panels */
+.modal-vertical-scrollbar {
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.7) rgba(15, 23, 42, 0.6);
+}
+.modal-vertical-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.modal-vertical-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 8px;
+  margin: 4px 0;
+}
+.modal-vertical-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.6);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.modal-vertical-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(129, 140, 248, 0.9);
 }
 
 .no-scrollbar::-webkit-scrollbar {
@@ -355,13 +384,16 @@
 }
 
 @layer utilities {
-  /* For Remove Date Icon */
+  /* For Remove Date Spin Buttons */
   input[type="date"]::-webkit-inner-spin-button,
-  input[type="time"]::-webkit-inner-spin-button,
-  input[type="date"]::-webkit-calendar-picker-indicator,
-  input[type="time"]::-webkit-calendar-picker-indicator {
+  input[type="time"]::-webkit-inner-spin-button {
     display: none;
     -webkit-appearance: none;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
   }
 }
 
@@ -1194,13 +1226,26 @@ pre[class*="language-"].line-numbers {
 
 /* Print Styles for Official Student Report Cards */
 @media print {
-  body {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
+  }
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html, body {
     background: #ffffff !important;
-    color: #000000 !important;
+    color: #0f172a !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
   .no-print,
   aside,
-  header,
+  header:not(.report-card-header),
   nav,
   .app-header,
   .app-sidebar,
@@ -1209,6 +1254,7 @@ pre[class*="language-"].line-numbers {
   }
   .report-card-container {
     max-width: 100% !important;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
   }
@@ -1218,6 +1264,13 @@ pre[class*="language-"].line-numbers {
     padding: 0 !important;
     margin: 0 !important;
     background: #ffffff !important;
-    color: #111827 !important;
+    color: #0f172a !important;
+    width: 100% !important;
+  }
+  .page-break-avoid,
+  tr,
+  .page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }

@@ -440,6 +440,78 @@ export const fetchParentsList = createAsyncThunk(
   }
 );
 
+export const registerParentAdmin = createAsyncThunk(
+  "finance/registerParentAdmin",
+  async (parentData: any, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post("/parents/register", parentData);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to register parent");
+    }
+  }
+);
+
+export const updateParentAdmin = createAsyncThunk(
+  "finance/updateParentAdmin",
+  async ({ id, updates }: { id: string; updates: any }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/parents/${id}/update/admin`, updates);
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to update parent");
+    }
+  }
+);
+
+export const suspendParentAdmin = createAsyncThunk(
+  "finance/suspendParentAdmin",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/parents/${id}/suspend`);
+      return { id, ...data };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to suspend parent");
+    }
+  }
+);
+
+export const unsuspendParentAdmin = createAsyncThunk(
+  "finance/unsuspendParentAdmin",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.put(`/parents/${id}/unsuspend`);
+      return { id, ...data };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to unsuspend parent");
+    }
+  }
+);
+
+export const deleteParentAdmin = createAsyncThunk(
+  "finance/deleteParentAdmin",
+  async (id: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.delete(`/parents/${id}`);
+      return { id, ...data };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to delete parent");
+    }
+  }
+);
+
+export const unlinkStudentFromParent = createAsyncThunk(
+  "finance/unlinkStudentFromParent",
+  async ({ parentId, studentId }: { parentId: string; studentId: string }, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post("/parents/unlink-student", { parentId, studentId });
+      return data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || "Failed to unlink student");
+    }
+  }
+);
+
 // ==========================================
 // SLICE DEFINITION
 // ==========================================
@@ -586,9 +658,39 @@ const financeSlice = createSlice({
     });
 
     // Parents
-    builder.addCase(fetchParentsList.fulfilled, (state, action) => {
-      state.parents = action.payload;
-    });
+    builder
+      .addCase(fetchParentsList.fulfilled, (state, action) => {
+        state.parents = action.payload;
+      })
+      .addCase(registerParentAdmin.fulfilled, (state, action) => {
+        if (action.payload?.data) {
+          state.parents.unshift(action.payload.data);
+        }
+      })
+      .addCase(updateParentAdmin.fulfilled, (state, action) => {
+        const updated = action.payload?.data;
+        if (updated) {
+          state.parents = state.parents.map((p) => (p._id === updated._id ? updated : p));
+        }
+      })
+      .addCase(suspendParentAdmin.fulfilled, (state, action) => {
+        const id = action.payload?.id;
+        state.parents = state.parents.map((p) => (p._id === id ? { ...p, isSuspended: true } : p));
+      })
+      .addCase(unsuspendParentAdmin.fulfilled, (state, action) => {
+        const id = action.payload?.id;
+        state.parents = state.parents.map((p) => (p._id === id ? { ...p, isSuspended: false } : p));
+      })
+      .addCase(deleteParentAdmin.fulfilled, (state, action) => {
+        const id = action.payload?.id;
+        state.parents = state.parents.filter((p) => p._id !== id);
+      })
+      .addCase(unlinkStudentFromParent.fulfilled, (state, action) => {
+        const updated = action.payload?.data;
+        if (updated) {
+          state.parents = state.parents.map((p) => (p._id === updated._id ? updated : p));
+        }
+      });
   },
 });
 

@@ -4,11 +4,13 @@ import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice
 import { fetchTeacherClassStudents, type Student } from "../../features/students/studentsSlice";
 import { fetchExams } from "../../features/exams/examsSlice";
 import { fetchTeacherQuestions } from "../../features/questions/questionsSlice";
+import { fetchMyAssignments } from "../../features/classTeachers/classTeachersSlice";
 import { Link } from "react-router-dom";
 
 export default function TeacherDashboard() {
   const dispatch = useAppDispatch();
   const { teacher } = useAppSelector((state) => state.teacherAuth);
+  const { myAssignments } = useAppSelector((state) => state.classTeachers);
   const { teacherClassStudents, loading: studentsLoading } = useAppSelector((state) => state.students);
   const { items: exams, loading: examsLoading } = useAppSelector((state) => state.exams);
   const { teacherQuestions } = useAppSelector((state) => state.questions);
@@ -20,6 +22,7 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     dispatch(fetchTeacherProfile());
+    dispatch(fetchMyAssignments());
     dispatch(fetchTeacherClassStudents());
     dispatch(fetchExams());
     dispatch(fetchTeacherQuestions());
@@ -101,8 +104,15 @@ export default function TeacherDashboard() {
     return accessibleExams;
   }, [examTab, adminExams, myExams, accessibleExams]);
 
+  const isAssignedClassTeacher = useMemo(
+    () => Array.isArray(myAssignments) && myAssignments.some((a: any) => a.isActive),
+    [myAssignments]
+  );
+
   const assignedClassLevelName =
-    t?.classLevel?.name || t?.classLevel || (t?.subject?.name || t?.subject ? `${t?.subject?.name || t?.subject} (Subject)` : "Assigned Level");
+    isAssignedClassTeacher
+      ? (t?.classLevel?.name || t?.classLevel || "Assigned Level")
+      : (t?.subject?.name || t?.subject ? `${t?.subject?.name || t?.subject} (Subject)` : "Subject Teacher");
 
   // Filter students strictly in the assigned class level offering the teacher subject alone
   const strictlyClassStudents = useMemo(() => {
@@ -206,9 +216,11 @@ export default function TeacherDashboard() {
           <div className="flex flex-wrap items-center lg:justify-end gap-2.5 text-xs">
             <div className="px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10 text-white flex items-center gap-2 shadow-sm backdrop-blur-md">
               <span className="text-emerald-400 text-sm">🏫</span>
-              <span className="text-slate-400">Class Level:</span>
+              <span className="text-slate-400">Class Role:</span>
               <strong className="text-emerald-300 font-semibold whitespace-nowrap">
-                {t?.classLevel?.name || t?.classLevel || (t?.subject ? "All Classes (Subject Teacher)" : "Not Assigned")}
+                {isAssignedClassTeacher
+                  ? `Class Teacher (${t?.classLevel?.name || t?.classLevel || "Assigned Level"})`
+                  : `Subject Teacher (${t?.subject?.name || t?.subject || "All Classes"})`}
               </strong>
             </div>
 
@@ -245,14 +257,16 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            title: "Assigned Students",
+            title: isAssignedClassTeacher ? "Class Students" : "Subject Students",
             value: strictlyClassStudents.length,
-            label: t?.classLevel ? `Enrolled in ${assignedClassLevelName}` : (t?.subject ? `Enrolled in ${t?.subject?.name || t?.subject}` : "Assigned to you"),
+            label: isAssignedClassTeacher
+              ? `Enrolled in ${assignedClassLevelName}`
+              : (t?.subject ? `Enrolled in ${t?.subject?.name || t?.subject}` : "Taking your course"),
             icon: "👥",
             bg: "from-emerald-500/10 to-teal-500/5",
             border: "border-emerald-500/20",
             text: "text-emerald-400",
-            badge: "Class Roster",
+            badge: isAssignedClassTeacher ? "Class Roster" : "Subject Roster",
           },
           {
             title: "Accessible Exams",
@@ -317,14 +331,16 @@ export default function TeacherDashboard() {
                 👥
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-                My Class Students
+                {isAssignedClassTeacher ? "My Class Students" : "My Subject Students"}
               </h2>
               <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 {assignedClassLevelName}
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-400">
-              Viewing all students enrolled in your assigned class level ({strictlyClassStudents.length} total students)
+              {isAssignedClassTeacher
+                ? `Viewing all students enrolled in your assigned class level (${strictlyClassStudents.length} total students)`
+                : `Viewing students offering your subject (${strictlyClassStudents.length} total students)`}
             </p>
           </div>
 
@@ -591,11 +607,18 @@ export default function TeacherDashboard() {
                     <div className="flex items-center justify-between text-xs text-slate-400">
                       <span>⏱️ {exam.duration || "N/A"}</span>
                       <span className="text-teal-300 font-semibold">
-                        ❓ {exam.questions?.length || 0} Questions
+                        ❓ {Math.max(
+                          exam.questions?.length || 0,
+                          teacherQuestions.filter((q: any) => {
+                            const qExamId = (q.exam?._id || q.exam || (q as any).examId)?.toString();
+                            const eId = (exam._id || exam.id)?.toString();
+                            return qExamId && eId && qExamId === eId;
+                          }).length
+                        )} Questions
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-slate-500">
-                      <span>By: <strong className="text-slate-300 font-medium">{isCreatedByAdmin(exam) ? "Administration" : (exam.createdBy?.name || "You")}</strong></span>
+                      <span>By: <strong className="text-slate-300 font-medium">{isCreatedByAdmin(exam) ? "Administration" : (exam.createdBy?.name || teacher?.name || "Teacher")}</strong></span>
                       <Link to="/teacher/exams" className="text-blue-400 hover:text-blue-300 font-medium">View →</Link>
                     </div>
                   </div>

@@ -117,6 +117,18 @@ export default function SignIn() {
               ) : "Sign In"}
             </button>
           </form>
+
+          <div className="mt-6 pt-5 border-t border-white/10 text-center">
+            <p className="text-xs text-slate-400">
+              Need to create a new administrator profile?{" "}
+              <Link
+                to="/admin/register"
+                className="text-indigo-400 hover:text-indigo-300 font-semibold transition"
+              >
+                Register here
+              </Link>
+            </p>
+          </div>
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">

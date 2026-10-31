@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
-import { fetchExams, createExam, deleteExam, publishExamResult } from "../../features/exams/examsSlice";
+import { fetchExams, createExam, updateExam, deleteExam, publishExamResult } from "../../features/exams/examsSlice";
 import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import { fetchSubjects } from "../../features/subjects/subjectsSlice";
 import { fetchPrograms } from "../../features/programs/programsSlice";
 import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
 import { fetchAcademicYears } from "../../features/academicYears/academicYearsSlice";
 import StudentWriteExam from "../student/StudentWriteExam";
+import toast from "react-hot-toast";
 
 export default function ExamsList() {
   const userRole = localStorage.getItem("userRole");
@@ -27,6 +28,7 @@ export default function ExamsList() {
   const [filter, setFilter] = useState<"all" | "live" | "pending">("all");
   const [classLevelFilter, setClassLevelFilter] = useState("all");
   const [showModal, setShowModal] = useState(false);
+  const [editingExamId, setEditingExamId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -43,6 +45,74 @@ export default function ExamsList() {
     passMark: 40,
     totalMark: 70,
   });
+
+  const resetForm = () => {
+    setForm({
+      name: "",
+      description: "",
+      subject: "",
+      program: "",
+      classLevel: "",
+      academicTerm: "",
+      academicYear: "",
+      duration: "1 hr",
+      examType: "Exam",
+      examDate: "",
+      examTime: "10:00 AM",
+      passMark: 40,
+      totalMark: 70,
+    });
+  };
+
+  const openCreateExamModal = () => {
+    setEditingExamId(null);
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEditExamModal = (exam: any) => {
+    setEditingExamId(exam._id);
+    const isTest = ["test", "quiz", "continuous assessment", "ca"].includes((exam.examType || "").toLowerCase());
+    setForm({
+      name: exam.name || "",
+      description: exam.description || "",
+      subject: exam.subject?._id || exam.subject || "",
+      program: exam.program?._id || exam.program || "",
+      classLevel: exam.classLevel?._id || exam.classLevel || "",
+      academicTerm: exam.academicTerm?._id || exam.academicTerm || "",
+      academicYear: exam.academicYear?._id || exam.academicYear || "",
+      duration: exam.duration || "1 hr",
+      examType: exam.examType || (isTest ? "Test" : "Exam"),
+      examDate: exam.examDate ? exam.examDate.slice(0, 10) : "",
+      examTime: exam.examTime || "10:00 AM",
+      passMark: exam.passMark !== undefined ? exam.passMark : (isTest ? 15 : 40),
+      totalMark: exam.totalMark !== undefined ? exam.totalMark : (isTest ? 30 : 70),
+    });
+    setShowModal(true);
+  };
+
+  const handleDeleteExam = async (examId: string, examName?: string) => {
+    if (!window.confirm(`Are you sure you want to delete the exam "${examName || 'this exam'}"? All questions under it will also be removed.`)) {
+      return;
+    }
+    const res = await dispatch(deleteExam(examId));
+    if (deleteExam.fulfilled.match(res)) {
+      toast.success("Exam deleted successfully!");
+      dispatch(fetchExams());
+    } else {
+      toast.error((res.payload as string) || "Failed to delete exam");
+    }
+  };
+
+  const handlePublishResult = async (examId: string) => {
+    const res = await dispatch(publishExamResult(examId));
+    if (publishExamResult.fulfilled.match(res)) {
+      toast.success("Exam results published successfully!");
+      dispatch(fetchExams());
+    } else {
+      toast.error((res.payload as string) || "Failed to publish exam results");
+    }
+  };
 
   useEffect(() => {
     dispatch(fetchExams());
@@ -80,28 +150,25 @@ export default function ExamsList() {
     });
   }, [exams, search, filter, classLevelFilter]);
 
-  const handleCreateExam = async (e: React.FormEvent) => {
+  const handleSubmitExam = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    await dispatch(createExam(form));
+    let res: any;
+    if (editingExamId) {
+      res = await dispatch(updateExam({ id: editingExamId, ...form }));
+    } else {
+      res = await dispatch(createExam(form));
+    }
     setSubmitting(false);
-    setShowModal(false);
-    setForm({
-      name: "",
-      description: "",
-      subject: "",
-      program: "",
-      classLevel: "",
-      academicTerm: "",
-      academicYear: "",
-      duration: "1 hr",
-      examType: "Exam",
-      examDate: "",
-      examTime: "10:00 AM",
-      passMark: 40,
-      totalMark: 70,
-    });
-    dispatch(fetchExams());
+    if (createExam.fulfilled.match(res) || updateExam.fulfilled.match(res)) {
+      toast.success(editingExamId ? "Exam updated successfully!" : "Exam created successfully!");
+      setShowModal(false);
+      setEditingExamId(null);
+      resetForm();
+      dispatch(fetchExams());
+    } else {
+      toast.error((res.payload as string) || "Failed to save exam");
+    }
   };
 
   return (
@@ -146,8 +213,8 @@ export default function ExamsList() {
             Student Results
           </Link>
           <button
-            onClick={() => setShowModal(true)}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-semibold text-sm transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2"
+            onClick={openCreateExamModal}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-semibold text-sm transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -302,20 +369,34 @@ export default function ExamsList() {
                 {/* Card Actions */}
                 <div className="flex items-center gap-2 pt-3 border-t border-white/10 mt-2">
                   <button
-                    onClick={() => dispatch(publishExamResult(exam._id))}
-                    className="flex-1 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+                    type="button"
+                    onClick={() => handlePublishResult(exam._id)}
+                    className="flex-1 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>📢</span>
                     <span>Publish Results</span>
                   </button> 
                   <button
-                    onClick={() => { if (window.confirm("Are you sure you want to delete this exam?")) dispatch(deleteExam(exam._id)); }}
+                    type="button"
+                    onClick={() => openEditExamModal(exam)}
+                    title="Edit Exam"
+                    className="px-2.5 py-2 rounded-xl text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-all flex items-center gap-1 text-xs font-medium cursor-pointer"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    <span className="hidden sm:inline">Edit</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteExam(exam._id, exam.name)}
                     title="Delete Exam"
-                    className="p-2 rounded-xl text-red-400 hover:bg-red-500/10 border border-red-500/20 opacity-0 group-hover:opacity-100 transition-all"
+                    className="px-2.5 py-2 rounded-xl text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center gap-1 text-xs font-medium cursor-pointer"
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
+                    <span className="hidden sm:inline">Delete</span>
                   </button>
                 </div>
               </div>
@@ -330,14 +411,26 @@ export default function ExamsList() {
           <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-6 sm:p-8 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6 pb-3 border-b border-white/10">
               <div>
-                <h2 className="text-xl font-bold text-white">Create New Exam</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Administer a school examination or quiz</p>
+                <h2 className="text-xl font-bold text-white">
+                  {editingExamId ? "Edit Exam" : "Create New Exam"}
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {editingExamId
+                    ? "Modify examination parameters and schedule"
+                    : "Administer a school examination or quiz"}
+                </p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors">
+              <button
+                onClick={() => {
+                  setShowModal(false);
+                  setEditingExamId(null);
+                }}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            <form onSubmit={handleCreateExam} className="space-y-4">
+            <form onSubmit={handleSubmitExam} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Exam Title *</label>
                 <input
@@ -529,13 +622,22 @@ export default function ExamsList() {
               </div>
 
               <div className="flex gap-3 pt-3 border-t border-white/10">
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors text-sm font-medium">Cancel</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingExamId(null);
+                  }}
+                  className="flex-1 py-2.5 rounded-xl border border-white/10 text-slate-300 hover:bg-white/5 transition-colors text-sm font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-sm disabled:opacity-50 shadow-lg shadow-amber-500/30"
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-semibold text-sm disabled:opacity-50 shadow-lg shadow-amber-500/30 cursor-pointer"
                 >
-                  {submitting ? "Creating..." : "Create Exam"}
+                  {submitting ? "Saving..." : editingExamId ? "Update Exam" : "Create Exam"}
                 </button>
               </div>
             </form>

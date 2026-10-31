@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
+import { createQuestion, deleteQuestion } from "../questions/questionsSlice";
 
 export const fetchExams = createAsyncThunk("exams/fetchAll", async (_, { rejectWithValue }) => {
   try {
@@ -98,7 +99,55 @@ const slice = createSlice({
          s.items = s.items.map((i) => (i._id === updated._id ? updated : i));
        }
      })
-     .addCase(deleteExam.fulfilled, (s, a) => { s.items = s.items.filter(i => i._id !== a.payload); });
+     .addCase(deleteExam.fulfilled, (s, a) => { s.items = s.items.filter(i => i._id !== a.payload); })
+     .addCase(createQuestion.fulfilled, (s, a) => {
+       const newQuestion = a.payload?.data || a.payload;
+       const examId = (
+         newQuestion?.exam?._id ||
+         newQuestion?.exam ||
+         (a.meta?.arg as any)?.examId
+       )?.toString();
+
+       if (!examId || !newQuestion) return;
+
+       const appendQuestion = (exam: any) => {
+         if (!exam) return;
+         const curId = (exam._id || exam.id)?.toString();
+         if (curId === examId) {
+           if (!Array.isArray(exam.questions)) {
+             exam.questions = [];
+           }
+           const qId = (newQuestion._id || newQuestion.id)?.toString();
+           const alreadyExists = exam.questions.some((q: any) => {
+             const existingId = (q?._id || q?.id || q)?.toString();
+             return existingId && qId && existingId === qId;
+           });
+           if (!alreadyExists) {
+             exam.questions.push(newQuestion);
+           }
+         }
+       };
+
+       s.items.forEach(appendQuestion);
+       s.teacherExams.forEach(appendQuestion);
+       if (s.currentExam) appendQuestion(s.currentExam);
+     })
+     .addCase(deleteQuestion.fulfilled, (s, a) => {
+       const deletedId = (a.payload as string)?.toString();
+       if (!deletedId) return;
+
+       const removeQuestion = (exam: any) => {
+         if (!exam || !Array.isArray(exam.questions)) return;
+         exam.questions = exam.questions.filter((q: any) => {
+           const existingId = (q?._id || q?.id || q)?.toString();
+           return existingId !== deletedId;
+         });
+       };
+
+       s.items.forEach(removeQuestion);
+       s.teacherExams.forEach(removeQuestion);
+       if (s.currentExam) removeQuestion(s.currentExam);
+     });
   },
 });
 export const { clearError, clearCurrentExam } = slice.actions;

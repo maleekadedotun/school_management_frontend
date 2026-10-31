@@ -57,24 +57,28 @@ const StudentProgram: React.FC = () => {
       rawClass.includes("senior")
     );
 
-  const defaultTrackGroups = isJSS
+  const defaultTrackGroups = !rawClass
+    ? []
+    : isJSS
     ? [
-        { classLevel: "jss 1", shortCode: "JSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-        { classLevel: "JSS 2 Class", shortCode: "JSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-        { classLevel: "JSS 3 class", shortCode: "JSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+        { classLevel: "jss 1", shortCode: "JSS 1", isCurrent: rawClass.includes("1") || (!rawClass.includes("2") && !rawClass.includes("3")), isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "JSS 2 Class", shortCode: "JSS 2", isCurrent: rawClass.includes("2"), isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "JSS 3 class", shortCode: "JSS 3", isCurrent: rawClass.includes("3"), isCompleted: false, isFinal: true, count: 0, subjects: [] },
       ]
     : isSSS
     ? [
-        { classLevel: "sss 1", shortCode: "SSS 1", isCurrent: true, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-        { classLevel: "sss 2", shortCode: "SSS 2", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-        { classLevel: "sss 3", shortCode: "SSS 3", isCurrent: false, isCompleted: false, isFinal: true, count: 0, subjects: [] },
+        { classLevel: "sss 1", shortCode: "SSS 1", isCurrent: rawClass.includes("1") || (!rawClass.includes("2") && !rawClass.includes("3")), isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "sss 2", shortCode: "SSS 2", isCurrent: rawClass.includes("2"), isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "sss 3", shortCode: "SSS 3", isCurrent: rawClass.includes("3"), isCompleted: false, isFinal: true, count: 0, subjects: [] },
       ]
-    : [
-        { classLevel: "Level 100", shortCode: "Level 100", isCurrent: false, isCompleted: true, isFinal: false, count: 0, subjects: [] },
-        { classLevel: "Level 200", shortCode: "Level 200", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-        { classLevel: "Level 300", shortCode: "Level 300", isCurrent: false, isCompleted: false, isFinal: false, count: 0, subjects: [] },
-        { classLevel: "Level 400", shortCode: "Level 400", isCurrent: true, isCompleted: false, isFinal: true, count: 0, subjects: [] },
-      ];
+    : (rawClass.includes("100") || rawClass.includes("200") || rawClass.includes("300") || rawClass.includes("400"))
+    ? [
+        { classLevel: "Level 100", shortCode: "Level 100", isCurrent: rawClass.includes("100") || (!rawClass.includes("200") && !rawClass.includes("300") && !rawClass.includes("400")), isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "Level 200", shortCode: "Level 200", isCurrent: rawClass.includes("200"), isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "Level 300", shortCode: "Level 300", isCurrent: rawClass.includes("300"), isCompleted: false, isFinal: false, count: 0, subjects: [] },
+        { classLevel: "Level 400", shortCode: "Level 400", isCurrent: rawClass.includes("400"), isCompleted: false, isFinal: true, count: 0, subjects: [] },
+      ]
+    : [];
 
   const classGroups =
     enrolledSubjectsByClass && enrolledSubjectsByClass.length > 0

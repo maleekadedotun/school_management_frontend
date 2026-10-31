@@ -4,6 +4,7 @@ import LandingPage from "./pages/LandingPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./layout/AppLayout";
 import SignIn from "./pages/AuthPages/SignIn";
+import AdminRegister from "./pages/AuthPages/AdminRegister";
 import TeacherLogin from "./pages/AuthPages/TeacherLogin";
 import StudentLogin from "./pages/student/studentLogin";
 import Dashboard from "./pages/Dashboard/AdminDashboard";
@@ -55,6 +56,7 @@ import StudentTimetable from "./pages/student/StudentTimetable";
 import AdminAnnouncements from "./pages/Admin/AdminAnnouncements";
 import TeacherReportCards from "./pages/Teachers/TeacherReportCards";
 import AdminReportCards from "./pages/Admin/AdminReportCards";
+import StudentPromotion from "./pages/Admin/StudentPromotion";
 import ClassTeacherAssignment from "./pages/Admin/ClassTeacherAssignment";
 import StudentReportCardView from "./pages/student/StudentReportCardView";
 import NotFound from "./pages/OtherPage/NotFound";
@@ -84,6 +86,8 @@ export default function App() {
           <Route path="/index.html" element={<Navigate to="/" replace />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/admin/login" element={<SignIn />} />
+          <Route path="/admin/register" element={<AdminRegister />} />
+          <Route path="/signup" element={<AdminRegister />} />
           <Route path="/teacher/login" element={<TeacherLogin />} />
           <Route path="/student/login" element={<StudentLogin />} />
           <Route path="/parent/login" element={<ParentLogin />} />
@@ -143,6 +147,7 @@ export default function App() {
             <Route path="/academic/subjects" element={<SubjectsList />} />
             <Route path="/admin/results" element={<StudentResultsList />} />
             <Route path="/admin/report-cards" element={<AdminReportCards />} />
+            <Route path="/admin/promotions" element={<StudentPromotion />} />
             <Route path="/admin/teacher-exams" element={<TeacherExamsList />} />
             <Route path="/admin/questions" element={<QuestionsList />} />
             <Route path="/admin/class-reports" element={<AdminClassReports />} />
@@ -182,6 +187,7 @@ export default function App() {
             <Route path="/teacher/class-results" element={<TeacherReportCards />} />
             <Route path="/teacher/report-cards" element={<TeacherReportCards />} />
             <Route path="/teacher/students" element={<StudentsList />} />
+            <Route path="/teacher/class-students" element={<StudentsList />} />
             <Route path="/teacher/attendance" element={<TeacherAttendance />} />
             <Route path="/teacher/weekly-reports" element={<TeacherWeeklyReports />} />
           </Route>
@@ -218,6 +224,7 @@ export default function App() {
             <Route path="/student/timetable" element={<StudentTimetable />} />
             <Route path="/student/program" element={<StudentProgram />} />
             <Route path="/student/subjects" element={<StudentSubjects />} />
+            <Route path="/student/subjects/:classParam" element={<StudentSubjects />} />
             <Route path="/student/exams" element={<StudentWriteExam />} />
             <Route path="/student/exams/:examId/write" element={<StudentWriteExam />} />
             <Route path="/student/assignments" element={<AssignmentsPortal />} />
