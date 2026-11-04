@@ -8,6 +8,9 @@ import {
   fetchClassProgression,
   fetchPromotionSettings,
   transitionStudentToSss,
+  enrollNextStage,
+  markTransferOut,
+  fetchStudentProgressionHistory,
   type PromotionCandidate,
   type PromotionRecord,
 } from "../../features/promotions/promotionsSlice";
@@ -30,6 +33,9 @@ import {
   HiOutlineTrophy,
   HiOutlineArrowUturnLeft,
   HiOutlineSparkles,
+  HiOutlineEye,
+  HiOutlineArrowRightOnRectangle,
+  HiOutlineClock,
 } from "react-icons/hi2";
 
 export default function StudentPromotion() {
@@ -57,6 +63,7 @@ export default function StudentPromotion() {
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedTerm, setSelectedTerm] = useState<string>("");
   const [nextYear, setNextYear] = useState<string>("");
+  const [selectedStage, setSelectedStage] = useState<string>("all");
   const [selectedClass, setSelectedClass] = useState<string>("all");
 
   // Configurable Criteria
@@ -83,6 +90,42 @@ export default function StudentPromotion() {
   } | null>(null);
   const [revertTarget, setRevertTarget] = useState<PromotionRecord | null>(null);
   const [transitioningStudent, setTransitioningStudent] = useState<{ id: string; name: string } | null>(null);
+
+  // Stage Enrollment Modal State
+  const [showStageEnrollModal, setShowStageEnrollModal] = useState<boolean>(false);
+  const [studentsToEnroll, setStudentsToEnroll] = useState<PromotionCandidate[]>([]);
+  const [targetStageClassId, setTargetStageClassId] = useState<string>("");
+  const [stageEnrollRemarks, setStageEnrollRemarks] = useState<string>("");
+  const [enrollingStage, setEnrollingStage] = useState<boolean>(false);
+
+  // Transfer Out Modal State
+  const [showTransferOutModal, setShowTransferOutModal] = useState<boolean>(false);
+  const [studentsToTransfer, setStudentsToTransfer] = useState<PromotionCandidate[]>([]);
+  const [transferDestination, setTransferDestination] = useState<string>("");
+  const [transferRemarks, setTransferRemarks] = useState<string>("");
+  const [transferring, setTransferring] = useState<boolean>(false);
+
+  // Student Progression History Modal State
+  const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
+  const [studentForHistory, setStudentForHistory] = useState<PromotionCandidate | null>(null);
+  const [historyDetail, setHistoryDetail] = useState<{ student: any; history: any[] } | null>(null);
+  const [loadingHistoryDetail, setLoadingHistoryDetail] = useState<boolean>(false);
+
+  // Filter ClassLevels dynamically based on selectedStage
+  const filteredClassLevels = useMemo(() => {
+    if (!classLevels) return [];
+    if (selectedStage === "all") return classLevels;
+    return classLevels.filter((c: any) => {
+      const name = (c.name || "").toLowerCase();
+      if (selectedStage === "kindergarten") return name.includes("kg") || name.includes("kindergarten");
+      if (selectedStage === "nursery") return name.includes("nursery") || name.includes("nur");
+      if (selectedStage === "primary") return name.includes("primary") || name.includes("basic") || name.includes("pry");
+      if (selectedStage === "secondary_junior") return name.includes("jss") || name.includes("js ") || name.includes("junior");
+      if (selectedStage === "secondary_senior") return name.includes("sss") || name.includes("ss ") || name.includes("senior");
+      if (selectedStage === "tertiary") return name.includes("level") || name.includes("100") || name.includes("200") || name.includes("300") || name.includes("400");
+      return true;
+    });
+  }, [classLevels, selectedStage]);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -133,7 +176,7 @@ export default function StudentPromotion() {
     }
   }, [selectedYear, dispatch]);
 
-  // Load Preview when Year, Term, or Criteria change
+  // Load Preview when Year, Term, Stage, or Criteria change
   const handleLoadPreview = () => {
     if (!selectedYear || !selectedTerm) {
       toast.error("Please select an Academic Year and Academic Term.");
@@ -146,6 +189,7 @@ export default function StudentPromotion() {
         academicYearId: selectedYear,
         academicTermId: selectedTerm,
         classLevelId: selectedClass !== "all" ? selectedClass : undefined,
+        stage: selectedStage !== "all" ? selectedStage : undefined,
         passMark,
         requirePublished,
         allowTrial,
@@ -154,12 +198,12 @@ export default function StudentPromotion() {
     );
   };
 
-  // Trigger preview fetch whenever selectedYear, selectedTerm, or selectedClass changes
+  // Trigger preview fetch whenever selectedYear, selectedTerm, selectedStage, or selectedClass changes
   useEffect(() => {
     if (selectedYear && selectedTerm && activeTab === "workspace") {
       handleLoadPreview();
     }
-  }, [selectedYear, selectedTerm, selectedClass, passMark, requirePublished, allowTrial, trialMinMark]);
+  }, [selectedYear, selectedTerm, selectedStage, selectedClass, passMark, requirePublished, allowTrial, trialMinMark]);
 
   // Load History when tab changes
   useEffect(() => {
@@ -193,11 +237,16 @@ export default function StudentPromotion() {
 
         const matchesStatus =
           statusFilter === "all" ||
-          (statusFilter === "eligible" && (s.status === "eligible" || s.status === "graduation_eligible")) ||
+          (statusFilter === "eligible" && s.status === "eligible") ||
+          (statusFilter === "stage_graduation_eligible" && (s.status === "stage_graduation_eligible" || (s.isStageGraduation && s.isEligible))) ||
+          (statusFilter === "stage_graduate_awaiting_enrollment" && (s.status === "stage_graduate_awaiting_enrollment" || s.enrollmentStatus === "awaiting_next_stage")) ||
+          (statusFilter === "graduation_eligible" && (s.status === "graduation_eligible" || (s.isFinalYear && s.isEligible && !s.isStageGraduation))) ||
+          (statusFilter === "already_promoted" && s.status === "already_promoted") ||
           (statusFilter === "repeat" && s.status === "repeat") ||
           (statusFilter === "trial" && s.status === "trial") ||
           (statusFilter === "incomplete" && ["no_results", "incomplete_results", "unresolved_review"].includes(s.status)) ||
-          (statusFilter === "already_promoted" && s.status === "already_promoted");
+          (statusFilter === "transferred_out" && (s.status === "transferred_out" || s.enrollmentStatus === "transferred_out")) ||
+          (statusFilter === "withdrawn" && s.status === "withdrawn");
 
         return matchesSearch && matchesStatus;
       });
@@ -367,6 +416,91 @@ export default function StudentPromotion() {
     }
   };
 
+  // Next Stage Enrollment Handler
+  const handleConfirmStageEnroll = async () => {
+    if (studentsToEnroll.length === 0) return;
+    setEnrollingStage(true);
+    try {
+      const studentIds = studentsToEnroll.map((s) => s.studentId);
+      const resAction = await dispatch(
+        enrollNextStage({
+          studentIds,
+          targetClassLevelId: targetStageClassId || undefined,
+          academicYearId: nextYear || selectedYear || undefined,
+          academicTermId: selectedTerm || undefined,
+          customRemarks: stageEnrollRemarks || undefined,
+        })
+      );
+      if (enrollNextStage.fulfilled.match(resAction)) {
+        toast.success(resAction.payload?.message || `Successfully enrolled ${studentsToEnroll.length} student(s) into next stage!`);
+        setShowStageEnrollModal(false);
+        setStudentsToEnroll([]);
+        setTargetStageClassId("");
+        setStageEnrollRemarks("");
+        setSelectedStudents(new Map());
+        handleLoadPreview();
+        dispatch(fetchPromotionHistory({ academicYearId: selectedYear !== "all" ? selectedYear : undefined }));
+      } else {
+        toast.error((resAction.payload as string) || "Failed to enroll students into next stage.");
+      }
+    } catch {
+      toast.error("An unexpected error occurred during stage enrollment.");
+    } finally {
+      setEnrollingStage(false);
+    }
+  };
+
+  // Transfer Out Handler
+  const handleConfirmTransferOut = async () => {
+    if (studentsToTransfer.length === 0) return;
+    setTransferring(true);
+    try {
+      const studentIds = studentsToTransfer.map((s) => s.studentId);
+      const resAction = await dispatch(
+        markTransferOut({
+          studentIds,
+          academicYearId: selectedYear || undefined,
+          transferDestination: transferDestination || undefined,
+          customRemarks: transferRemarks || undefined,
+        })
+      );
+      if (markTransferOut.fulfilled.match(resAction)) {
+        toast.success(resAction.payload?.message || `Successfully marked ${studentsToTransfer.length} student(s) as transferred out.`);
+        setShowTransferOutModal(false);
+        setStudentsToTransfer([]);
+        setTransferDestination("");
+        setTransferRemarks("");
+        setSelectedStudents(new Map());
+        handleLoadPreview();
+      } else {
+        toast.error((resAction.payload as string) || "Failed to mark student(s) as transferred out.");
+      }
+    } catch {
+      toast.error("An error occurred while marking student(s) as transferred out.");
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  // Student History Handler
+  const handleOpenStudentHistory = async (student: PromotionCandidate) => {
+    setStudentForHistory(student);
+    setShowHistoryModal(true);
+    setLoadingHistoryDetail(true);
+    try {
+      const res = await dispatch(fetchStudentProgressionHistory(student.studentId));
+      if (fetchStudentProgressionHistory.fulfilled.match(res)) {
+        setHistoryDetail(res.payload);
+      } else {
+        toast.error("Failed to fetch student progression history.");
+      }
+    } catch {
+      toast.error("Failed to load progression history.");
+    } finally {
+      setLoadingHistoryDetail(false);
+    }
+  };
+
   const getBadgeStyle = (color: string) => {
     switch (color) {
       case "emerald":
@@ -453,11 +587,11 @@ export default function StudentPromotion() {
 
       {/* 2. Selection & Filter Toolbar */}
       <div className="p-5 rounded-3xl bg-slate-900/80 border border-white/10 shadow-xl backdrop-blur-xl">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
           {/* Completed Academic Year */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-              <span>Academic Year (Completed)</span>
+              <span>Academic Year</span>
               <span className="text-[10px] text-indigo-400 font-normal">Source Year</span>
             </label>
             <select
@@ -506,7 +640,7 @@ export default function StudentPromotion() {
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
               <span>Next Academic Year</span>
-              <span className="text-[10px] text-violet-400 font-normal">Target Enrollment</span>
+              <span className="text-[10px] text-violet-400 font-normal">Enrollment</span>
             </label>
             <select
               value={nextYear}
@@ -522,10 +656,34 @@ export default function StudentPromotion() {
             </select>
           </div>
 
-          {/* Class Level Spotlight */}
+          {/* Educational Stage Filter */}
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-              <span>Filter Class Level</span>
+              <span>Educational Stage</span>
+              <span className="text-[10px] text-indigo-400 font-normal">Track</span>
+            </label>
+            <select
+              value={selectedStage}
+              onChange={(e) => {
+                setSelectedStage(e.target.value);
+                setSelectedClass("all");
+              }}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-white text-xs font-medium focus:outline-none focus:border-indigo-500"
+            >
+              <option value="all">All Stages</option>
+              <option value="kindergarten">Kindergarten (KG 1 - 2)</option>
+              <option value="nursery">Nursery (Nursery 1 - 2)</option>
+              <option value="primary">Primary (Primary 1 - 5)</option>
+              <option value="secondary_junior">Junior Secondary (JSS 1 - 3)</option>
+              <option value="secondary_senior">Senior Secondary (SSS 1 - 3)</option>
+              <option value="tertiary">Tertiary (100L - 400L)</option>
+            </select>
+          </div>
+
+          {/* Class Level Spotlight (Filtered Dynamically) */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+              <span>Class Level</span>
               <span className="text-[10px] text-slate-400">Class Scope</span>
             </label>
             <select
@@ -534,7 +692,7 @@ export default function StudentPromotion() {
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-white text-xs font-medium focus:outline-none focus:border-indigo-500"
             >
               <option value="all">All Class Levels</option>
-              {classLevels.map((c: any) => (
+              {filteredClassLevels.map((c: any) => (
                 <option key={c._id} value={c._id}>
                   {c.name}
                 </option>
@@ -561,53 +719,61 @@ export default function StudentPromotion() {
         <div className="space-y-6">
           {/* KPI Statistics Overview */}
           {previewData?.overallStats && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-3.5">
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
                 <span className="text-xs text-slate-400 block mb-1">Total Students</span>
                 <span className="text-xl sm:text-2xl font-black text-white">
                   {previewData.overallStats.totalStudents}
                 </span>
-                <span className="text-[10px] text-slate-500 block mt-1">Evaluated in class</span>
+                <span className="text-[10px] text-slate-500 block mt-0.5">Evaluated in scope</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
                 <span className="text-xs text-emerald-300 block mb-1">Eligible to Advance</span>
                 <span className="text-xl sm:text-2xl font-black text-emerald-400">
                   {previewData.overallStats.eligibleForPromotion}
                 </span>
-                <span className="text-[10px] text-emerald-400/70 block mt-1">Average &ge; {passMark}%</span>
+                <span className="text-[10px] text-emerald-400/70 block mt-0.5">Annual Avg &ge; {passMark}%</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
-                <span className="text-xs text-purple-300 block mb-1">Graduation Ready</span>
+              <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20">
+                <span className="text-xs text-indigo-300 block mb-1">Stage Graduating</span>
+                <span className="text-xl sm:text-2xl font-black text-indigo-300">
+                  {previewData.overallStats.eligibleForStageGraduation ?? 0}
+                </span>
+                <span className="text-[10px] text-indigo-400/70 block mt-0.5">KG, Nur, Pry complete</span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+                <span className="text-xs text-purple-300 block mb-1">Final Graduation</span>
                 <span className="text-xl sm:text-2xl font-black text-purple-400">
                   {previewData.overallStats.eligibleForGraduation}
                 </span>
-                <span className="text-[10px] text-purple-400/70 block mt-1">Final year complete</span>
+                <span className="text-[10px] text-purple-400/70 block mt-0.5">SSS 3 / Tertiary</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-                <span className="text-xs text-rose-300 block mb-1">Repeat Class</span>
+              <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20">
+                <span className="text-xs text-rose-300 block mb-1">Repeat Required</span>
                 <span className="text-xl sm:text-2xl font-black text-rose-400">
                   {previewData.overallStats.repeatCount}
                 </span>
-                <span className="text-[10px] text-rose-400/70 block mt-1">Below pass threshold</span>
+                <span className="text-[10px] text-rose-400/70 block mt-0.5">Below pass target</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
                 <span className="text-xs text-amber-300 block mb-1">Incomplete / Review</span>
                 <span className="text-xl sm:text-2xl font-black text-amber-400">
                   {previewData.overallStats.incompleteCount}
                 </span>
-                <span className="text-[10px] text-amber-400/70 block mt-1">Missing / unverified</span>
+                <span className="text-[10px] text-amber-400/70 block mt-0.5">Missing term results</span>
               </div>
 
-              <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/60">
+              <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/60">
                 <span className="text-xs text-slate-300 block mb-1">Already Promoted</span>
                 <span className="text-xl sm:text-2xl font-black text-indigo-300">
                   {previewData.overallStats.alreadyPromotedCount}
                 </span>
-                <span className="text-[10px] text-slate-400 block mt-1">Duplicate prevented</span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">Duplicate safe</span>
               </div>
             </div>
           )}
@@ -632,20 +798,43 @@ export default function StudentPromotion() {
                 className="px-3 py-2 rounded-xl bg-slate-950 border border-white/15 text-white text-xs focus:outline-none focus:border-indigo-500"
               >
                 <option value="all">All Eligibility Standings</option>
-                <option value="eligible">Eligible & Graduating</option>
+                <option value="eligible">Eligible for Promotion</option>
+                <option value="stage_graduation_eligible">Eligible for Stage Graduation</option>
+                <option value="stage_graduate_awaiting_enrollment">Awaiting Next Stage</option>
+                <option value="graduation_eligible">Eligible for Final Graduation</option>
+                <option value="already_promoted">Already Promoted</option>
                 <option value="repeat">Repeat Required</option>
                 <option value="trial">Promote on Trial</option>
                 <option value="incomplete">Incomplete / Unresolved</option>
-                <option value="already_promoted">Already Promoted</option>
+                <option value="transferred_out">Transferred Out</option>
+                <option value="withdrawn">Withdrawn</option>
               </select>
             </div>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleSelectAllEligibleGlobally}
-                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold border border-white/10 transition-colors cursor-pointer"
+                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold border border-white/10 transition-colors cursor-pointer"
               >
                 Select All Eligible
+              </button>
+
+              <button
+                disabled={selectedStudents.size === 0}
+                onClick={() => {
+                  const selectedList = Array.from(selectedStudents.values()).map((v) => v.candidate);
+                  setStudentsToEnroll(selectedList);
+                  setShowStageEnrollModal(true);
+                }}
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
+                  selectedStudents.size > 0
+                    ? "bg-purple-600 hover:bg-purple-500 text-white shadow-purple-600/30 active:scale-95"
+                    : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
+                }`}
+                title="Enroll selected student(s) into next educational stage"
+              >
+                <HiOutlineArrowRight className="w-3.5 h-3.5" />
+                <span>Enroll in Next Stage</span>
               </button>
 
               <button
@@ -654,14 +843,14 @@ export default function StudentPromotion() {
                   setSingleStudentToPromote(null);
                   setShowConfirmModal(true);
                 }}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-lg ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-md ${
                   selectedStudents.size > 0
                     ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30 active:scale-95"
                     : "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
                 }`}
               >
-                <HiOutlineSparkles className="w-4 h-4" />
-                <span>Bulk Promote ({selectedStudents.size} selected)</span>
+                <HiOutlineSparkles className="w-3.5 h-3.5" />
+                <span>Bulk Promote ({selectedStudents.size})</span>
               </button>
             </div>
           </div>
@@ -798,15 +987,31 @@ export default function StudentPromotion() {
                                     <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-950 border border-white/10 text-xs">
                                       <span className="text-slate-300">{student.currentClass}</span>
                                       <HiOutlineArrowRight className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                                      {student.isFinalYear || student.proposedNextClass === "Graduated" ? (
-                                        <span className="text-amber-400 font-bold flex items-center gap-1">
-                                          <HiOutlineTrophy className="w-3.5 h-3.5" /> Graduated
-                                        </span>
-                                      ) : (
-                                        <span className="text-emerald-400 font-bold">
-                                          {student.proposedNextClass}
-                                        </span>
-                                      )}
+                                      {(() => {
+                                        const isJss3 = /j\.?s\.?s?\s*3/i.test(student.currentClass || "");
+                                        if (isJss3) {
+                                          const rawNext = (student.proposedNextClass || "").trim();
+                                          const isInvalid = !rawNext || ["graduated", "jss 3", "jss3"].includes(rawNext.toLowerCase());
+                                          const displayNext = isInvalid ? "SS 1" : (rawNext.toLowerCase().includes("sss 1") ? "SS 1" : rawNext);
+                                          return (
+                                            <span className="text-emerald-400 font-bold">
+                                              {displayNext}
+                                            </span>
+                                          );
+                                        }
+                                        if (student.isFinalYear || student.proposedNextClass === "Graduated") {
+                                          return (
+                                            <span className="text-amber-400 font-bold flex items-center gap-1">
+                                              <HiOutlineTrophy className="w-3.5 h-3.5" /> Graduated
+                                            </span>
+                                          );
+                                        }
+                                        return (
+                                          <span className="text-emerald-400 font-bold">
+                                            {student.proposedNextClass}
+                                          </span>
+                                        );
+                                      })()}
                                     </div>
                                   </td>
 
@@ -859,54 +1064,93 @@ export default function StudentPromotion() {
 
                                   {/* Individual Action Buttons */}
                                   <td className="p-3.5 text-right">
-                                    {student.alreadyPromoted ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] text-indigo-300 font-medium">
-                                        <HiOutlineCheckCircle className="w-4 h-4 text-emerald-400" /> Promoted
-                                      </span>
-                                    ) : (
-                                      <div className="inline-flex items-center gap-1.5">
-                                        {student.isEligible ? (
-                                          <>
+                                    <div className="inline-flex items-center gap-1.5 justify-end">
+                                      {/* View Progression History Button */}
+                                      <button
+                                        onClick={() => handleOpenStudentHistory(student)}
+                                        className="p-1 rounded-lg bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                        title="View student progression history"
+                                      >
+                                        <HiOutlineEye className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      {student.status === "stage_graduate_awaiting_enrollment" || student.enrollmentStatus === "awaiting_next_stage" ? (
+                                        <>
+                                          <button
+                                            onClick={() => {
+                                              setStudentsToEnroll([student]);
+                                              setShowStageEnrollModal(true);
+                                            }}
+                                            className="px-2.5 py-1 rounded-lg bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/40 text-purple-300 hover:text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                                            title="Enroll student in next educational stage"
+                                          >
+                                            <HiOutlineArrowRight className="w-3.5 h-3.5 text-purple-400" />
+                                            <span>Enroll Stage</span>
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setStudentsToTransfer([student]);
+                                              setShowTransferOutModal(true);
+                                            }}
+                                            className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
+                                            title="Mark as transferred out"
+                                          >
+                                            <HiOutlineArrowRightOnRectangle className="w-3.5 h-3.5" />
+                                          </button>
+                                        </>
+                                      ) : student.alreadyPromoted ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] text-indigo-300 font-medium">
+                                          <HiOutlineCheckCircle className="w-4 h-4 text-emerald-400" /> Promoted
+                                        </span>
+                                      ) : (
+                                        <>
+                                          {student.isEligible ? (
+                                            <>
+                                              <button
+                                                onClick={() => {
+                                                  setSingleStudentToPromote({
+                                                    candidate: student,
+                                                    action: student.isFinalYear || student.isStageGraduation ? "graduate" : "promote",
+                                                  });
+                                                  setShowConfirmModal(true);
+                                                }}
+                                                className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-colors cursor-pointer"
+                                              >
+                                                {student.isStageGraduation
+                                                  ? "Graduate Stage"
+                                                  : student.isFinalYear
+                                                  ? "Graduate"
+                                                  : "Promote"}
+                                              </button>
+                                              {/* If JSS final year or proposed to graduate from JSS, offer Move to SSS */}
+                                              {((student.currentClass || "").toLowerCase().includes("jss") || (student.currentClass || "").toLowerCase().includes("junior")) && (student.isFinalYear || student.proposedNextClass === "Graduated") && (
+                                                <button
+                                                  onClick={() => setTransitioningStudent({ id: student.studentId, name: student.name })}
+                                                  className="px-2.5 py-1 rounded-lg bg-indigo-600/25 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                                                  title="Move this graduated JSS student into SSS 1 Class"
+                                                >
+                                                  <HiOutlineArrowRight className="w-3.5 h-3.5 text-indigo-400" />
+                                                  <span>Move to SSS</span>
+                                                </button>
+                                              )}
+                                            </>
+                                          ) : (
                                             <button
                                               onClick={() => {
                                                 setSingleStudentToPromote({
                                                   candidate: student,
-                                                  action: student.isFinalYear ? "graduate" : "promote",
+                                                  action: "repeat",
                                                 });
                                                 setShowConfirmModal(true);
                                               }}
-                                              className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-colors cursor-pointer"
+                                              className="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 text-xs font-semibold transition-colors cursor-pointer"
                                             >
-                                              {student.isFinalYear ? "Graduate" : "Promote"}
+                                              Repeat
                                             </button>
-                                            {/* If JSS final year or proposed to graduate from JSS, offer Move to SSS */}
-                                            {((student.currentClass || "").toLowerCase().includes("jss") || (student.currentClass || "").toLowerCase().includes("junior")) && (student.isFinalYear || student.proposedNextClass === "Graduated") && (
-                                              <button
-                                                onClick={() => setTransitioningStudent({ id: student.studentId, name: student.name })}
-                                                className="px-2.5 py-1 rounded-lg bg-indigo-600/25 hover:bg-indigo-600/40 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-sm"
-                                                title="Move this graduated JSS student into SSS 1 Class"
-                                              >
-                                                <HiOutlineArrowRight className="w-3.5 h-3.5 text-indigo-400" />
-                                                <span>Move to SSS</span>
-                                              </button>
-                                            )}
-                                          </>
-                                        ) : (
-                                          <button
-                                            onClick={() => {
-                                              setSingleStudentToPromote({
-                                                candidate: student,
-                                                action: "repeat",
-                                              });
-                                              setShowConfirmModal(true);
-                                            }}
-                                            className="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 text-xs font-semibold transition-colors cursor-pointer"
-                                          >
-                                            Repeat
-                                          </button>
-                                        )}
-                                      </div>
-                                    )}
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
                                   </td>
                                 </tr>
                               );
@@ -1368,6 +1612,337 @@ export default function StudentPromotion() {
               >
                 <HiOutlineArrowRight className="w-4 h-4" />
                 <span>Confirm Move to SSS 1</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. ENROLL IN NEXT EDUCATIONAL STAGE MODAL */}
+      {showStageEnrollModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg rounded-3xl bg-slate-900 border border-purple-500/30 p-6 shadow-2xl space-y-5 text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-300">
+                  <HiOutlineArrowRight className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Enroll in Next Educational Stage</h3>
+                  <p className="text-xs text-slate-400">Advance stage graduate into the next level of education</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowStageEnrollModal(false);
+                  setStudentsToEnroll([]);
+                }}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Cohort Summary */}
+              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Cohort Size:</span>
+                  <strong className="text-purple-300 font-bold text-sm">
+                    {studentsToEnroll.length} student{studentsToEnroll.length === 1 ? "" : "s"}
+                  </strong>
+                </div>
+                <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
+                  {studentsToEnroll.map((s) => (
+                    <div key={s.studentId} className="flex items-center justify-between text-[11px] text-slate-300">
+                      <span>{s.name} ({s.registrationNumber})</span>
+                      <span className="text-indigo-400 font-semibold">{s.currentClass}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Target Class Selection */}
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1.5 flex items-center justify-between">
+                  <span>Destination Class Level</span>
+                  <span className="text-[10px] text-purple-400 font-normal">Next Stage Entry</span>
+                </label>
+                <select
+                  value={targetStageClassId}
+                  onChange={(e) => setTargetStageClassId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-white text-xs font-medium focus:outline-none focus:border-purple-500 cursor-pointer"
+                >
+                  <option value="">Auto-resolve stage default (e.g. Nursery 1, Primary 1, JSS 1, SSS 1)</option>
+                  {classLevels.map((c: any) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-slate-400 block mt-1">
+                  Default: Kindergarten &rarr; Nursery 1 &bull; Nursery &rarr; Primary 1 &bull; Primary &rarr; JSS 1 &bull; JSS &rarr; SSS 1
+                </span>
+              </div>
+
+              {/* Optional Custom Remarks */}
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Administrative Remarks (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Completed stage graduation requirements and enrolled into primary school"
+                  value={stageEnrollRemarks}
+                  onChange={(e) => setStageEnrollRemarks(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/15 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-200 space-y-1">
+                <span className="font-bold flex items-center gap-1.5 text-purple-300">
+                  <HiOutlineShieldCheck className="w-4 h-4 shrink-0" />
+                  Preservation & Data Integrity:
+                </span>
+                <ul className="list-disc list-inside space-y-0.5 pl-1">
+                  <li>Reuses the student's existing MongoDB profile and <code className="text-purple-300">_id</code> without duplication.</li>
+                  <li>Preserves parent link, historical grades, and academic certificates.</li>
+                  <li>Updates active student rosters and auto-assigns teacher for the new class.</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStageEnrollModal(false);
+                  setStudentsToEnroll([]);
+                }}
+                disabled={enrollingStage}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={enrollingStage}
+                onClick={handleConfirmStageEnroll}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-600/30 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {enrollingStage ? (
+                  <>
+                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" />
+                    <span>Enrolling...</span>
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineCheckCircle className="w-4 h-4" />
+                    <span>Confirm Next-Stage Enrollment</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 10. TRANSFER OUT CONFIRMATION MODAL */}
+      {showTransferOutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md rounded-3xl bg-slate-900 border border-slate-700 p-6 shadow-2xl space-y-4 text-white">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-300">
+                  <HiOutlineArrowRightOnRectangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Mark as Transferred Out</h3>
+                  <p className="text-xs text-slate-400">Record student departure from school</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowTransferOutModal(false);
+                  setStudentsToTransfer([]);
+                }}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Are you sure you want to mark{" "}
+              <strong className="text-white">
+                {studentsToTransfer.length === 1
+                  ? studentsToTransfer[0].name
+                  : `${studentsToTransfer.length} students`}
+              </strong>{" "}
+              as transferred out? This removes the student from active classroom rosters while preserving all historical results.
+            </p>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Destination School (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. St. Jude International Academy"
+                  value={transferDestination}
+                  onChange={(e) => setTransferDestination(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/15 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Remarks (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="Reason for transfer or notes"
+                  value={transferRemarks}
+                  onChange={(e) => setTransferRemarks(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/15 text-white text-xs placeholder:text-slate-500 focus:outline-none focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTransferOutModal(false);
+                  setStudentsToTransfer([]);
+                }}
+                disabled={transferring}
+                className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={transferring}
+                onClick={handleConfirmTransferOut}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-lg shadow-rose-600/30 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {transferring ? (
+                  <>
+                    <HiOutlineArrowPath className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <HiOutlineCheckCircle className="w-4 h-4" />
+                    <span>Confirm Transfer Out</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 11. STUDENT PROGRESSION HISTORY TIMELINE MODAL */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-2xl max-h-[85vh] rounded-3xl bg-slate-900 border border-white/15 p-6 shadow-2xl flex flex-col text-white">
+            <div className="flex items-center justify-between pb-4 border-b border-white/10 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <HiOutlineClock className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">
+                    {studentForHistory?.name || "Student"} Progression Ledger
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    ID: {studentForHistory?.registrationNumber} &bull; Current Class: {studentForHistory?.currentClass}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowHistoryModal(false);
+                  setStudentForHistory(null);
+                  setHistoryDetail(null);
+                }}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
+              >
+                <HiOutlineXMark className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 py-4 pr-1 space-y-4">
+              {loadingHistoryDetail ? (
+                <div className="p-12 text-center space-y-2">
+                  <HiOutlineArrowPath className="w-6 h-6 text-indigo-400 animate-spin mx-auto" />
+                  <p className="text-xs text-slate-400">Loading student progression history...</p>
+                </div>
+              ) : !historyDetail?.history || historyDetail.history.length === 0 ? (
+                <div className="p-12 text-center text-xs text-slate-400">
+                  No historical promotions or graduation records found for this student.
+                </div>
+              ) : (
+                <div className="relative border-l-2 border-indigo-500/30 ml-4 pl-5 space-y-6">
+                  {historyDetail.history.map((record: any, idx: number) => (
+                    <div key={record._id || idx} className="relative">
+                      <div className="absolute -left-[27px] top-1 w-3.5 h-3.5 rounded-full bg-indigo-500 ring-4 ring-slate-900" />
+                      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <span className="text-slate-400">{record.fromClass}</span>
+                            <HiOutlineArrowRight className="w-3.5 h-3.5 text-indigo-400" />
+                            <span className="text-emerald-400">{record.toClass}</span>
+                          </span>
+                          <span className="text-[11px] text-slate-400">
+                            {new Date(record.promotionDate).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            {record.promotionStatus}
+                          </span>
+                          {record.academicYear?.name && (
+                            <span className="text-[10px] text-slate-400">
+                              Year: {record.academicYear.name}
+                            </span>
+                          )}
+                          {record.averageScore > 0 && (
+                            <span className="text-[10px] text-emerald-400 font-semibold">
+                              Average: {record.averageScore}%
+                            </span>
+                          )}
+                        </div>
+
+                        {record.remarks && (
+                          <p className="text-[11px] text-slate-400 italic">
+                            "{record.remarks}"
+                          </p>
+                        )}
+
+                        {record.promotedByName && (
+                          <p className="text-[10px] text-slate-500 text-right">
+                            Approved by: {record.promotedByName}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistoryModal(false);
+                  setStudentForHistory(null);
+                  setHistoryDetail(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

@@ -29,6 +29,7 @@ import {
   FiGrid,
   FiList,
   FiCheckCircle,
+  FiCoffee,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -495,7 +496,10 @@ export default function TimetableManagement() {
                             colSpan={selectedDay === "All" ? DAYS.length : 1}
                             className="py-1.5 text-center tracking-widest uppercase text-amber-400/80"
                           >
-                            ☕ Morning Recess / Interval
+                            <span className="inline-flex items-center justify-center gap-1.5">
+                              <FiCoffee className="w-3.5 h-3.5" />
+                              <span>Morning Recess / Interval</span>
+                            </span>
                           </td>
                         </tr>
                       )}
@@ -506,7 +510,10 @@ export default function TimetableManagement() {
                             colSpan={selectedDay === "All" ? DAYS.length : 1}
                             className="py-1.5 text-center tracking-widest uppercase text-emerald-400/80"
                           >
-                            🥪 Lunch Interval
+                            <span className="inline-flex items-center justify-center gap-1.5">
+                              <FiClock className="w-3.5 h-3.5" />
+                              <span>Lunch Interval</span>
+                            </span>
                           </td>
                         </tr>
                       )}

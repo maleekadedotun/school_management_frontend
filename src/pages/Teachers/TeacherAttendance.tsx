@@ -33,6 +33,8 @@ import {
   HiOutlineLockClosed,
   HiOutlineChevronLeft,
   HiOutlineChevronRight,
+  HiOutlineXMark,
+  HiOutlineClipboardDocumentList,
 } from "react-icons/hi2";
 
 type AttendanceStatus = "Present" | "Absent" | "Late" | "Excused";
@@ -641,7 +643,7 @@ export default function TeacherAttendance() {
             onClick={() => dispatch(clearSubmitState())}
             className="text-emerald-300 hover:text-white font-bold ml-4 cursor-pointer"
           >
-            ✕
+            <HiOutlineXMark className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -656,7 +658,7 @@ export default function TeacherAttendance() {
             onClick={() => dispatch(clearSubmitState())}
             className="text-rose-300 hover:text-white font-bold ml-4 cursor-pointer"
           >
-            ✕
+            <HiOutlineXMark className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -1124,7 +1126,7 @@ export default function TeacherAttendance() {
             ) : filteredStudents.length === 0 ? (
               <div className="py-16 text-center space-y-3">
                 <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-400 flex items-center justify-center text-2xl mx-auto">
-                  📋
+                  <HiOutlineClipboardDocumentList className="w-7 h-7" />
                 </div>
                 <h3 className="font-bold text-gray-900 dark:text-white text-base">
                   No Students Found
@@ -1613,7 +1615,7 @@ export default function TeacherAttendance() {
                 onClick={() => setShowCalendarModal(false)}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-sm font-bold cursor-pointer transition-all"
               >
-                ✕
+                <HiOutlineXMark className="w-4 h-4" />
               </button>
             </div>
 

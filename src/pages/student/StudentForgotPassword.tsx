@@ -5,6 +5,16 @@ import {
   studentForgotPassword,
   studentResetPassword,
 } from "../../features/students/studentsSlice";
+import {
+  FiArrowLeft,
+  FiArrowRight,
+  FiLock,
+  FiAlertTriangle,
+  FiCheck,
+  FiCheckCircle,
+  FiInfo,
+  FiCircle,
+} from "react-icons/fi";
 
 const StudentForgotPassword: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -119,9 +129,7 @@ const StudentForgotPassword: React.FC = () => {
             to="/student/login"
             className="inline-flex items-center gap-2 hover:text-white transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
+            <FiArrowLeft className="w-4 h-4 shrink-0" />
             <span>Back to Student Login</span>
           </Link>
           <span className="font-mono text-indigo-400">Step {step} of 3</span>
@@ -132,9 +140,7 @@ const StudentForgotPassword: React.FC = () => {
           {/* Logo / Cap Icon */}
           <div className="text-center space-y-3">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 shadow-xl shadow-indigo-600/30 border border-white/20">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+              <FiLock className="w-7 h-7 text-white" />
             </div>
 
             <div className="space-y-1">
@@ -162,14 +168,14 @@ const StudentForgotPassword: React.FC = () => {
           {/* Alerts */}
           {error && (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs font-medium flex items-start gap-2.5">
-              <span className="text-base shrink-0">⚠️</span>
+              <FiAlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
               <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
           {successMsg && (
             <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-medium flex items-start gap-2.5">
-              <span className="text-base shrink-0">✓</span>
+              <FiCheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <span className="leading-relaxed">{successMsg}</span>
             </div>
           )}
@@ -212,8 +218,9 @@ const StudentForgotPassword: React.FC = () => {
                 />
               </div>
 
-              <p className="text-[11px] text-slate-400 leading-normal">
-                💡 Tip: You can provide either your registered university email or your student matriculation ID to verify your identity.
+              <p className="text-[11px] text-slate-400 leading-normal flex items-start gap-1.5">
+                <FiInfo className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5" />
+                <span>Tip: You can provide either your registered university email or your student matriculation ID to verify your identity.</span>
               </p>
 
               <button
@@ -227,7 +234,10 @@ const StudentForgotPassword: React.FC = () => {
                     <span>Verifying Student Account...</span>
                   </>
                 ) : (
-                  <span>Verify Account & Continue →</span>
+                  <>
+                    <span>Verify Account & Continue</span>
+                    <FiArrowRight className="w-4 h-4 shrink-0" />
+                  </>
                 )}
               </button>
             </form>
@@ -245,8 +255,9 @@ const StudentForgotPassword: React.FC = () => {
                       ID: {verifiedStudent.studentId || studentId || "STU-VERIFIED"}
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    ✓ Verified
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <FiCheck className="w-3 h-3 shrink-0" />
+                    <span>Verified</span>
                   </span>
                 </div>
               )}
@@ -293,11 +304,19 @@ const StudentForgotPassword: React.FC = () => {
               {/* Password Quality Checklist */}
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1.5 text-[11px]">
                 <div className={`flex items-center gap-1.5 ${password.length >= 6 ? "text-emerald-400" : "text-slate-400"}`}>
-                  <span>{password.length >= 6 ? "✓" : "○"}</span>
+                  {password.length >= 6 ? (
+                    <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <FiCircle className="w-3 h-3 text-slate-500 shrink-0" />
+                  )}
                   <span>At least 6 characters long</span>
                 </div>
                 <div className={`flex items-center gap-1.5 ${password && password === confirmPassword ? "text-emerald-400" : "text-slate-400"}`}>
-                  <span>{password && password === confirmPassword ? "✓" : "○"}</span>
+                  {password && password === confirmPassword ? (
+                    <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <FiCircle className="w-3 h-3 text-slate-500 shrink-0" />
+                  )}
                   <span>Passwords match</span>
                 </div>
               </div>
@@ -331,8 +350,8 @@ const StudentForgotPassword: React.FC = () => {
           {/* STEP 3: Complete Success Screen */}
           {step === 3 && (
             <div className="text-center space-y-6 py-4">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-3xl">
-                ✓
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <FiCheckCircle className="w-8 h-8" />
               </div>
 
               <div className="space-y-2">
@@ -349,7 +368,7 @@ const StudentForgotPassword: React.FC = () => {
                   className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
                   <span>Proceed to Student Sign In</span>
-                  <span>→</span>
+                  <FiArrowRight className="w-4 h-4 shrink-0" />
                 </button>
               </div>
             </div>

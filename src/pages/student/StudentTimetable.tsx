@@ -12,6 +12,7 @@ import {
   FiAward,
   FiLayers,
   FiInfo,
+  FiCoffee,
 } from "react-icons/fi";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"] as const;
@@ -329,7 +330,10 @@ export default function StudentTimetable() {
                       <tr className="bg-slate-900/60 text-slate-400 font-semibold text-[11px] text-center">
                         <td className="py-1.5 px-4 border-r border-slate-800 text-left">10:15 - 10:45 AM</td>
                         <td colSpan={5} className="py-1.5 text-center tracking-widest uppercase text-amber-400/80">
-                          ☕ Morning Recess / Interval
+                          <span className="inline-flex items-center justify-center gap-1.5">
+                            <FiCoffee className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                            <span>Morning Recess / Interval</span>
+                          </span>
                         </td>
                       </tr>
                     )}
@@ -337,7 +341,10 @@ export default function StudentTimetable() {
                       <tr className="bg-slate-900/60 text-slate-400 font-semibold text-[11px] text-center">
                         <td className="py-1.5 px-4 border-r border-slate-800 text-left">12:15 - 01:00 PM</td>
                         <td colSpan={5} className="py-1.5 text-center tracking-widest uppercase text-emerald-400/80">
-                          🥪 Lunch Interval
+                          <span className="inline-flex items-center justify-center gap-1.5">
+                            <FiClock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>Lunch Interval</span>
+                          </span>
                         </td>
                       </tr>
                     )}

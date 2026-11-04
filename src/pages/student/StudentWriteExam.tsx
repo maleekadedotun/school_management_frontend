@@ -25,6 +25,14 @@ import {
   HiOutlineShieldCheck,
   HiOutlineListBullet,
 } from "react-icons/hi2";
+import {
+  FiAward,
+  FiShield,
+  FiEdit3,
+  FiClipboard,
+  FiLock,
+  FiBookOpen,
+} from "react-icons/fi";
 
 export default function StudentWriteExam() {
   const dispatch = useAppDispatch();
@@ -510,7 +518,14 @@ export default function StudentWriteExam() {
                     : "bg-rose-500/30 text-rose-200 border border-rose-400/40"
                 }`}
               >
-                {isPassed ? "Assessment Passed 🎉" : "Assessment Completed"}
+                {isPassed ? (
+                  <>
+                    <FiAward className="w-3.5 h-3.5 shrink-0" />
+                    <span>Assessment Passed</span>
+                  </>
+                ) : (
+                  "Assessment Completed"
+                )}
               </span>
 
               <h1 className="text-3xl md:text-4xl font-black text-white tracking-tight">
@@ -537,7 +552,7 @@ export default function StudentWriteExam() {
         <div className="p-5 rounded-3xl bg-gradient-to-r from-violet-950/50 via-purple-950/40 to-indigo-950/50 border border-violet-500/30 backdrop-blur-md shadow-xl space-y-3">
           <div className="flex items-center gap-3">
             <span className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-300 flex items-center justify-center font-bold text-sm shrink-0 border border-violet-500/30">
-              ⚖️
+              <FiShield className="w-4 h-4" />
             </span>
             <div>
               <h4 className="text-sm font-bold text-white">Submission Forwarded to Respective Teacher</h4>
@@ -686,7 +701,7 @@ export default function StudentWriteExam() {
         <div className="sticky top-4 z-40 rounded-3xl bg-slate-900/95 border border-indigo-500/30 backdrop-blur-xl p-4 md:p-6 shadow-2xl text-white flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-lg text-white shadow-lg">
-              ✍️
+              <FiEdit3 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -944,8 +959,8 @@ export default function StudentWriteExam() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
             <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-700 p-6 md:p-8 text-white space-y-5 shadow-2xl">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-2xl">
-                  📋
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <FiClipboard className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-white">
@@ -1056,8 +1071,9 @@ export default function StudentWriteExam() {
               <HiOutlineAcademicCap className="w-4 h-4 text-indigo-400" />
               Official Examination Portal
             </span>
-            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight">
-              Take / Write Online Examination ✍️
+            <h1 className="text-2xl md:text-4xl font-black text-white tracking-tight flex items-center gap-2.5 flex-wrap">
+              <span>Take / Write Online Examination</span>
+              <FiEdit3 className="w-7 h-7 text-indigo-400 shrink-0" />
             </h1>
             <p className="text-xs md:text-sm text-indigo-200/80 max-w-2xl leading-relaxed">
               Select an examination below to enter the verified computer-based testing environment.
@@ -1128,8 +1144,9 @@ export default function StudentWriteExam() {
           </div>
         </div>
 
-        <span className="text-[11px] text-slate-500 dark:text-slate-400 italic">
-          🔒 Showing only exams prepared by your assigned teacher for your class
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 italic inline-flex items-center gap-1.5">
+          <FiLock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+          <span>Showing only exams prepared by your assigned teacher for your class</span>
         </span>
       </div>
 
@@ -1181,8 +1198,8 @@ export default function StudentWriteExam() {
         </div>
       ) : filteredExams.length === 0 ? (
         <div className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 p-12 text-center space-y-3 shadow-sm">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
-            📚
+          <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center mx-auto">
+            <FiBookOpen className="w-8 h-8" />
           </div>
           <h4 className="font-bold text-gray-900 dark:text-white text-base">
             No Active Live Examinations Available

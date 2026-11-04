@@ -11,6 +11,7 @@ import {
 } from "../../features/parentAuth/parentAuthSlice";
 import PaymentReceiptModal from "./PaymentReceiptModal";
 import toast from "react-hot-toast";
+import { FiClipboard, FiPlus, FiCheckCircle, FiCreditCard, FiX, FiLock } from "react-icons/fi";
 
 export default function ParentInvoices() {
   const dispatch = useAppDispatch();
@@ -137,13 +138,13 @@ export default function ParentInvoices() {
               to="/parent/transactions"
               className="px-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold rounded-xl text-xs transition duration-200 border border-white/20 flex items-center gap-1.5"
             >
-              <span>📋</span> Transactions Ledger
+              <FiClipboard className="w-3.5 h-3.5 shrink-0" /> Transactions Ledger
             </Link>
             <button
               onClick={() => setShowLinkModal(true)}
               className="px-4 py-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold rounded-xl text-xs transition duration-200 border border-white/20 flex items-center gap-1.5"
             >
-              <span>+</span> Link Another Child
+              <FiPlus className="w-3.5 h-3.5 shrink-0" /> Link Another Child
             </button>
           </div>
         </div>
@@ -210,8 +211,8 @@ export default function ParentInvoices() {
         <div className="py-16 text-center text-gray-400">Loading student invoices...</div>
       ) : filteredInvoices.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 p-12 text-center rounded-2xl border border-gray-100 dark:border-gray-700">
-          <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-            ✓
+          <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <FiCheckCircle className="w-8 h-8" />
           </div>
           <h3 className="text-base font-bold text-gray-900 dark:text-white">
             No outstanding fees
@@ -325,14 +326,12 @@ export default function ParentInvoices() {
                       onClick={() => handleOpenPay(inv)}
                       className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition duration-200 shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
+                      <FiCreditCard className="w-4 h-4 shrink-0" />
                       Pay Online (Paystack)
                     </button>
                   ) : (
-                    <div className="flex-1 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 text-center font-bold rounded-xl text-xs">
-                      ✓ Cleared
+                    <div className="flex-1 py-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 text-center font-bold rounded-xl text-xs inline-flex items-center justify-center gap-1.5">
+                      <FiCheckCircle className="w-3.5 h-3.5 shrink-0" /> Cleared
                     </div>
                   )}
 
@@ -363,7 +362,7 @@ export default function ParentInvoices() {
                 onClick={() => setShowLinkModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -418,7 +417,7 @@ export default function ParentInvoices() {
                 onClick={() => setPayModalInvoice(null)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -449,7 +448,7 @@ export default function ParentInvoices() {
               </div>
 
               <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl flex items-center gap-3 text-xs text-gray-500">
-                <span className="text-emerald-500 font-bold">🔒</span>
+                <FiLock className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>Paystack Gateway: cards, transfers, and USSD supported.</span>
               </div>
 

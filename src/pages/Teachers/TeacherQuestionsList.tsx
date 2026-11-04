@@ -17,6 +17,28 @@ import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import { fetchPrograms } from "../../features/programs/programsSlice";
 import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice";
 import toast from "react-hot-toast";
+import {
+  FiCheck,
+  FiPlus,
+  FiClipboard,
+  FiHelpCircle,
+  FiCalendar,
+  FiTarget,
+  FiSearch,
+  FiChevronUp,
+  FiChevronDown,
+  FiChevronRight,
+  FiChevronLeft,
+  FiRefreshCw,
+  FiBarChart2,
+  FiZap,
+  FiTag,
+  FiEdit2,
+  FiTrash2,
+  FiEye,
+  FiX,
+  FiAlertTriangle,
+} from "react-icons/fi";
 
 interface QuestionFormData {
   academicYear: string;
@@ -685,7 +707,7 @@ export default function TeacherQuestionsList() {
                 {teacher?.name ? teacher.name[0].toUpperCase() : "T"}
               </div>
               <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-400 border-2 border-[#0a0f1e] flex items-center justify-center text-[10px] text-black font-bold">
-                ✓
+                <FiCheck className="w-3 h-3 stroke-[3]" />
               </span>
             </div>
 
@@ -744,20 +766,16 @@ export default function TeacherQuestionsList() {
               }}
               className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
-              <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              + Create Examination / Test
+              <FiPlus className="w-4 h-4 text-emerald-400 shrink-0" />
+              Create Examination / Test
             </button>
 
             <button
               onClick={() => handleOpenCreateModal()}
               className="flex-1 md:flex-initial px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-sm font-bold shadow-lg shadow-emerald-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-              </svg>
-              + Create Question
+              <FiPlus className="w-4 h-4 stroke-[2.5] shrink-0" />
+              Create Question
             </button>
           </div>
         </div>
@@ -770,7 +788,7 @@ export default function TeacherQuestionsList() {
             title: "Examinations & Tests",
             value: assessments.length,
             label: "Assessment Records",
-            icon: "📋",
+            icon: <FiClipboard className="w-5 h-5 text-blue-400" />,
             bg: "from-blue-500/10 to-indigo-500/5",
             border: "border-blue-500/20",
             text: "text-blue-400",
@@ -779,7 +797,7 @@ export default function TeacherQuestionsList() {
             title: "Total Questions",
             value: totalQuestionsCount,
             label: "Questions in Bank",
-            icon: "❓",
+            icon: <FiHelpCircle className="w-5 h-5 text-emerald-400" />,
             bg: "from-emerald-500/10 to-teal-500/5",
             border: "border-emerald-500/20",
             text: "text-emerald-400",
@@ -788,7 +806,7 @@ export default function TeacherQuestionsList() {
             title: "Academic Years",
             value: availableYears.length,
             label: "e.g. 2026/2027",
-            icon: "📅",
+            icon: <FiCalendar className="w-5 h-5 text-violet-400" />,
             bg: "from-violet-500/10 to-purple-500/5",
             border: "border-violet-500/20",
             text: "text-violet-400",
@@ -797,7 +815,7 @@ export default function TeacherQuestionsList() {
             title: "Current Term",
             value: availableTerms[0] || "Active",
             label: "Session Term",
-            icon: "🎯",
+            icon: <FiTarget className="w-5 h-5 text-amber-400" />,
             bg: "from-amber-500/10 to-yellow-500/5",
             border: "border-amber-500/20",
             text: "text-amber-400",
@@ -809,7 +827,7 @@ export default function TeacherQuestionsList() {
           >
             <div className="flex items-center justify-between text-xs text-dark-400 font-semibold uppercase tracking-wider">
               <span>{stat.title}</span>
-              <span className="text-base">{stat.icon}</span>
+              <span className="p-2 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">{stat.icon}</span>
             </div>
             <div className={`text-2xl sm:text-3xl font-extrabold ${stat.text} truncate`}>{stat.value}</div>
             <div className="text-[11px] text-dark-400 font-medium">{stat.label}</div>
@@ -822,14 +840,7 @@ export default function TeacherQuestionsList() {
         <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between">
           {/* Search Bar */}
           <div className="relative flex-1 max-w-md">
-            <svg
-              className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <FiSearch className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search by examination name, academic year, subject..."
@@ -852,7 +863,17 @@ export default function TeacherQuestionsList() {
               onClick={handleExpandAll}
               className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              <span>{expandedExamIds.length === paginatedAssessments.length ? "▲ Collapse All" : "▼ Expand All"}</span>
+              {expandedExamIds.length === paginatedAssessments.length ? (
+                <>
+                  <FiChevronUp className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Collapse All</span>
+                </>
+              ) : (
+                <>
+                  <FiChevronDown className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Expand All</span>
+                </>
+              )}
             </button>
 
             <button
@@ -864,9 +885,7 @@ export default function TeacherQuestionsList() {
               title="Refresh Question Bank"
               className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all cursor-pointer"
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <FiRefreshCw className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -931,7 +950,9 @@ export default function TeacherQuestionsList() {
         <div className="p-5 border-b border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/[0.02]">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <span>📊</span>
+              <span className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                <FiBarChart2 className="w-4 h-4" />
+              </span>
               <span>Examination & Test Question Records</span>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
                 {filteredAssessments.length} Examination{filteredAssessments.length === 1 ? "" : "s"}
@@ -955,7 +976,7 @@ export default function TeacherQuestionsList() {
         ) : filteredAssessments.length === 0 ? (
           <div className="p-16 text-center text-slate-400 space-y-4">
             <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center text-3xl mx-auto">
-              📋
+              <FiClipboard className="w-8 h-8" />
             </div>
             <div className="space-y-1">
               <h3 className="text-lg font-bold text-white">No examinations found</h3>
@@ -1029,9 +1050,11 @@ export default function TeacherQuestionsList() {
                               className="w-6 h-6 rounded-lg bg-white/5 group-hover:bg-emerald-500/20 text-slate-400 group-hover:text-emerald-300 font-bold flex items-center justify-center transition-all"
                               title={isExpanded ? "Collapse questions" : "Click to view questions"}
                             >
-                              <span className="text-[10px] transition-transform duration-200">
-                                {isExpanded ? "▼" : "▶"}
-                              </span>
+                              {isExpanded ? (
+                                <FiChevronDown className="w-3.5 h-3.5 transition-transform duration-200" />
+                              ) : (
+                                <FiChevronRight className="w-3.5 h-3.5 transition-transform duration-200" />
+                              )}
                             </button>
                           </div>
                         </td>
@@ -1056,27 +1079,39 @@ export default function TeacherQuestionsList() {
                         {/* Category (Exam vs Test) */}
                         <td className="py-4 px-3 whitespace-nowrap">
                           <span
-                            className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
                               isTest
                                 ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
                                 : "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
                             }`}
                           >
-                            {isTest ? "⚡ Test" : "📋 Exam"}
+                            {isTest ? (
+                              <>
+                                <FiZap className="w-3 h-3 shrink-0" />
+                                <span>Test</span>
+                              </>
+                            ) : (
+                              <>
+                                <FiClipboard className="w-3 h-3 shrink-0" />
+                                <span>Exam</span>
+                              </>
+                            )}
                           </span>
                         </td>
 
                         {/* Academic Year */}
                         <td className="py-4 px-3 whitespace-nowrap">
-                          <span className="font-semibold text-emerald-300 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono">
-                            📅 {assessment.academicYear}
+                          <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-300 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono">
+                            <FiCalendar className="w-3.5 h-3.5 shrink-0" />
+                            <span>{assessment.academicYear}</span>
                           </span>
                         </td>
 
                         {/* Academic Term */}
                         <td className="py-4 px-3 whitespace-nowrap">
-                          <span className="font-medium text-teal-300 px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs">
-                            🏷️ {assessment.academicTerm}
+                          <span className="inline-flex items-center gap-1.5 font-medium text-teal-300 px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs">
+                            <FiTag className="w-3.5 h-3.5 shrink-0" />
+                            <span>{assessment.academicTerm}</span>
                           </span>
                         </td>
 
@@ -1125,7 +1160,7 @@ export default function TeacherQuestionsList() {
                               }`}
                             >
                               <span>{isExpanded ? "Hide Questions" : "View Questions"}</span>
-                              <span>{isExpanded ? "▲" : "▼"}</span>
+                              {isExpanded ? <FiChevronUp className="w-3.5 h-3.5" /> : <FiChevronDown className="w-3.5 h-3.5" />}
                             </button>
 
                             <button
@@ -1134,7 +1169,7 @@ export default function TeacherQuestionsList() {
                               className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 text-emerald-300 text-xs font-semibold border border-emerald-500/30 transition-all flex items-center gap-1 cursor-pointer"
                               title="Add Question directly to this exam"
                             >
-                              <span>+</span>
+                              <FiPlus className="w-3.5 h-3.5" />
                               <span className="hidden sm:inline">Add Q</span>
                             </button>
 
@@ -1146,9 +1181,7 @@ export default function TeacherQuestionsList() {
                                   className="px-2.5 py-1.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 text-xs font-semibold border border-blue-500/20 transition-all flex items-center gap-1 cursor-pointer"
                                   title="Edit Examination Details"
                                 >
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
+                                  <FiEdit2 className="w-3.5 h-3.5" />
                                   <span className="hidden md:inline">Edit</span>
                                 </button>
 
@@ -1158,9 +1191,7 @@ export default function TeacherQuestionsList() {
                                   className="px-2.5 py-1.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 text-xs font-semibold border border-red-500/20 transition-all flex items-center gap-1 cursor-pointer"
                                   title="Delete Examination and its questions"
                                 >
-                                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
+                                  <FiTrash2 className="w-3.5 h-3.5" />
                                   <span className="hidden md:inline">Delete</span>
                                 </button>
                               </>
@@ -1199,10 +1230,8 @@ export default function TeacherQuestionsList() {
                                   onClick={() => handleOpenCreateModal(assessment.id)}
                                   className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white text-xs sm:text-sm font-bold shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                                 >
-                                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-                                  </svg>
-                                  + Add Question to {assessment.name}
+                                  <FiPlus className="w-4 h-4 stroke-[2.5]" />
+                                  Add Question to {assessment.name}
                                 </button>
                               </div>
 
@@ -1299,8 +1328,9 @@ export default function TeacherQuestionsList() {
                                                 </div>
 
                                                 {isCorrect && (
-                                                  <span className="text-[10px] font-bold text-emerald-400 shrink-0 bg-emerald-500/20 px-1.5 py-0.5 rounded">
-                                                    ✓ KEY
+                                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 shrink-0 bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                                                    <FiCheck className="w-3 h-3 stroke-[3]" />
+                                                    <span>KEY</span>
                                                   </span>
                                                 )}
                                               </div>
@@ -1343,9 +1373,10 @@ export default function TeacherQuestionsList() {
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer inline-flex items-center gap-1"
               >
-                ← Back
+                <FiChevronLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
               </button>
 
               <span className="text-xs text-slate-300 font-medium px-2">
@@ -1356,9 +1387,10 @@ export default function TeacherQuestionsList() {
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer inline-flex items-center gap-1"
               >
-                Next →
+                <span>Next</span>
+                <FiChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -1373,7 +1405,7 @@ export default function TeacherQuestionsList() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-sm font-bold">
-                    +
+                    <FiPlus className="w-4 h-4 stroke-[2.5]" />
                   </span>
                   <h3 className="text-xl font-bold text-white">Save Question to Examination</h3>
                 </div>
@@ -1386,13 +1418,13 @@ export default function TeacherQuestionsList() {
                 onClick={() => setShowCreateModal(false)}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
             {formError && (
               <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium flex items-center gap-2">
-                <span>⚠️</span>
+                <FiAlertTriangle className="w-4 h-4 shrink-0" />
                 <span>{formError}</span>
               </div>
             )}
@@ -1581,7 +1613,7 @@ export default function TeacherQuestionsList() {
                 }}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -1600,24 +1632,26 @@ export default function TeacherQuestionsList() {
                   <button
                     type="button"
                     onClick={() => setExamForm({ ...examForm, examType: "Exam", totalMark: 70, passMark: 40 })}
-                    className={`p-3 rounded-xl border text-sm font-bold transition-all ${
+                    className={`p-3 rounded-xl border text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                       examForm.examType === "Exam"
                         ? "bg-indigo-500/20 border-indigo-500 text-indigo-300 shadow-md"
                         : "bg-white/5 border-white/10 text-slate-400"
                     }`}
                   >
-                    📋 Examination (Final / MidTerm)
+                    <FiClipboard className="w-4 h-4 shrink-0" />
+                    <span>Examination (Final / MidTerm)</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setExamForm({ ...examForm, examType: "Test", totalMark: 30, passMark: 15 })}
-                    className={`p-3 rounded-xl border text-sm font-bold transition-all ${
+                    className={`p-3 rounded-xl border text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                       examForm.examType === "Test"
                         ? "bg-amber-500/20 border-amber-500 text-amber-300 shadow-md"
                         : "bg-white/5 border-white/10 text-slate-400"
                     }`}
                   >
-                    ⚡ Test / Continuous Assessment
+                    <FiZap className="w-4 h-4 shrink-0" />
+                    <span>Test / Continuous Assessment</span>
                   </button>
                 </div>
               </div>
@@ -1745,7 +1779,7 @@ export default function TeacherQuestionsList() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="w-8 h-8 rounded-xl bg-teal-500/20 border border-teal-500/30 text-teal-300 flex items-center justify-center text-sm font-bold">
-                    👁️
+                    <FiEye className="w-4 h-4" />
                   </span>
                   <h3 className="text-xl font-bold text-white">Question Inspection</h3>
                 </div>
@@ -1761,7 +1795,7 @@ export default function TeacherQuestionsList() {
                 }}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -1839,8 +1873,9 @@ export default function TeacherQuestionsList() {
                             <span className="text-sm font-medium truncate">{opt.val}</span>
                           </div>
                           {isCorrect && (
-                            <span className="text-xs font-bold text-emerald-400 shrink-0">
-                              ✓ KEY
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400 shrink-0">
+                              <FiCheck className="w-3.5 h-3.5 stroke-[3]" />
+                              <span>KEY</span>
                             </span>
                           )}
                         </div>
@@ -1855,7 +1890,8 @@ export default function TeacherQuestionsList() {
                     onClick={() => setShowRawJson(!showRawJson)}
                     className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 transition-colors"
                   >
-                    <span>{showRawJson ? "▼ Hide" : "▶ Show"} Raw API Controller Response</span>
+                    {showRawJson ? <FiChevronDown className="w-3.5 h-3.5" /> : <FiChevronRight className="w-3.5 h-3.5" />}
+                    <span>{showRawJson ? "Hide" : "Show"} Raw API Controller Response</span>
                   </button>
                   {showRawJson && (
                     <pre className="mt-2 p-3 rounded-xl bg-black/60 border border-white/10 text-[11px] font-mono text-emerald-300 overflow-x-auto max-h-48">
@@ -1879,7 +1915,8 @@ export default function TeacherQuestionsList() {
                     onClick={() => handleOpenEditModal(currentQuestion)}
                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/20 flex items-center gap-2"
                   >
-                    Edit this Question
+                    <FiEdit2 className="w-4 h-4" />
+                    <span>Edit this Question</span>
                   </button>
                 </div>
               </div>
@@ -1896,7 +1933,7 @@ export default function TeacherQuestionsList() {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center text-sm font-bold">
-                    ✏️
+                    <FiEdit2 className="w-4 h-4" />
                   </span>
                   <h3 className="text-xl font-bold text-white">Edit Question</h3>
                 </div>
@@ -1909,7 +1946,7 @@ export default function TeacherQuestionsList() {
                 onClick={() => setShowEditModal(false)}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 

@@ -6,6 +6,23 @@ import {
   fetchStudentProfile,
 } from "../../features/students/studentsSlice";
 import { fetchPrograms } from "../../features/programs/programsSlice";
+import {
+  FiAward,
+  FiClock,
+  FiBookOpen,
+  FiLayers,
+  FiCheckCircle,
+  FiCheck,
+  FiArrowRight,
+  FiCpu,
+  FiMonitor,
+  FiShield,
+  FiTrendingUp,
+  FiMap,
+  FiFileText,
+  FiGlobe,
+  FiMessageSquare,
+} from "react-icons/fi";
 
 const StudentProgram: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -115,8 +132,9 @@ const StudentProgram: React.FC = () => {
 
         <div className="relative z-10 space-y-6">
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="px-3 py-1 rounded-lg text-xs font-bold tracking-wide uppercase bg-indigo-600/20 text-indigo-300 border border-indigo-500/30">
-              🎓 Degree Program
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold tracking-wide uppercase bg-indigo-600/20 text-indigo-300 border border-indigo-500/30">
+              <FiAward className="w-3.5 h-3.5 shrink-0" />
+              <span>Degree Program</span>
             </span>
             <span className="px-3 py-1 rounded-lg text-xs font-semibold bg-white/5 text-slate-300 border border-white/10">
               Faculty of Computing & Technology
@@ -142,7 +160,8 @@ const StudentProgram: React.FC = () => {
                 Duration
               </span>
               <span className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
-                ⏱️ {programDuration}
+                <FiClock className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>{programDuration}</span>
               </span>
             </div>
 
@@ -151,7 +170,8 @@ const StudentProgram: React.FC = () => {
                 Enrolled Subjects
               </span>
               <span className="text-sm sm:text-base font-bold text-indigo-300 flex items-center gap-1.5">
-                📚 {allEnrolledSubjects.length} Courses
+                <FiBookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>{allEnrolledSubjects.length} Courses</span>
               </span>
             </div>
 
@@ -160,7 +180,8 @@ const StudentProgram: React.FC = () => {
                 Academic Levels
               </span>
               <span className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
-                🏛️ {classGroups.map((g) => g.shortCode).join(" – ") || "Academic Track"}
+                <FiLayers className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>{classGroups.map((g) => g.shortCode).join(" – ") || "Academic Track"}</span>
               </span>
             </div>
 
@@ -169,7 +190,8 @@ const StudentProgram: React.FC = () => {
                 Accreditation
               </span>
               <span className="text-sm sm:text-base font-bold text-emerald-300 flex items-center gap-1.5">
-                ✓ Full Accreditation
+                <FiCheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Full Accreditation</span>
               </span>
             </div>
           </div>
@@ -181,7 +203,7 @@ const StudentProgram: React.FC = () => {
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2"
             >
               <span>View Enrolled Subjects</span>
-              <span>→</span>
+              <FiArrowRight className="w-4 h-4 shrink-0" />
             </Link>
             <Link
               to="/student/exams"
@@ -200,8 +222,8 @@ const StudentProgram: React.FC = () => {
           {/* About The Program Card */}
           <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-xl space-y-5">
             <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-              <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-lg">
-                📖
+              <span className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <FiBookOpen className="w-5 h-5" />
               </span>
               <div>
                 <h2 className="text-xl font-bold text-white">About The Program</h2>
@@ -224,32 +246,40 @@ const StudentProgram: React.FC = () => {
                 Core Program Pillars
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1.5 hover:border-indigo-500/30 transition-colors">
-                  <span className="text-base">🧠</span>
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2 hover:border-indigo-500/30 transition-colors">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
+                    <FiCpu className="w-4 h-4" />
+                  </div>
                   <h4 className="text-sm font-semibold text-white">Algorithmic Foundations</h4>
                   <p className="text-xs text-slate-400 leading-normal">
                     Mathematical logic, algorithmic complexity analysis, and scalable data structure design.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1.5 hover:border-indigo-500/30 transition-colors">
-                  <span className="text-base">💻</span>
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2 hover:border-indigo-500/30 transition-colors">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400">
+                    <FiMonitor className="w-4 h-4" />
+                  </div>
                   <h4 className="text-sm font-semibold text-white">Full-Stack Engineering</h4>
                   <p className="text-xs text-slate-400 leading-normal">
                     Modern web frameworks, distributed backend microservices, and database systems.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1.5 hover:border-indigo-500/30 transition-colors">
-                  <span className="text-base">🛡️</span>
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2 hover:border-indigo-500/30 transition-colors">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+                    <FiShield className="w-4 h-4" />
+                  </div>
                   <h4 className="text-sm font-semibold text-white">Security & Reliability</h4>
                   <p className="text-xs text-slate-400 leading-normal">
                     Secure software lifecycles, defensive coding practices, and automated quality assurance.
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-1.5 hover:border-indigo-500/30 transition-colors">
-                  <span className="text-base">🚀</span>
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 space-y-2 hover:border-indigo-500/30 transition-colors">
+                  <div className="w-8 h-8 rounded-xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center text-violet-400">
+                    <FiTrendingUp className="w-4 h-4" />
+                  </div>
                   <h4 className="text-sm font-semibold text-white">Capstone Innovation</h4>
                   <p className="text-xs text-slate-400 leading-normal">
                     Year-long supervised capstone research translating theory into production-ready software.
@@ -263,8 +293,8 @@ const StudentProgram: React.FC = () => {
           <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-xl space-y-6">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <span className="p-2 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20 text-lg">
-                  🗺️
+                <span className="p-2.5 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                  <FiMap className="w-5 h-5" />
                 </span>
                 <div>
                   <h2 className="text-xl font-bold text-white">Program Academic Pathway</h2>
@@ -276,7 +306,7 @@ const StudentProgram: React.FC = () => {
                 className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
               >
                 <span>All Subjects</span>
-                <span>→</span>
+                <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
               </Link>
             </div>
 
@@ -328,7 +358,7 @@ const StudentProgram: React.FC = () => {
                     className="inline-flex items-center justify-between w-full pt-3 border-t border-white/10 text-xs font-medium text-slate-300 group-hover:text-white transition-colors"
                   >
                     <span>Browse {group.shortCode} Subjects</span>
-                    <span className="text-indigo-400 group-hover:translate-x-1 transition-transform">→</span>
+                    <FiArrowRight className="w-3.5 h-3.5 text-indigo-400 group-hover:translate-x-1 transition-transform shrink-0" />
                   </Link>
                 </div>
               ))}
@@ -341,7 +371,9 @@ const StudentProgram: React.FC = () => {
           {/* Degree Specifications Card */}
           <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 backdrop-blur-xl shadow-xl space-y-5">
             <div className="flex items-center gap-2.5 pb-3 border-b border-white/10">
-              <span className="text-lg">📜</span>
+              <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <FiFileText className="w-4 h-4" />
+              </span>
               <h3 className="text-base font-bold text-white">Degree Credentials</h3>
             </div>
 
@@ -376,7 +408,9 @@ const StudentProgram: React.FC = () => {
           {/* Career & Industry Horizons */}
           <div className="rounded-3xl bg-gradient-to-br from-indigo-950/40 via-slate-900/80 to-purple-950/30 border border-indigo-500/20 p-6 backdrop-blur-xl shadow-xl space-y-4">
             <div className="flex items-center gap-2.5 pb-2 border-b border-white/10">
-              <span className="text-lg">🌐</span>
+              <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <FiGlobe className="w-4 h-4" />
+              </span>
               <h3 className="text-base font-bold text-white">Career Pathways</h3>
             </div>
 
@@ -386,23 +420,23 @@ const StudentProgram: React.FC = () => {
 
             <ul className="space-y-2 text-xs text-slate-300">
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>Full-Stack Software Engineer</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>Cloud & DevOps Architect</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>Data & Distributed Systems Engineer</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>Security & Reliability Specialist</span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-emerald-400">✓</span>
+                <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span>Technology Entrepreneur & Consultant</span>
               </li>
             </ul>
@@ -411,7 +445,9 @@ const StudentProgram: React.FC = () => {
           {/* Academic Support Card */}
           <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 backdrop-blur-xl shadow-xl space-y-4">
             <div className="flex items-center gap-2.5 pb-2 border-b border-white/10">
-              <span className="text-lg">💬</span>
+              <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                <FiMessageSquare className="w-4 h-4" />
+              </span>
               <h3 className="text-base font-bold text-white">Academic Support</h3>
             </div>
 

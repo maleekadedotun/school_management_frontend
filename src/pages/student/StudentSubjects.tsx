@@ -30,6 +30,14 @@ import {
   HiOutlineTableCells,
   HiOutlineSquares2X2,
 } from "react-icons/hi2";
+import {
+  FiArrowRight,
+  FiArrowLeft,
+  FiAward,
+  FiStar,
+  FiLayers,
+  FiX,
+} from "react-icons/fi";
 
 /**
  * Robust helper to match academic class levels across variants
@@ -48,9 +56,11 @@ export const isClassLevelMatch = (targetClass?: string, queryClass?: string): bo
 
   const parseClass = (str: string) => {
     let tier = "";
-    if (str.includes("jss") || str.includes("junior") || str.startsWith("js")) tier = "jss";
+    if (str.includes("kg") || str.includes("kindergarten")) tier = "kg";
+    else if (str.includes("nursery") || str.includes("nur")) tier = "nursery";
+    else if (str.includes("jss") || str.includes("junior") || str.startsWith("js")) tier = "jss";
     else if (str.includes("sss") || str.includes("senior") || str.startsWith("ss")) tier = "sss";
-    else if (str.includes("pry") || str.includes("primary")) tier = "primary";
+    else if (str.includes("pry") || str.includes("primary") || str.includes("basic")) tier = "primary";
     else if (str.includes("level") || str.includes("lvl")) tier = "level";
 
     const num = str.match(/\d+/)?.[0] || "";
@@ -590,7 +600,7 @@ export default function StudentSubjects() {
                       title={`Filter by ${subClass}`}
                     >
                       <span>{subClass}</span>
-                      <span className="text-[10px] text-indigo-400">→</span>
+                      <FiArrowRight className="w-3 h-3 text-indigo-400 shrink-0" />
                     </button>
                   </td>
 
@@ -792,7 +802,14 @@ export default function StudentSubjects() {
               <span>Academic Status</span>
             </div>
             <div className="text-xl sm:text-2xl font-bold text-amber-300 mt-1">
-              {activeStudent?.isGraduated ? "Graduated 🎓" : "In Progress"}
+              {activeStudent?.isGraduated ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span>Graduated</span>
+                  <FiAward className="w-5 h-5 text-amber-400 shrink-0" />
+                </span>
+              ) : (
+                "In Progress"
+              )}
             </div>
           </div>
 
@@ -993,7 +1010,8 @@ export default function StudentSubjects() {
                   }}
                   className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border border-white/10"
                 >
-                  <span>← Back to All Classes Overview</span>
+                  <FiArrowLeft className="w-3.5 h-3.5 shrink-0" />
+                  <span>Back to All Classes Overview</span>
                 </button>
                 <div className="h-4 w-[1px] bg-white/10 hidden sm:block" />
                 <span className="text-sm font-semibold text-white">
@@ -1151,8 +1169,9 @@ export default function StudentSubjects() {
 
                               <div className="flex items-center gap-1.5">
                                 {isSubjectCore(sub) && (
-                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                    🌟 CORE
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    <FiStar className="w-2.5 h-2.5 shrink-0" />
+                                    <span>CORE</span>
                                   </span>
                                 )}
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-slate-300">
@@ -1402,9 +1421,9 @@ export default function StudentSubjects() {
                           <button
                             type="button"
                             onClick={() => toggleSubjectSelect(sId)}
-                            className="hover:text-red-300 ml-0.5 text-slate-400 cursor-pointer"
+                            className="hover:text-red-300 ml-0.5 text-slate-400 cursor-pointer inline-flex items-center"
                           >
-                            ×
+                            <FiX className="w-3 h-3" />
                           </button>
                         </span>
                       );
@@ -1447,7 +1466,8 @@ export default function StudentSubjects() {
                           : "text-slate-400 hover:text-white"
                       }`}
                     >
-                      🌟 Core ({allSchoolSubjects.filter((s) => isSubjectCore(s) || isSubjectInStudentProgram(s)).length})
+                      <FiStar className="w-3 h-3 shrink-0" />
+                      <span>Core ({allSchoolSubjects.filter((s) => isSubjectCore(s) || isSubjectInStudentProgram(s)).length})</span>
                     </button>
                     {studentProgName && (
                       <button
@@ -1459,19 +1479,21 @@ export default function StudentSubjects() {
                             : "text-slate-400 hover:text-white"
                         }`}
                       >
-                        ⭐ My Program ({allSchoolSubjects.filter(isSubjectInStudentProgram).length})
+                        <FiAward className="w-3 h-3 shrink-0" />
+                        <span>My Program ({allSchoolSubjects.filter(isSubjectInStudentProgram).length})</span>
                       </button>
                     )}
                     <button
                       type="button"
                       onClick={() => setEnrollFilterTab("class")}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1 ${
                         enrollFilterTab === "class"
                           ? "bg-indigo-600 text-white shadow-sm"
                           : "text-slate-400 hover:text-white"
                       }`}
                     >
-                      🏛️ {enrollClassLevel}
+                      <FiLayers className="w-3 h-3 shrink-0" />
+                      <span>{enrollClassLevel}</span>
                     </button>
                   </div>
                 </div>
@@ -1520,8 +1542,9 @@ export default function StudentSubjects() {
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-white">{s.name}</span>
                                 {isSubjectCore(s) && (
-                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                                    🌟 CORE (COMPULSORY)
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    <FiStar className="w-2.5 h-2.5 shrink-0" />
+                                    <span>CORE (COMPULSORY)</span>
                                   </span>
                                 )}
                                 {s.subjectCode && (
@@ -1533,14 +1556,14 @@ export default function StudentSubjects() {
                               <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 {s.program?.name && (
                                   <span
-                                    className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                    className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium ${
                                       inProgram
                                         ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
                                         : "bg-white/5 text-slate-400"
                                     }`}
                                   >
-                                    {inProgram && "✨ "}
-                                    {s.program.name}
+                                    {inProgram && <FiStar className="w-2.5 h-2.5 shrink-0" />}
+                                    <span>{s.program.name}</span>
                                   </span>
                                 )}
                                 {s.classLevel && (

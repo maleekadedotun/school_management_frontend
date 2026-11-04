@@ -8,6 +8,7 @@ import {
 } from "../../features/classLevels/classLevelsSlice";
 import { fetchAllStudents } from "../../features/students/studentsSlice";
 import { fetchSubjects } from "../../features/subjects/subjectsSlice";
+import { FiLayers, FiPlus, FiEdit2, FiTrash2, FiX, FiUsers, FiBookOpen } from "react-icons/fi";
 
 export default function ClassLevelsList() {
   const dispatch = useAppDispatch();
@@ -113,8 +114,11 @@ export default function ClassLevelsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
-            <span>🏫</span> Class Levels
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <FiLayers className="w-6 h-6 shrink-0" />
+            </span>
+            <span>Class Levels</span>
           </h1>
           <p className="text-dark-400 text-sm mt-1">
             Manage grade levels, year tiers, and class level assignments
@@ -124,9 +128,7 @@ export default function ClassLevelsList() {
           onClick={handleOpenCreate}
           className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white text-sm font-semibold shadow-lg shadow-emerald-500/25 transition-all flex items-center gap-2"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <FiPlus className="w-4 h-4 shrink-0" />
           Add Class Level
         </button>
       </div>
@@ -147,7 +149,9 @@ export default function ClassLevelsList() {
           </div>
         ) : classLevels.length === 0 ? (
           <div className="px-6 py-16 text-center">
-            <span className="text-4xl">🏫</span>
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+              <FiLayers className="w-8 h-8" />
+            </div>
             <h3 className="mt-3 text-dark font-semibold text-lg">No Class Levels Found</h3>
             <p className="mt-1 text-dark-400 text-sm">
               Click the button above to create your first class level.
@@ -232,28 +236,14 @@ export default function ClassLevelsList() {
                           className="p-2 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors"
                           title="Edit Class Level"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
+                          <FiEdit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(item._id)}
                           className="p-2 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
                           title="Delete Class Level"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
+                          <FiTrash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>
@@ -276,9 +266,9 @@ export default function ClassLevelsList() {
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -344,10 +334,16 @@ export default function ClassLevelsList() {
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <div>
                 <h3 className="text-base font-bold text-white flex items-center gap-2">
-                  <span>{detailModal.type === "students" ? "👨‍🎓" : "📚"}</span>
-                  {detailModal.type === "students"
-                    ? `Students Enrolled in ${detailModal.className}`
-                    : `Subjects in ${detailModal.className}`}
+                  {detailModal.type === "students" ? (
+                    <FiUsers className="w-5 h-5 text-emerald-400 shrink-0" />
+                  ) : (
+                    <FiBookOpen className="w-5 h-5 text-blue-400 shrink-0" />
+                  )}
+                  <span>
+                    {detailModal.type === "students"
+                      ? `Students Enrolled in ${detailModal.className}`
+                      : `Subjects in ${detailModal.className}`}
+                  </span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Total: {detailModal.items.length} {detailModal.type === "students" ? "student(s)" : "subject(s)"}
@@ -355,9 +351,9 @@ export default function ClassLevelsList() {
               </div>
               <button
                 onClick={() => setDetailModal(null)}
-                className="text-slate-400 hover:text-white transition-colors text-lg"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 

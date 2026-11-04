@@ -5,6 +5,17 @@ import {
   teacherForgotPassword,
   teacherResetPassword,
 } from "../../features/teacherAuth/teacherAuthSlice";
+import {
+  FiBookOpen,
+  FiCheck,
+  FiAlertCircle,
+  FiCheckCircle,
+  FiMail,
+  FiHash,
+  FiArrowRight,
+  FiArrowLeft,
+  FiRefreshCw,
+} from "react-icons/fi";
 
 const TeacherForgotPassword: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -142,19 +153,7 @@ const TeacherForgotPassword: React.FC = () => {
         {/* Header Branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 shadow-xl shadow-emerald-500/20 mb-4 border border-emerald-400/30">
-            <svg
-              className="w-8 h-8 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
+            <FiBookOpen className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Faculty Portal</h1>
           <p className="text-slate-400 mt-1 text-sm">Teacher Password Recovery & Account Access</p>
@@ -206,7 +205,7 @@ const TeacherForgotPassword: React.FC = () => {
                     : "bg-white/10 text-slate-400"
                 }`}
               >
-                ✓
+                <FiCheck className="w-4 h-4" />
               </span>
               <span className={`text-xs font-medium ${step === 3 ? "text-white" : "text-slate-400"}`}>
                 Done
@@ -217,26 +216,14 @@ const TeacherForgotPassword: React.FC = () => {
           {/* Feedback Messages */}
           {error && (
             <div className="mb-6 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-start gap-3 animate-fadeIn">
-              <svg className="w-5 h-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <FiAlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           {successMsg && (
             <div className="mb-6 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm flex items-start gap-3 animate-fadeIn">
-              <svg className="w-5 h-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM16.707 7.707a1 1 0 00-1.414-1.414L9 12.586 5.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l7-7z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <FiCheckCircle className="w-5 h-5 shrink-0 mt-0.5" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -257,14 +244,7 @@ const TeacherForgotPassword: React.FC = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206"
-                      />
-                    </svg>
+                    <FiMail className="w-4 h-4" />
                   </div>
                   <input
                     type="email"
@@ -290,14 +270,7 @@ const TeacherForgotPassword: React.FC = () => {
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
-                      />
-                    </svg>
+                    <FiHash className="w-4 h-4" />
                   </div>
                   <input
                     type="text"
@@ -316,18 +289,13 @@ const TeacherForgotPassword: React.FC = () => {
               >
                 {loading ? (
                   <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                    </svg>
+                    <FiRefreshCw className="w-4 h-4 animate-spin" />
                     Verifying Record...
                   </>
                 ) : (
                   <>
                     <span>Verify & Continue</span>
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
+                    <FiArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
@@ -442,10 +410,7 @@ const TeacherForgotPassword: React.FC = () => {
                 >
                   {loading ? (
                     <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
+                      <FiRefreshCw className="w-4 h-4 animate-spin" />
                       Updating Password...
                     </>
                   ) : (
@@ -460,9 +425,7 @@ const TeacherForgotPassword: React.FC = () => {
           {step === 3 && (
             <div className="text-center py-4 space-y-6 animate-fadeIn">
               <div className="w-16 h-16 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20">
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
+                <FiCheck className="w-8 h-8" />
               </div>
 
               <div>
@@ -490,9 +453,7 @@ const TeacherForgotPassword: React.FC = () => {
               to="/teacher/login"
               className="text-xs text-slate-400 hover:text-emerald-300 transition flex items-center justify-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
+              <FiArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Teacher Login</span>
             </Link>
           </div>

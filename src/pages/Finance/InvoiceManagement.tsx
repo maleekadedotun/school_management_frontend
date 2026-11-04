@@ -10,6 +10,7 @@ import { fetchAllStudents } from "../../features/students/studentsSlice";
 import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import PaymentReceiptModal from "./PaymentReceiptModal";
 import toast from "react-hot-toast";
+import { FiPlus, FiX } from "react-icons/fi";
 
 export default function InvoiceManagement() {
   const dispatch = useAppDispatch();
@@ -163,7 +164,7 @@ export default function InvoiceManagement() {
           }}
           className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition duration-200 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
         >
-          <span className="text-lg leading-none">+</span>
+          <FiPlus className="w-4 h-4 shrink-0" />
           Issue Single Invoice
         </button>
       </div>
@@ -327,7 +328,7 @@ export default function InvoiceManagement() {
                 onClick={() => setShowSingleModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -483,7 +484,7 @@ export default function InvoiceManagement() {
                 onClick={() => setShowDetailModal(null)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 

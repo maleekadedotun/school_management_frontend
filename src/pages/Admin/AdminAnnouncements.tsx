@@ -22,6 +22,8 @@ import {
   FiCheckCircle,
   FiX,
   FiClock,
+  FiAward,
+  FiArchive,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -360,7 +362,7 @@ export default function AdminAnnouncements() {
                     <div className="flex flex-wrap items-center gap-2">
                       {/* Target Audience Badge */}
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border ${
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border inline-flex items-center gap-1 ${
                           isTeacher
                             ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
                             : isStudent
@@ -368,11 +370,22 @@ export default function AdminAnnouncements() {
                             : "bg-indigo-500/15 text-indigo-300 border-indigo-500/30"
                         }`}
                       >
-                        {isTeacher
-                          ? "👨‍🏫 Teachers Only"
-                          : isStudent
-                          ? "🎓 Students Only"
-                          : "🌐 General (Both)"}
+                        {isTeacher ? (
+                          <>
+                            <FiUserCheck className="w-3 h-3 shrink-0" />
+                            <span>Teachers Only</span>
+                          </>
+                        ) : isStudent ? (
+                          <>
+                            <FiAward className="w-3 h-3 shrink-0" />
+                            <span>Students Only</span>
+                          </>
+                        ) : (
+                          <>
+                            <FiGlobe className="w-3 h-3 shrink-0" />
+                            <span>General (Both)</span>
+                          </>
+                        )}
                       </span>
 
                       {/* Priority Badge */}
@@ -389,13 +402,23 @@ export default function AdminAnnouncements() {
 
                       {/* Status Badge */}
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-semibold inline-flex items-center gap-1 ${
                           item.status === "active"
                             ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
                             : "bg-slate-800 text-slate-400"
                         }`}
                       >
-                        {item.status === "active" ? "● Active on Marquee" : "○ Archived"}
+                        {item.status === "active" ? (
+                          <>
+                            <FiCheckCircle className="w-3 h-3 shrink-0" />
+                            <span>Active on Marquee</span>
+                          </>
+                        ) : (
+                          <>
+                            <FiArchive className="w-3 h-3 shrink-0" />
+                            <span>Archived</span>
+                          </>
+                        )}
                       </span>
 
                       {/* Category */}

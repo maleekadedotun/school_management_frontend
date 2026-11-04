@@ -11,6 +11,33 @@ import {
 import { fetchTeacherClassStudents } from "../../features/students/studentsSlice";
 import { fetchExams } from "../../features/exams/examsSlice";
 import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice";
+import {
+  FiBarChart2,
+  FiEdit3,
+  FiFileText,
+  FiRefreshCw,
+  FiFilter,
+  FiSearch,
+  FiAlertTriangle,
+  FiAlertCircle,
+  FiClock,
+  FiSend,
+  FiCheckCircle,
+  FiCheck,
+  FiAward,
+  FiRotateCcw,
+  FiLock,
+  FiArrowLeft,
+  FiArrowRight,
+  FiX,
+  FiXCircle,
+  FiUser,
+  FiBookOpen,
+  FiZap,
+  FiStar,
+  FiPlus,
+  FiShield,
+} from "react-icons/fi";
 
 // Ordinal formatter helper: 1 -> 1st, 2 -> 2nd, 3 -> 3rd, 4 -> 4th, 21 -> 21st...
 const formatOrdinal = (n: number | null | undefined): string => {
@@ -586,14 +613,7 @@ export default function TeacherStudentResults() {
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="p-3 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-400 shadow-lg">
-              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.8}
-                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+              <FiBarChart2 className="w-7 h-7" />
             </div>
             <div>
               <h1 className="text-2xl font-extrabold text-white tracking-tight">Class Exam Results</h1>
@@ -612,19 +632,23 @@ export default function TeacherStudentResults() {
               to="/teacher/report-cards"
               className="px-4 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-blue-500/25 cursor-pointer"
             >
-              <span>📝 Subject Teacher Score Entry →</span>
+              <FiEdit3 className="w-4 h-4 shrink-0" />
+              <span>Subject Teacher Score Entry</span>
+              <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
             <Link
               to="/teacher/class-results"
               className="px-4 py-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/25 cursor-pointer"
             >
-              <span>📊 Class Student Report Cards →</span>
+              <FiBarChart2 className="w-4 h-4 shrink-0" />
+              <span>Class Student Report Cards</span>
+              <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
             <button
               onClick={() => setIsEnterModalOpen(true)}
               className="px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm shadow-xl shadow-emerald-500/30 transition-all flex items-center gap-2.5 cursor-pointer ring-2 ring-emerald-300/80 hover:scale-[1.02] active:scale-[0.98]"
             >
-              <span className="text-base sm:text-lg">📝</span>
+              <FiEdit3 className="w-5 h-5 shrink-0 text-slate-950" />
               <div className="text-left">
                 <span className="block font-black leading-tight text-slate-950">Record Exam & Test Score</span>
                 <span className="text-[10px] text-emerald-950 font-bold block leading-tight">Auto-populate ID & calculate position</span>
@@ -634,14 +658,7 @@ export default function TeacherStudentResults() {
               onClick={handleRefresh}
               className="px-3.5 py-3 rounded-2xl bg-white/5 hover:bg-violet-500/20 border border-white/10 hover:border-violet-500/30 text-slate-300 text-xs sm:text-sm font-medium transition-all flex items-center gap-2 cursor-pointer"
             >
-              <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
+              <FiRefreshCw className="w-4 h-4 text-violet-400 shrink-0" />
               Refresh
             </button>
           </div>
@@ -652,7 +669,7 @@ export default function TeacherStudentResults() {
       <div className="rounded-2xl border border-violet-500/30 bg-gradient-to-r from-violet-950/40 via-purple-950/30 to-slate-900/50 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-xl">
         <div className="flex items-start sm:items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-400 flex items-center justify-center font-bold text-sm shrink-0 border border-violet-500/30">
-            ⚖️
+            <FiShield className="w-5 h-5" />
           </div>
           <div>
             <h4 className="text-sm font-bold text-violet-200">Two-Tier Publishing Workflow Pipeline</h4>
@@ -666,15 +683,15 @@ export default function TeacherStudentResults() {
           <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap flex items-center gap-1">
             <span>1.</span> Student Completes
           </span>
-          <span className="text-slate-500">→</span>
+          <FiArrowRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
           <span className="px-2.5 py-1 rounded-lg bg-violet-500/25 text-violet-200 border border-violet-400/50 whitespace-nowrap flex items-center gap-1 ring-1 ring-violet-400/40">
             <span>2.</span> Teacher Publishes (You)
           </span>
-          <span className="text-slate-500">→</span>
+          <FiArrowRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
           <span className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 whitespace-nowrap flex items-center gap-1">
             <span>3.</span> Admin Publishes
           </span>
-          <span className="text-slate-500">→</span>
+          <FiArrowRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
           <span className="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30 whitespace-nowrap flex items-center gap-1">
             <span>4.</span> Student Sees Result
           </span>
@@ -733,14 +750,7 @@ export default function TeacherStudentResults() {
       <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-              />
-            </svg>
+            <FiFilter className="w-5 h-5 text-violet-400 shrink-0" />
             <h2 className="text-sm font-semibold text-white uppercase tracking-wide">Filter Results</h2>
           </div>
           <button
@@ -755,9 +765,7 @@ export default function TeacherStudentResults() {
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1">Search Student / Exam</label>
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <input
                 type="text"
                 placeholder="Student name, ID, exam..."
@@ -776,8 +784,8 @@ export default function TeacherStudentResults() {
               className="w-full px-3 py-2 rounded-xl bg-[#0a0f1e] border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-violet-500 transition-all cursor-pointer"
             >
               <option value="all">All Statuses</option>
-              <option value="Passed">🟢 Passed</option>
-              <option value="Failed">🔴 Failed</option>
+              <option value="Passed">Passed</option>
+              <option value="Failed">Failed</option>
             </select>
           </div>
           {/* Publication State */}
@@ -789,9 +797,9 @@ export default function TeacherStudentResults() {
               className="w-full px-3 py-2 rounded-xl bg-[#0a0f1e] border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-violet-500 transition-all cursor-pointer"
             >
               <option value="all">All Stages ({teacherResults.length})</option>
-              <option value="pending_teacher">⏳ Pending Teacher Publish ({teacherResults.filter(r => !r.isTeacherPublished).length})</option>
-              <option value="pending_admin">📨 Sent to Admin / In Review ({teacherResults.filter(r => r.isTeacherPublished && !r.isPublished).length})</option>
-              <option value="published">✅ Live on Student Portal ({teacherResults.filter(r => r.isPublished).length})</option>
+              <option value="pending_teacher">Pending Teacher Publish ({teacherResults.filter(r => !r.isTeacherPublished).length})</option>
+              <option value="pending_admin">Sent to Admin / In Review ({teacherResults.filter(r => r.isTeacherPublished && !r.isPublished).length})</option>
+              <option value="published">Live on Student Portal ({teacherResults.filter(r => r.isPublished).length})</option>
             </select>
           </div>
           {/* Date Range */}
@@ -830,7 +838,8 @@ export default function TeacherStudentResults() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
-            ⚠️ Needs Correction ({teacherResults.filter((r) => (r as any).isUnderCorrection).length})
+            <FiAlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+            Needs Correction ({teacherResults.filter((r) => (r as any).isUnderCorrection).length})
           </button>
           <button
             type="button"
@@ -842,7 +851,8 @@ export default function TeacherStudentResults() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            ⏳ Needs Teacher Publish ({teacherResults.filter((r) => !r.isTeacherPublished && !(r as any).isUnderCorrection).length})
+            <FiClock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            Needs Teacher Publish ({teacherResults.filter((r) => !r.isTeacherPublished && !(r as any).isUnderCorrection).length})
           </button>
           <button
             type="button"
@@ -854,7 +864,8 @@ export default function TeacherStudentResults() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-indigo-400" />
-            📨 Forwarded to Admin ({teacherResults.filter((r) => r.isTeacherPublished && !r.isPublished && !(r as any).isUnderCorrection).length})
+            <FiSend className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            Forwarded to Admin ({teacherResults.filter((r) => r.isTeacherPublished && !r.isPublished && !(r as any).isUnderCorrection).length})
           </button>
           <button
             type="button"
@@ -866,16 +877,15 @@ export default function TeacherStudentResults() {
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            ✅ Live on Student Portal ({teacherResults.filter((r) => r.isPublished).length})
+            <FiCheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            Live on Student Portal ({teacherResults.filter((r) => r.isPublished).length})
           </button>
         </div>
       </div>
 
       {error && (
         <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-sm flex items-center gap-2">
-          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <FiAlertCircle className="w-5 h-5 shrink-0" />
           {error}
         </div>
       )}
@@ -899,8 +909,8 @@ export default function TeacherStudentResults() {
               onClick={() => setIsEnterModalOpen(true)}
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer ring-1 ring-emerald-300 active:scale-95"
             >
-              <span>📝</span>
-              + Record Exam & Test Score
+              <FiPlus className="w-4 h-4 shrink-0" />
+              <span>Record Exam & Test Score</span>
             </button>
           </div>
         </div>
@@ -914,14 +924,7 @@ export default function TeacherStudentResults() {
         ) : filtered.length === 0 ? (
           <div className="p-16 text-center text-slate-400 space-y-3">
             <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto">
-              <svg className="w-8 h-8 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
+              <FiBarChart2 className="w-8 h-8 text-violet-400" />
             </div>
             <p className="text-base font-semibold text-slate-300">No Results Found</p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
@@ -934,7 +937,8 @@ export default function TeacherStudentResults() {
                 onClick={() => setIsEnterModalOpen(true)}
                 className="px-6 py-3 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-400 to-emerald-500 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/25 transition-all flex items-center gap-2 cursor-pointer ring-2 ring-emerald-300/80 active:scale-95"
               >
-                <span>📝</span> Click Here to Record Exam & Test Score
+                <FiEdit3 className="w-4 h-4 shrink-0" />
+                <span>Click Here to Record Exam & Test Score</span>
               </button>
               {teacherResults.length > 0 && (
                 <button
@@ -992,7 +996,17 @@ export default function TeacherStudentResults() {
                                   : "bg-violet-950/40 text-violet-300 border-violet-500/30"
                               }`}
                             >
-                              <span>{rankNum === 1 ? "🥇" : rankNum === 2 ? "🥈" : rankNum === 3 ? "🥉" : "🏅"}</span>
+                              <FiAward
+                                className={`w-3.5 h-3.5 shrink-0 ${
+                                  rankNum === 1
+                                    ? "text-amber-300"
+                                    : rankNum === 2
+                                    ? "text-slate-200"
+                                    : rankNum === 3
+                                    ? "text-amber-400"
+                                    : "text-violet-400"
+                                }`}
+                              />
                               <span>{rankStr}</span>
                             </span>
                           ) : (
@@ -1078,7 +1092,7 @@ export default function TeacherStudentResults() {
                           {(item as any).isUnderCorrection ? (
                             <div className="space-y-1">
                               <span className="px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 w-fit bg-rose-500/20 text-rose-300 border-rose-400/50 animate-pulse">
-                                <span>⚠️</span>
+                                <FiAlertTriangle className="w-3.5 h-3.5 shrink-0" />
                                 Correction Required
                               </span>
                               {(item as any).correctionReason && (
@@ -1112,14 +1126,14 @@ export default function TeacherStudentResults() {
                               <button
                                 onClick={() => handleToggleTeacherPublish(item._id, false, item.isPublished)}
                                 disabled={teacherPublishingId === item._id}
-                                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-violet-600 hover:from-amber-500 hover:to-violet-500 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-violet-600 hover:from-amber-500 hover:to-violet-500 text-white text-xs font-semibold shadow-md transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                                 title="Publish to Admin: Admin will only be able to view after you publish"
                               >
                                 {teacherPublishingId === item._id ? (
                                   "Publishing..."
                                 ) : (
                                   <>
-                                    <span>🚀</span>
+                                    <FiSend className="w-3.5 h-3.5 shrink-0" />
                                     <span>Publish to Admin</span>
                                   </>
                                 )}
@@ -1128,17 +1142,24 @@ export default function TeacherStudentResults() {
                               <button
                                 onClick={() => handleToggleTeacherPublish(item._id, true, item.isPublished)}
                                 disabled={teacherPublishingId === item._id}
-                                className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 text-slate-300 hover:text-rose-300 text-xs font-medium transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 text-slate-300 hover:text-rose-300 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                                 title="Recall result from Admin review queue back to draft"
                               >
-                                {teacherPublishingId === item._id ? "Recalling..." : "↩️ Recall"}
+                                {teacherPublishingId === item._id ? (
+                                  "Recalling..."
+                                ) : (
+                                  <>
+                                    <FiRotateCcw className="w-3.5 h-3.5 shrink-0" />
+                                    <span>Recall</span>
+                                  </>
+                                )}
                               </button>
                             ) : (
                               <span
-                                className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1 cursor-default select-none shadow-sm"
+                                className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 cursor-default select-none shadow-sm"
                                 title="Officially approved by Administration — this result cannot be recalled"
                               >
-                                <span className="text-xs">🔒</span>
+                                <FiLock className="w-3.5 h-3.5 shrink-0" />
                                 <span>Approved</span>
                               </span>
                             )}
@@ -1167,16 +1188,18 @@ export default function TeacherStudentResults() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  ← Previous
+                  <FiArrowLeft className="w-3.5 h-3.5" />
+                  <span>Previous</span>
                 </button>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages || totalPages === 0}
-                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  Next →
+                  <span>Next</span>
+                  <FiArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -1191,9 +1214,7 @@ export default function TeacherStudentResults() {
             <div className="flex items-start justify-between border-b border-white/10 pb-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20">
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
+                  <FiFileText className="w-6 h-6" />
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-white tracking-tight">Create Student Subject Report</h2>
@@ -1210,34 +1231,20 @@ export default function TeacherStudentResults() {
                 }}
                 className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
 
             {formError && (
               <div className="p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2.5 animate-fadeIn">
-                <svg className="w-4 h-4 shrink-0 text-rose-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <FiXCircle className="w-4 h-4 shrink-0 text-rose-400" />
                 <span>{formError}</span>
               </div>
             )}
 
             {formSuccess && (
               <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5 animate-fadeIn">
-                <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM16.707 7.707a1 1 0 00-1.414-1.414L9 12.586 5.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l7-7z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <FiCheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
                 <span>{formSuccess}</span>
               </div>
             )}
@@ -1247,7 +1254,7 @@ export default function TeacherStudentResults() {
               <div className="space-y-3 p-4 rounded-xl bg-white/[0.03] border border-white/10">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-violet-300 flex items-center gap-2">
-                    <span>👤</span> 1. Enter Student ID
+                    <FiUser className="w-4 h-4 text-violet-400 shrink-0" /> 1. Enter Student ID
                   </label>
                   <span className="text-[11px] text-slate-400">Instant Auto-Population</span>
                 </div>
@@ -1266,10 +1273,7 @@ export default function TeacherStudentResults() {
                       />
                       {lookupLoading && (
                         <div className="absolute right-3 top-3">
-                          <svg className="w-4 h-4 animate-spin text-violet-400" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                          </svg>
+                          <FiRefreshCw className="w-4 h-4 animate-spin text-violet-400" />
                         </div>
                       )}
                     </div>
@@ -1297,8 +1301,9 @@ export default function TeacherStudentResults() {
                 </div>
 
                 {lookupError && (
-                  <p className="text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg p-2">
-                    ⚠️ {lookupError}
+                  <p className="text-[11px] text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg p-2 flex items-center gap-1.5">
+                    <FiAlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{lookupError}</span>
                   </p>
                 )}
 
@@ -1312,8 +1317,9 @@ export default function TeacherStudentResults() {
                       <div>
                         <div className="flex items-center gap-2">
                           <strong className="text-white text-sm">{populatedStudent.name}</strong>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold">
-                            ✓ Verified Student
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold inline-flex items-center gap-1">
+                            <FiCheck className="w-3 h-3 shrink-0" />
+                            <span>Verified Student</span>
                           </span>
                         </div>
                         <p className="text-xs text-slate-400 mt-0.5">
@@ -1343,7 +1349,7 @@ export default function TeacherStudentResults() {
               {/* SECTION 2: SUBJECT & ASSESSMENT SELECTION */}
               <div className="space-y-3 p-4 rounded-xl bg-white/[0.03] border border-white/10">
                 <label className="text-xs font-bold uppercase tracking-wider text-violet-300 flex items-center gap-2">
-                  <span>📚</span> 2. Select Subject & Assessment
+                  <FiBookOpen className="w-4 h-4 text-violet-400 shrink-0" /> 2. Select Subject & Assessment
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1400,7 +1406,7 @@ export default function TeacherStudentResults() {
               {/* SECTION 3: SCORES ENTRY (TEST & EXAM) */}
               <div className="space-y-3 p-4 rounded-xl bg-white/[0.03] border border-white/10">
                 <label className="text-xs font-bold uppercase tracking-wider text-violet-300 flex items-center gap-2">
-                  <span>📝</span> 3. Input Scores (Test /30 & Exam /70 — Combined Total /100)
+                  <FiEdit3 className="w-4 h-4 text-violet-400 shrink-0" /> 3. Input Scores (Test /30 & Exam /70 — Combined Total /100)
                 </label>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1463,7 +1469,7 @@ export default function TeacherStudentResults() {
                 <div className="p-4 rounded-xl bg-gradient-to-r from-violet-950/40 via-purple-950/30 to-indigo-950/40 border border-violet-500/30 space-y-3 animate-fadeIn">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-violet-300 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>⚡</span> System Real-Time Score & Position Calculation
+                      <FiZap className="w-4 h-4 text-amber-400 shrink-0" /> System Real-Time Score & Position Calculation
                     </span>
                     <span className="text-[10px] text-slate-400">Automatic Rank Assignment</span>
                   </div>
@@ -1496,10 +1502,8 @@ export default function TeacherStudentResults() {
                     {/* CALCULATED POSITION */}
                     <div className="p-2.5 rounded-xl bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-400/40 shadow-lg shadow-amber-500/10">
                       <p className="text-[10px] text-amber-300 uppercase font-black tracking-wider">Class Position</p>
-                      <div className="flex items-center justify-center gap-1 mt-0.5">
-                        <span className="text-xl">
-                          {computedModalMetrics.projectedPosition === 1 ? "🥇" : computedModalMetrics.projectedPosition === 2 ? "🥈" : computedModalMetrics.projectedPosition === 3 ? "🥉" : "🏅"}
-                        </span>
+                      <div className="flex items-center justify-center gap-1.5 mt-0.5">
+                        <FiAward className="w-5 h-5 text-amber-300 shrink-0" />
                         <span className="text-lg font-black text-amber-300">{computedModalMetrics.formattedPosition}</span>
                       </div>
                       <p className="text-[10px] text-amber-300/80">of {computedModalMetrics.cohortTotal} students</p>
@@ -1524,15 +1528,13 @@ export default function TeacherStudentResults() {
                 >
                   {enteringResult ? (
                     <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
+                      <FiRefreshCw className="w-4 h-4 animate-spin shrink-0" />
                       Calculating Position & Saving...
                     </>
                   ) : (
                     <>
-                      <span>✨ Record Result & Assign Position</span>
+                      <FiStar className="w-4 h-4 shrink-0" />
+                      <span>Record Result & Assign Position</span>
                     </>
                   )}
                 </button>
@@ -1578,9 +1580,7 @@ export default function TeacherStudentResults() {
                 onClick={() => setSelectedResult(null)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
 
@@ -1651,7 +1651,7 @@ export default function TeacherStudentResults() {
             <div className="rounded-xl border border-violet-500/20 bg-violet-950/20 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <span>⚖️</span> Publication Pipeline Status
+                  <FiShield className="w-4 h-4 text-violet-400 shrink-0" /> Publication Pipeline Status
                 </span>
                 <span className="text-[11px] text-slate-400">Two-Tier Verification</span>
               </div>
@@ -1665,7 +1665,19 @@ export default function TeacherStudentResults() {
                 }`}>
                   <div className="flex items-center justify-between font-bold">
                     <span>Tier 1: Teacher Status</span>
-                    <span>{selectedResult.isTeacherPublished ? "✓ Verified" : "⏳ Pending"}</span>
+                    <span className="inline-flex items-center gap-1">
+                      {selectedResult.isTeacherPublished ? (
+                        <>
+                          <FiCheckCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>Verified</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiClock className="w-3.5 h-3.5 shrink-0" />
+                          <span>Pending</span>
+                        </>
+                      )}
+                    </span>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
                     {selectedResult.isTeacherPublished
@@ -1684,12 +1696,23 @@ export default function TeacherStudentResults() {
                 }`}>
                   <div className="flex items-center justify-between font-bold">
                     <span>Tier 2: Admin Release</span>
-                    <span>
-                      {selectedResult.isPublished
-                        ? "✓ Live"
-                        : selectedResult.isTeacherPublished
-                        ? "⏳ In Review"
-                        : "🔒 Awaiting Teacher"}
+                    <span className="inline-flex items-center gap-1">
+                      {selectedResult.isPublished ? (
+                        <>
+                          <FiCheckCircle className="w-3.5 h-3.5 shrink-0" />
+                          <span>Live</span>
+                        </>
+                      ) : selectedResult.isTeacherPublished ? (
+                        <>
+                          <FiClock className="w-3.5 h-3.5 shrink-0" />
+                          <span>In Review</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiLock className="w-3.5 h-3.5 shrink-0" />
+                          <span>Awaiting Teacher</span>
+                        </>
+                      )}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-1">
@@ -1706,13 +1729,13 @@ export default function TeacherStudentResults() {
               {selectedResult.isPublished ? (
                 <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
-                    <span className="text-base">🔒</span>
+                    <FiLock className="w-4 h-4 shrink-0" />
                     <span>
                       This exam result has been officially approved and published by administration. It is permanently active on the student portal and cannot be recalled by the teacher.
                     </span>
                   </div>
                   <span className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-sm">
-                    <span>✓</span>
+                    <FiCheck className="w-3.5 h-3.5 shrink-0" />
                     <span>Admin Approved & Locked</span>
                   </span>
                 </div>
@@ -1737,12 +1760,12 @@ export default function TeacherStudentResults() {
                       "Processing..."
                     ) : !selectedResult.isTeacherPublished ? (
                       <>
-                        <span>🚀</span>
+                        <FiSend className="w-3.5 h-3.5 shrink-0" />
                         <span>Verify & Publish to Admin</span>
                       </>
                     ) : (
                       <>
-                        <span>↩️</span>
+                        <FiRotateCcw className="w-3.5 h-3.5 shrink-0" />
                         <span>Recall / Unpublish from Admin</span>
                       </>
                     )}
@@ -1769,7 +1792,7 @@ export default function TeacherStudentResults() {
           onClick={() => setIsEnterModalOpen(true)}
           className="px-5 py-3.5 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 text-slate-950 font-black text-sm shadow-2xl shadow-emerald-500/40 hover:from-emerald-300 hover:via-teal-300 hover:to-cyan-300 hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 ring-4 ring-emerald-400/30 cursor-pointer"
         >
-          <span className="text-lg">📝</span>
+          <FiEdit3 className="w-4 h-4 shrink-0" />
           <span>Record Exam & Test</span>
         </button>
       </div>

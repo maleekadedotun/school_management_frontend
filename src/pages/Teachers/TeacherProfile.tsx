@@ -4,6 +4,21 @@ import {
   fetchTeacherProfile,
   updateTeacherProfile,
 } from "../../features/teacherAuth/teacherAuthSlice";
+import {
+  FiUser,
+  FiMail,
+  FiAward,
+  FiHash,
+  FiBook,
+  FiHome,
+  FiBookOpen,
+  FiCalendar,
+  FiFileText,
+  FiCheckCircle,
+  FiShield,
+  FiEdit2,
+  FiX,
+} from "react-icons/fi";
 
 export default function TeacherProfile() {
   const dispatch = useAppDispatch();
@@ -49,14 +64,14 @@ export default function TeacherProfile() {
   const t = teacher as any;
 
   const profileFields = [
-    { label: "Full Name", value: t?.name || "—", icon: "👤" },
-    { label: "Email Address", value: t?.email || "—", icon: "✉️" },
-    { label: "Role", value: t?.role || "Teacher", icon: "🎓" },
-    { label: "Teacher ID", value: t?.teacherId || "—", icon: "🆔" },
-    { label: "Program", value: t?.program?.name || t?.program || "—", icon: "📚" },
-    { label: "Class Level", value: t?.classLevel?.name || t?.classLevel || "—", icon: "🏫" },
-    { label: "Subject", value: t?.subject?.name || t?.subject || "—", icon: "📖" },
-    { label: "Academic Year", value: t?.academicYear?.name || t?.academicYear || "—", icon: "📅" },
+    { label: "Full Name", value: t?.name || "—", icon: <FiUser className="w-4 h-4 text-emerald-400" /> },
+    { label: "Email Address", value: t?.email || "—", icon: <FiMail className="w-4 h-4 text-teal-400" /> },
+    { label: "Role", value: t?.role || "Teacher", icon: <FiAward className="w-4 h-4 text-amber-400" /> },
+    { label: "Teacher ID", value: t?.teacherId || "—", icon: <FiHash className="w-4 h-4 text-cyan-400" /> },
+    { label: "Program", value: t?.program?.name || t?.program || "—", icon: <FiBook className="w-4 h-4 text-indigo-400" /> },
+    { label: "Class Level", value: t?.classLevel?.name || t?.classLevel || "—", icon: <FiHome className="w-4 h-4 text-emerald-400" /> },
+    { label: "Subject", value: t?.subject?.name || t?.subject || "—", icon: <FiBookOpen className="w-4 h-4 text-violet-400" /> },
+    { label: "Academic Year", value: t?.academicYear?.name || t?.academicYear || "—", icon: <FiCalendar className="w-4 h-4 text-sky-400" /> },
   ];
 
   return (
@@ -74,8 +89,8 @@ export default function TeacherProfile() {
               <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                 {loading ? "Loading..." : teacher?.name || "Teacher"}
               </h1>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 w-fit mx-auto sm:mx-0">
-                🎓 Educator
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 w-fit mx-auto sm:mx-0">
+                <FiAward className="w-3.5 h-3.5" /> Educator
               </span>
             </div>
             <p className="text-slate-300 text-sm">{teacher?.email || "—"}</p>
@@ -88,9 +103,7 @@ export default function TeacherProfile() {
             onClick={() => { setEditMode(true); setSuccess(""); setFormError(""); }}
             className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-semibold transition-all flex items-center gap-2 shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
+            <FiEdit2 className="w-4 h-4" />
             Edit Profile
           </button>
         </div>
@@ -99,9 +112,9 @@ export default function TeacherProfile() {
       {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
-          { label: "Exams Created", value: t?.examsCreated?.length ?? 0, icon: "📝", text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
-          { label: "Account Status", value: t?.isWithDrawn ? "Withdrawn" : "Active", icon: "✅", text: t?.isWithDrawn ? "text-red-400" : "text-emerald-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
-          { label: "Standing", value: t?.isSuspended ? "Suspended" : "Good", icon: "🛡️", text: t?.isSuspended ? "text-red-400" : "text-emerald-400", bg: "bg-violet-500/10", border: "border-violet-500/20" },
+          { label: "Exams Created", value: t?.examsCreated?.length ?? 0, icon: <FiFileText className="w-4 h-4 text-emerald-400" />, text: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+          { label: "Account Status", value: t?.isWithDrawn ? "Withdrawn" : "Active", icon: <FiCheckCircle className="w-4 h-4 text-blue-400" />, text: t?.isWithDrawn ? "text-red-400" : "text-emerald-400", bg: "bg-blue-500/10", border: "border-blue-500/20" },
+          { label: "Standing", value: t?.isSuspended ? "Suspended" : "Good", icon: <FiShield className="w-4 h-4 text-violet-400" />, text: t?.isSuspended ? "text-red-400" : "text-emerald-400", bg: "bg-violet-500/10", border: "border-violet-500/20" },
         ].map((s) => (
           <div key={s.label} className={`${s.bg} border ${s.border} rounded-2xl p-5 backdrop-blur space-y-2`}>
             <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5">
@@ -113,14 +126,18 @@ export default function TeacherProfile() {
       </div>
 
       {success && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm">✅ {success}</div>
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm flex items-center gap-2">
+          <FiCheckCircle className="w-4 h-4 shrink-0" /> {success}
+        </div>
       )}
 
       {/* Profile Details Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-4">
           <h2 className="text-base font-semibold text-white flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-sm">👤</span>
+            <span className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <FiUser className="w-4 h-4" />
+            </span>
             Personal Information
           </h2>
           <div className="space-y-3 divide-y divide-white/5">
@@ -134,7 +151,9 @@ export default function TeacherProfile() {
         </div>
         <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl space-y-4">
           <h2 className="text-base font-semibold text-white flex items-center gap-2">
-            <span className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-sm">🏫</span>
+            <span className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+              <FiHome className="w-4 h-4" />
+            </span>
             Academic Assignment
           </h2>
           <div className="space-y-3 divide-y divide-white/5">
@@ -158,7 +177,7 @@ export default function TeacherProfile() {
                 <p className="text-xs text-slate-400 mt-0.5">Update your name, email, or password</p>
               </div>
               <button onClick={() => setEditMode(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <FiX className="w-5 h-5" />
               </button>
             </div>
             {formError && <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{formError}</div>}

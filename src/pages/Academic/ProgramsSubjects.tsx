@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchPrograms, createProgram, deleteProgram } from "../../features/programs/programsSlice";
 import { fetchSubjects, createSubject, deleteSubject } from "../../features/subjects/subjectsSlice";
+import { FiBook, FiBookOpen, FiTrash2, FiPlus, FiX } from "react-icons/fi";
 
 export default function ProgramsSubjects() {
   const dispatch = useAppDispatch();
@@ -44,14 +45,18 @@ export default function ProgramsSubjects() {
       </div>
 
       <div className="flex gap-2">
-        {[{ key: "programs" as const, label: "📚 Programs", count: programs.length },
-          { key: "subjects" as const, label: "📖 Subjects", count: subjects.length }].map((t) => (
+        {[
+          { key: "programs" as const, label: "Programs", icon: <FiBook className="w-4 h-4 shrink-0" />, count: programs.length },
+          { key: "subjects" as const, label: "Subjects", icon: <FiBookOpen className="w-4 h-4 shrink-0" />, count: subjects.length },
+        ].map((t) => (
           <button
             key={t.key}
             onClick={() => { setActiveTab(t.key); setShowForm(false); }}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeTab === t.key ? "bg-emerald-600 text-white" : "bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10"}`}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${activeTab === t.key ? "bg-emerald-600 text-white" : "bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10"}`}
           >
-            {t.label} <span className="ml-1 text-xs opacity-70">({t.count})</span>
+            {t.icon}
+            <span>{t.label}</span>
+            <span className="ml-0.5 text-xs opacity-70">({t.count})</span>
           </button>
         ))}
       </div>
@@ -59,8 +64,18 @@ export default function ProgramsSubjects() {
       {activeTab === "programs" && (
         <>
           <div className="flex justify-end">
-            <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-medium transition-all">
-              {showForm ? "Cancel" : "+ Add Program"}
+            <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-medium transition-all flex items-center gap-1.5">
+              {showForm ? (
+                <>
+                  <FiX className="w-4 h-4 shrink-0" />
+                  <span>Cancel</span>
+                </>
+              ) : (
+                <>
+                  <FiPlus className="w-4 h-4 shrink-0" />
+                  <span>Add Program</span>
+                </>
+              )}
             </button>
           </div>
           {showForm && (
@@ -91,7 +106,7 @@ export default function ProgramsSubjects() {
                       {p.name?.[0]?.toUpperCase()}
                     </div>
                     <button onClick={() => dispatch(deleteProgram(p._id))} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      <FiTrash2 className="w-4 h-4" />
                     </button>
                   </div>
                   <h3 className="text-white font-semibold mb-1">{p.name}</h3>
@@ -115,8 +130,18 @@ export default function ProgramsSubjects() {
       {activeTab === "subjects" && (
         <>
           <div className="flex justify-end">
-            <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-sm font-medium transition-all">
-              {showForm ? "Cancel" : "+ Add Subject"}
+            <button onClick={() => setShowForm(!showForm)} className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-sm font-medium transition-all flex items-center gap-1.5">
+              {showForm ? (
+                <>
+                  <FiX className="w-4 h-4 shrink-0" />
+                  <span>Cancel</span>
+                </>
+              ) : (
+                <>
+                  <FiPlus className="w-4 h-4 shrink-0" />
+                  <span>Add Subject</span>
+                </>
+              )}
             </button>
           </div>
           {showForm && (
@@ -149,7 +174,7 @@ export default function ProgramsSubjects() {
                       <td className="px-6 py-3 text-slate-400 text-sm">{s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "—"}</td>
                       <td className="px-6 py-3 text-right">
                         <button onClick={() => dispatch(deleteSubject(s._id))} className="p-1.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          <FiTrash2 className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>

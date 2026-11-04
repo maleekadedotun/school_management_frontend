@@ -10,6 +10,7 @@ import {
   FiChevronRight,
   FiCalendar,
   FiUser,
+  FiStar,
 } from "react-icons/fi";
 
 export default function AnnouncementMarquee() {
@@ -180,7 +181,7 @@ export default function AnnouncementMarquee() {
                       {item.message}
                     </span>
 
-                    <span className="text-indigo-400/80 font-black text-sm">✦</span>
+                    <FiStar className="w-3 h-3 text-indigo-400/80 fill-indigo-400/40 shrink-0" />
                   </div>
                 );
               })}

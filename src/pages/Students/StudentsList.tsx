@@ -17,6 +17,30 @@ import { fetchTeacherProfile } from "../../features/teacherAuth/teacherAuthSlice
 import { fetchMyAssignments } from "../../features/classTeachers/classTeachersSlice";
 import { transitionStudentToSss } from "../../features/promotions/promotionsSlice";
 import toast from "react-hot-toast";
+import {
+  FiSearch,
+  FiAlertTriangle,
+  FiCheckCircle,
+  FiInfo,
+  FiUserCheck,
+  FiAward,
+  FiFileText,
+  FiBookOpen,
+  FiLayers,
+  FiX,
+  FiLock,
+  FiStar,
+  FiClock,
+  FiEdit3,
+  FiPlus,
+  FiRefreshCw,
+  FiSlash,
+  FiLogOut,
+  FiChevronLeft,
+  FiChevronRight,
+  FiExternalLink,
+  FiArrowRight,
+} from "react-icons/fi";
 
 export default function StudentsList() {
   const dispatch = useAppDispatch();
@@ -394,10 +418,10 @@ export default function StudentsList() {
                       )
                     );
                   }}
-                  className="hover:text-red-400 cursor-pointer text-xs font-bold ml-0.5"
+                  className="hover:text-red-400 cursor-pointer text-xs font-bold ml-0.5 inline-flex items-center"
                   title="Remove subject"
                 >
-                  ×
+                  <FiX className="w-3 h-3" />
                 </button>
               </span>
             ))}
@@ -418,7 +442,7 @@ export default function StudentsList() {
               onClick={() => addMultiple(coreSubjects)}
               className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all flex items-center gap-1 cursor-pointer shadow-sm"
             >
-              <span>🌟</span>
+              <FiStar className="w-3 h-3 shrink-0" />
               <span>All Core Subjects ({coreSubjects.length})</span>
             </button>
           )}
@@ -429,7 +453,7 @@ export default function StudentsList() {
               onClick={() => addMultiple(allProgramSubjects)}
               className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 transition-all flex items-center gap-1 cursor-pointer"
             >
-              <span>📚</span>
+              <FiBookOpen className="w-3 h-3 shrink-0" />
               <span>All {progDisplayName} Subjects ({allProgramSubjects.length})</span>
             </button>
           )}
@@ -440,7 +464,7 @@ export default function StudentsList() {
               onClick={() => addMultiple(allClassSubjects)}
               className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 transition-all flex items-center gap-1 cursor-pointer"
             >
-              <span>🏛️</span>
+              <FiLayers className="w-3 h-3 shrink-0" />
               <span>All for {classVal} ({allClassSubjects.length})</span>
             </button>
           )}
@@ -478,7 +502,8 @@ export default function StudentsList() {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              <span>⭐ Core ({coreSubjects.length})</span>
+              <FiStar className="w-3 h-3 shrink-0" />
+              <span>Core ({coreSubjects.length})</span>
             </button>
 
             {progDisplayName && (
@@ -518,14 +543,7 @@ export default function StudentsList() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full sm:w-48 pl-7 pr-3 py-1.5 rounded-lg bg-[#090d1a] border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500"
             />
-            <svg
-              className="w-3.5 h-3.5 text-slate-500 absolute left-2 top-1/2 -translate-y-1/2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <FiSearch className="w-3.5 h-3.5 text-slate-500 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         </div>
 
@@ -573,12 +591,13 @@ export default function StudentsList() {
 
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
                     {isSubjectCore && (
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                      <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${
                         isGeneralCore
                           ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
                           : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                       }`}>
-                        {isGeneralCore ? "🌟 CORE (COMPULSORY)" : "✨ CORE"}
+                        <FiStar className="w-2.5 h-2.5 shrink-0" />
+                        <span>{isGeneralCore ? "CORE (COMPULSORY)" : "CORE"}</span>
                       </span>
                     )}
                     {s.program?.name && (
@@ -945,6 +964,20 @@ export default function StudentsList() {
     setCurrentPage(1);
   };
 
+  const isEarlyOrPrimaryClass = (name: string) => {
+    if (!name) return false;
+    const low = name.toLowerCase().trim();
+    return (
+      low.includes("kg") ||
+      low.includes("kindergarten") ||
+      low.includes("nursery") ||
+      low.includes("nur") ||
+      low.includes("primary") ||
+      low.includes("pry") ||
+      low.includes("basic")
+    );
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanClass = (form.classLevels || "").trim();
@@ -952,6 +985,18 @@ export default function StudentsList() {
       alert("Please select a class level before registering the student.");
       return;
     }
+
+    if (isEarlyOrPrimaryClass(cleanClass)) {
+      const selectedCls = classLevels.find(
+        (c: any) => (c.name || "").toLowerCase() === cleanClass.toLowerCase()
+      );
+      const assignedSubs = selectedCls?.subjects || [];
+      if (!Array.isArray(assignedSubs) || assignedSubs.length === 0) {
+        toast.error(`No subjects configured for ${cleanClass}. Please configure class subjects on the Subject Management page first.`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     await dispatch(
       registerStudent({
@@ -1084,18 +1129,14 @@ export default function StudentsList() {
                 to="/teacher/results"
                 className="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-semibold text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/10"
               >
-                <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FiFileText className="w-4 h-4 text-indigo-400 shrink-0" />
                 Class Exam Results
               </Link>
               <button
                 onClick={() => dispatch(fetchTeacherClassStudents(isClassStudentsView ? "class" : "subject"))}
                 className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+                <FiRefreshCw className="w-4 h-4 text-violet-400 shrink-0" />
                 Refresh
               </button>
             </>
@@ -1105,9 +1146,7 @@ export default function StudentsList() {
                 to="/admin/results"
                 className="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-semibold text-xs transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/10"
               >
-                <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FiFileText className="w-4 h-4 text-indigo-400 shrink-0" />
                 All Student Results
               </Link>
               <button
@@ -1128,9 +1167,7 @@ export default function StudentsList() {
                 }}
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
+                <FiPlus className="w-4 h-4 shrink-0" />
                 Register Student
               </button>
             </>
@@ -1141,9 +1178,7 @@ export default function StudentsList() {
       {/* Teacher unassigned warning */}
       {isTeacher && !teacherClassLevel && !loading && (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm flex items-center gap-3">
-          <svg className="w-5 h-5 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
+          <FiAlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
           <div>
             <p className="font-semibold text-amber-200">No Class Level Assigned</p>
             <p className="text-xs text-amber-300/80 mt-0.5">
@@ -1156,7 +1191,9 @@ export default function StudentsList() {
       {/* Class Teacher assignment check for Class Students view */}
       {isTeacher && isClassStudentsView && !loading && Array.isArray(myAssignments) && !myAssignments.some((a: any) => a.isActive) && (
         <div className="p-8 text-center rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 space-y-3">
-          <span className="text-4xl block">🔒</span>
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
+            <FiLock className="w-7 h-7" />
+          </div>
           <h3 className="text-lg font-bold text-white">Class Teacher Assignment Required</h3>
           <p className="text-sm text-slate-300 max-w-lg mx-auto">
             You are not currently assigned as a Class Teacher. The administrator must assign you as a Class Teacher for your class students to appear here.
@@ -1166,7 +1203,9 @@ export default function StudentsList() {
               to="/teacher/students"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition"
             >
-              <span>👨‍🏫</span> View Your Subject Students List →
+              <FiUserCheck className="w-4 h-4 shrink-0" />
+              <span>View Your Subject Students List</span>
+              <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
           </div>
         </div>
@@ -1174,9 +1213,7 @@ export default function StudentsList() {
 
       {/* Search */}
       <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
         <input
           id="student-search"
           type="text"
@@ -1295,9 +1332,7 @@ export default function StudentsList() {
                           onClick={() => handleViewResults(s as Student)}
                           className="px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 text-xs font-medium transition-all border border-emerald-500/30 flex items-center gap-1.5 shadow-sm"
                         >
-                          <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
+                          <FiFileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                           Results
                         </button>
                         <button
@@ -1314,10 +1349,7 @@ export default function StudentsList() {
                                 title="Move graduated JSS student into SSS 1"
                                 className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-indigo-600/30 to-violet-600/30 hover:from-indigo-600/50 hover:to-violet-600/50 text-indigo-200 text-xs font-semibold transition-all border border-indigo-400/40 flex items-center gap-1.5 shadow-sm shadow-indigo-500/20"
                               >
-                                <svg className="w-3.5 h-3.5 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                                </svg>
+                                <FiAward className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
                                 <span>Move to SSS</span>
                               </button>
                             )}
@@ -1325,9 +1357,7 @@ export default function StudentsList() {
                               onClick={() => openEditModal(s as Student)}
                               className="px-3 py-1.5 rounded-lg bg-violet-600/20 hover:bg-violet-600/40 text-violet-300 text-xs font-medium transition-all border border-violet-500/30 flex items-center gap-1"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                              </svg>
+                              <FiEdit3 className="w-3.5 h-3.5 shrink-0" />
                               Edit
                             </button>
                             <button
@@ -1339,7 +1369,7 @@ export default function StudentsList() {
                                   : "text-amber-400 hover:bg-amber-500/10 border-amber-500/20"
                               }`}
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                              <FiSlash className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => dispatch(s.isWithDrawn ? unwithdrawStudent(s._id) : withdrawStudent(s._id))}
@@ -1350,7 +1380,7 @@ export default function StudentsList() {
                                   : "text-red-400 hover:bg-red-500/10 border-red-500/20"
                               }`}
                             >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+                              <FiLogOut className="w-4 h-4" />
                             </button>
                           </>
                         )}
@@ -1379,9 +1409,7 @@ export default function StudentsList() {
                 disabled={currentPage === 1}
                 className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-white/5 text-dark text-sm font-medium transition-all border border-white/10 flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <FiChevronLeft className="w-4 h-4" />
                 Back
               </button>
 
@@ -1408,9 +1436,7 @@ export default function StudentsList() {
                 className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-white/5 text-dark text-sm font-medium transition-all border border-white/10 flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
               >
                 Next
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <FiChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1432,7 +1458,7 @@ export default function StudentsList() {
                 </div>
               </div>
               <button onClick={() => setSelectedStudent(null)} className="text-slate-400 hover:text-white transition-colors">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
 
@@ -1486,11 +1512,8 @@ export default function StudentsList() {
                 }}
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                </svg>
-                🎓 Move Graduated Student to SSS 1
+                <FiAward className="w-4 h-4 text-white shrink-0" />
+                <span>Move Graduated Student to SSS 1</span>
               </button>
             )}
 
@@ -1504,9 +1527,7 @@ export default function StudentsList() {
               }}
               className="w-full py-2.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 font-semibold text-sm transition-all border border-emerald-500/30 flex items-center justify-center gap-2 shadow-sm"
             >
-              <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <FiFileText className="w-4 h-4 text-emerald-400 shrink-0" />
               View Exam Results & Academic Performance
             </button>
 
@@ -1584,9 +1605,7 @@ export default function StudentsList() {
                 onClick={() => setResultsStudent(null)}
                 className="text-slate-400 hover:text-white transition-colors p-1"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
 
@@ -1609,9 +1628,7 @@ export default function StudentsList() {
                 className="px-3.5 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-xs font-semibold border border-indigo-500/30 transition-all flex items-center gap-1.5"
               >
                 Open in Full Results Screen
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
+                <FiExternalLink className="w-3.5 h-3.5 shrink-0" />
               </Link>
             </div>
 
@@ -1624,9 +1641,7 @@ export default function StudentsList() {
               </div>
             ) : studentResults.length === 0 ? (
               <div className="py-12 text-center text-slate-400 bg-white/5 rounded-2xl border border-white/5 space-y-2">
-                <svg className="w-10 h-10 text-slate-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <FiFileText className="w-10 h-10 text-slate-500 mx-auto" />
                 <p className="text-sm font-semibold text-slate-300">No Exam Results Yet</p>
                 <p className="text-xs text-slate-500">This student has not submitted any exams or results have not been generated.</p>
               </div>
@@ -1655,10 +1670,20 @@ export default function StudentsList() {
                             }`}>
                               {result.status || (isPassed ? "Passed" : "Failed")}
                             </span>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
                               isPublished ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"
                             }`}>
-                              {isPublished ? "🟢 Published" : "🟡 Unpublished"}
+                              {isPublished ? (
+                                <>
+                                  <FiCheckCircle className="w-3 h-3 shrink-0" />
+                                  <span>Published</span>
+                                </>
+                              ) : (
+                                <>
+                                  <FiClock className="w-3 h-3 shrink-0" />
+                                  <span>Unpublished</span>
+                                </>
+                              )}
                             </span>
                           </div>
                           <p className="text-xs text-slate-400 mt-1">
@@ -1720,7 +1745,7 @@ export default function StudentsList() {
             <div className="flex items-center justify-between sticky -top-6 bg-[#0f1629] -mt-2 pt-2 pb-3 z-10 border-b border-white/10">
               <h2 className="text-xl font-bold text-white">Update Student (Admin)</h2>
               <button onClick={() => setEditingStudent(null)} className="text-slate-400 hover:text-white transition-colors">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
 
@@ -1851,18 +1876,14 @@ export default function StudentsList() {
               {/* Auto-selected Class Teacher Preview */}
               {matchedClassTeacherPreview ? (
                 <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-                  <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <FiCheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
                   <span>
                     Class Teacher: <strong className="text-white">{matchedClassTeacherPreview.name}</strong> (Class: {matchedClassTeacherPreview.classLevel || editForm.classLevels} · Program: {matchedClassTeacherPreview.program || "General"})
                   </span>
                 </div>
               ) : editForm.classLevels ? (
                 <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
-                  <svg className="w-4 h-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <FiInfo className="w-4 h-4 shrink-0 text-amber-400" />
                   <span>No class teacher currently assigned for <strong>{editForm.classLevels}</strong>{editForm.program ? ` (${programs.find((p: any) => p._id === editForm.program)?.name || editForm.program})` : ""}. System will auto-assign when a matching teacher is configured.</span>
                 </div>
               ) : null}
@@ -1919,7 +1940,7 @@ export default function StudentsList() {
                 <p className="text-xs text-slate-400 mt-0.5">Create a new student and enroll them in academic subjects under their program & class</p>
               </div>
               <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-white transition-colors cursor-pointer">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
             <form onSubmit={handleRegister} className="space-y-4">
@@ -1976,8 +1997,9 @@ export default function StudentsList() {
                     ))}
                   </select>
                   {form.program && (
-                    <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-                      <span>✨ Compulsory subjects (Mathematics & English) are automatically selected below.</span>
+                    <p className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1.5 font-medium">
+                      <FiCheckCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Compulsory subjects (Mathematics & English) are automatically selected below.</span>
                     </p>
                   )}
                 </div>
@@ -2022,39 +2044,91 @@ export default function StudentsList() {
                 </div>
               </div>
 
-              {/* Enhanced Multi-Subject Selector */}
-              <div>
-                <SubjectSelector
-                  programVal={form.program}
-                  classVal={form.classLevels}
-                  selectedSubjects={form.subjects}
-                  onChange={(updated) =>
-                    setForm({
-                      ...form,
-                      subjects: updated,
-                      subject: updated[0] || form.subject,
-                    })
-                  }
-                  allSchoolSubjects={subjects}
-                  allProgramsList={programs}
-                />
-              </div>
+              {/* Enhanced Multi-Subject Selector or Early/Primary Auto-Assignment Display */}
+              {(() => {
+                const isEarly = isEarlyOrPrimaryClass(form.classLevels);
+                if (!isEarly) {
+                  return (
+                    <div>
+                      <SubjectSelector
+                        programVal={form.program}
+                        classVal={form.classLevels}
+                        selectedSubjects={form.subjects}
+                        onChange={(updated) =>
+                          setForm({
+                            ...form,
+                            subjects: updated,
+                            subject: updated[0] || form.subject,
+                          })
+                        }
+                        allSchoolSubjects={subjects}
+                        allProgramsList={programs}
+                      />
+                    </div>
+                  );
+                }
+
+                const selectedCls = classLevels.find(
+                  (c: any) => (c.name || "").toLowerCase() === (form.classLevels || "").toLowerCase()
+                );
+                const assignedSubs = selectedCls?.subjects || [];
+                const hasAssigned = Array.isArray(assignedSubs) && assignedSubs.length > 0;
+
+                return (
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-300">
+                      Class Subjects Assignment (Automatic)
+                    </label>
+                    {hasAssigned ? (
+                      <div className="p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs">
+                        <div className="flex items-center gap-2 text-indigo-200 font-semibold mb-1">
+                          <FiLayers className="w-4 h-4 text-indigo-400" />
+                          <span>Class-Based Subject Assignment Active</span>
+                        </div>
+                        <p className="text-slate-300 text-xs leading-relaxed">
+                          Students registered into <strong className="text-white">{form.classLevels}</strong> will automatically receive all {assignedSubs.length} configured subjects below upon registration:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-2.5">
+                          {assignedSubs.map((sub: any, idx: number) => {
+                            const subName = typeof sub === "object" ? sub.name : sub;
+                            return (
+                              <span
+                                key={sub?._id || idx}
+                                className="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 text-xs font-medium flex items-center gap-1"
+                              >
+                                <FiBookOpen className="w-3 h-3 text-indigo-400" />
+                                {subName}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
+                        <FiAlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-amber-200">No Subjects Configured for {form.classLevels}</p>
+                          <p className="text-slate-300 text-xs mt-1">
+                            This class has 0 configured subjects. Please visit <strong>Subject Management</strong> and click <strong>"Register Class Subjects"</strong> to assign curriculum subjects before registering students into this class.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Class Teacher Preview */}
               {registerClassTeacherPreview ? (
                 <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-                  <svg className="w-4 h-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <FiCheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
                   <span>
                     Class Teacher: <strong className="text-white">{registerClassTeacherPreview.name}</strong> (Class: {registerClassTeacherPreview.classLevel || form.classLevels} · Program: {registerClassTeacherPreview.program || "General"})
                   </span>
                 </div>
               ) : form.classLevels ? (
                 <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs">
-                  <svg className="w-4 h-4 shrink-0 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <FiInfo className="w-4 h-4 shrink-0 text-amber-400" />
                   <span>No class teacher currently assigned for <strong>{form.classLevels}</strong>{form.program ? ` (${programs.find((p: any) => p._id === form.program)?.name || form.program})` : ""}. System will auto-assign when a matching teacher is configured.</span>
                 </div>
               ) : null}
@@ -2082,10 +2156,7 @@ export default function StudentsList() {
           <div className="relative w-full max-w-md rounded-3xl bg-slate-900 border border-indigo-500/30 p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                </svg>
+                <FiAward className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-white">Move Student to SSS Class</h3>

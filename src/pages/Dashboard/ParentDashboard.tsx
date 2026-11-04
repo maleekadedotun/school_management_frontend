@@ -36,6 +36,15 @@ import {
   HiOutlineMagnifyingGlass,
   HiOutlineXMark,
 } from "react-icons/hi2";
+import {
+  FiSun,
+  FiCloud,
+  FiMoon,
+  FiAward,
+  FiBarChart2,
+  FiX,
+  FiArrowRight,
+} from "react-icons/fi";
 import toast from "react-hot-toast";
 
 export interface ParentDashboardProps {
@@ -142,9 +151,9 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
   // Dynamic greeting based on current local hour
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return { text: "Good Morning", icon: "☀️" };
-    if (hour < 18) return { text: "Good Afternoon", icon: "🌤️" };
-    return { text: "Good Evening", icon: "🌙" };
+    if (hour < 12) return { text: "Good Morning", icon: <FiSun className="w-7 h-7 text-amber-400 shrink-0" /> };
+    if (hour < 18) return { text: "Good Afternoon", icon: <FiCloud className="w-7 h-7 text-sky-400 shrink-0" /> };
+    return { text: "Good Evening", icon: <FiMoon className="w-7 h-7 text-indigo-300 shrink-0" /> };
   }, []);
 
   // Level Progression Milestone definitions matching student view
@@ -303,8 +312,8 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
       {childProfile?.isGraduated && (
         <div className="rounded-2xl border border-yellow-500/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-emerald-500/20 p-6 backdrop-blur-md flex items-center justify-between gap-4 text-yellow-100 shadow-xl">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center text-yellow-300 text-3xl shadow-lg">
-              🎓
+            <div className="w-14 h-14 rounded-2xl bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center text-yellow-300 text-3xl shadow-lg shrink-0">
+              <FiAward className="w-7 h-7" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -327,6 +336,38 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
             </div>
           </div>
           <HiOutlineSparkles className="w-8 h-8 text-yellow-400 animate-pulse hidden sm:block" />
+        </div>
+      )}
+
+      {/* Stage Graduation Banner (KG, Nursery, Primary) */}
+      {(milestones?.stageGraduated || childProfile?.stageGraduated || milestones?.enrollmentStatus === "awaiting_next_stage") && !childProfile?.isGraduated && (
+        <div className="rounded-2xl border border-purple-500/40 bg-gradient-to-r from-purple-500/20 via-indigo-500/15 to-emerald-500/20 p-6 backdrop-blur-md flex items-center justify-between gap-4 text-purple-100 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-purple-400/20 border border-purple-400/40 flex items-center justify-center text-purple-300 text-3xl shadow-lg shrink-0">
+              <FiAward className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="font-extrabold text-xl text-purple-200">
+                  Stage Graduation Completed! 🎉
+                </h4>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-500/30 text-purple-200 border border-purple-400/30">
+                  {milestones?.completedStage || childProfile?.completedStage || "Stage"} Graduate
+                </span>
+              </div>
+              <p className="text-xs text-purple-200/90 leading-relaxed mt-1">
+                Congratulations! {childProfile?.name} has officially completed the {milestones?.completedStage || childProfile?.completedStage || "current"} educational stage.
+                {milestones?.enrollmentStatus === "awaiting_next_stage"
+                  ? " Next stage enrollment decision is currently pending administrative processing."
+                  : " Student is successfully prepared for the next educational stage."}
+              </p>
+            </div>
+          </div>
+          <div className="hidden sm:block text-right shrink-0">
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-purple-500/30 text-purple-200 border border-purple-400/40">
+              {milestones?.enrollmentStatus === "awaiting_next_stage" ? "Awaiting Next Stage" : "Stage Complete"}
+            </span>
+          </div>
         </div>
       )}
 
@@ -510,7 +551,7 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
                       {isPast ? (
                         <HiOutlineCheck className="w-5 h-5 stroke-[3]" />
                       ) : stepItem.step === 4 ? (
-                        "🎓"
+                        <FiAward className="w-5 h-5" />
                       ) : (
                         stepItem.step + 1
                       )}
@@ -967,9 +1008,9 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
                     </div>
                     <Link
                       to="/parent/invoices"
-                      className="text-xs font-semibold text-emerald-500 hover:text-emerald-600"
+                      className="text-xs font-semibold text-emerald-500 hover:text-emerald-600 inline-flex items-center gap-1"
                     >
-                      Invoices →
+                      Invoices <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                     </Link>
                   </div>
 
@@ -1039,9 +1080,9 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
                 </div>
                 <Link
                   to="/parent/assignments"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 transition-all"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 transition-all inline-flex items-center gap-1.5"
                 >
-                  Open Full Assignment Hub →
+                  Open Full Assignment Hub <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Link>
               </div>
 
@@ -1131,7 +1172,8 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
                   className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 transition-all cursor-pointer shrink-0"
                 >
                   <HiOutlineDocumentText className="w-4 h-4" />
-                  Official Term Report Cards →
+                  Official Term Report Cards
+                  <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Link>
               </div>
 
@@ -1191,6 +1233,43 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
                 </div>
               )}
 
+              {/* Early Years & Primary Developmental Learning Areas (if present on report card) */}
+              {latestReportCard && Array.isArray((latestReportCard as any).learningAssessments) && (latestReportCard as any).learningAssessments.length > 0 && (
+                <div className="rounded-3xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-950/60 p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 font-bold">
+                      <FiAward className="w-5 h-5" />
+                    </span>
+                    <div>
+                      <h4 className="text-base font-bold text-gray-900 dark:text-white">
+                        Early Years Developmental & Learning Area Assessment
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Formative assessment of developmental milestones and core foundation areas
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {((latestReportCard as any).learningAssessments || []).map((la: any, i: number) => (
+                      <div key={i} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-gray-900 dark:text-white">{la.area}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300">
+                            {la.rating}
+                          </span>
+                        </div>
+                        {la.comment && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 italic">
+                            "{la.comment}"
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Search & Filter Toolbar */}
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-200/80 dark:border-slate-800 shadow-sm">
                 <div className="relative w-full sm:w-80">
@@ -1224,7 +1303,7 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
               {filteredExams.length === 0 ? (
                 <div className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 p-12 text-center space-y-3">
                   <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
-                    📊
+                    <FiBarChart2 className="w-8 h-8" />
                   </div>
                   <h4 className="font-bold text-gray-900 dark:text-white text-base">
                     No Examination Records Found
@@ -1345,9 +1424,9 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
                 </div>
                 <Link
                   to="/parent/attendance"
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all inline-flex items-center gap-1.5"
                 >
-                  Full Attendance Report →
+                  Full Attendance Report <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Link>
               </div>
 
@@ -1474,9 +1553,9 @@ export default function ParentDashboard({ initialTab }: ParentDashboardProps = {
               </div>
               <button
                 onClick={() => setShowLinkModal(false)}
-                className="text-slate-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-lg"
+                className="text-slate-400 hover:text-gray-600 dark:hover:text-white p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 

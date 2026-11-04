@@ -22,6 +22,9 @@ export interface Student {
   enrolledSubjects?: any[];
   assignedTeacher?: { _id: string; name: string; email?: string; subject?: string; classLevel?: string } | string;
   examsResults?: any[];
+  averageScore?: number;
+  examsTakenCount?: number;
+  passedExamsCount?: number;
 }
 
 export interface EnrolledSubjectItem {

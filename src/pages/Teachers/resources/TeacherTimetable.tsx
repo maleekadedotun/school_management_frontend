@@ -14,6 +14,7 @@ import {
   FiStar,
   FiGrid,
   FiLock,
+  FiCoffee,
 } from "react-icons/fi";
 
 export const ALL_DAYS = [
@@ -385,7 +386,10 @@ export default function TeacherTimetable() {
                       <tr className="bg-slate-900/60 text-slate-400 font-semibold text-[11px] text-center">
                         <td className="py-1.5 px-4 border-r border-slate-800 text-left">10:15 - 10:45 AM</td>
                         <td colSpan={activeDays.length} className="py-1.5 text-center tracking-widest uppercase text-amber-400/80">
-                          ☕ Morning Recess / Break
+                          <span className="inline-flex items-center justify-center gap-1.5">
+                            <FiCoffee className="w-3.5 h-3.5" />
+                            <span>Morning Recess / Break</span>
+                          </span>
                         </td>
                       </tr>
                     )}
@@ -393,7 +397,10 @@ export default function TeacherTimetable() {
                       <tr className="bg-slate-900/60 text-slate-400 font-semibold text-[11px] text-center">
                         <td className="py-1.5 px-4 border-r border-slate-800 text-left">12:15 - 01:00 PM</td>
                         <td colSpan={activeDays.length} className="py-1.5 text-center tracking-widest uppercase text-emerald-400/80">
-                          🥪 Lunch Interval
+                          <span className="inline-flex items-center justify-center gap-1.5">
+                            <FiClock className="w-3.5 h-3.5" />
+                            <span>Lunch Interval</span>
+                          </span>
                         </td>
                       </tr>
                     )}

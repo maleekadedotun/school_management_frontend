@@ -11,6 +11,22 @@ import {
 } from "../../features/finance/financeSlice";
 import api from "../../services/api";
 import toast from "react-hot-toast";
+import {
+  FiUsers,
+  FiUserCheck,
+  FiCheck,
+  FiBook,
+  FiMail,
+  FiPhone,
+  FiX,
+  FiKey,
+  FiClipboard,
+  FiEdit2,
+  FiPauseCircle,
+  FiPlus,
+  FiRefreshCw,
+  FiSearch,
+} from "react-icons/fi";
 
 export default function ParentsList() {
   const dispatch = useAppDispatch();
@@ -408,8 +424,8 @@ export default function ParentsList() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="p-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xl shadow-lg shadow-indigo-500/10">
-              👨‍👩‍👧‍👦
+            <span className="p-2.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xl shadow-lg shadow-indigo-500/10 flex items-center justify-center">
+              <FiUsers className="w-6 h-6" />
             </span>
             <div>
               <h1 className="text-2xl font-bold text-white tracking-tight">
@@ -431,9 +447,7 @@ export default function ParentsList() {
             }}
             className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer"
           >
-            <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <FiRefreshCw className="w-4 h-4 text-indigo-400" />
             Refresh
           </button>
 
@@ -442,9 +456,7 @@ export default function ParentsList() {
             onClick={handleOpenRegister}
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white font-semibold text-sm transition-all shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <FiPlus className="w-4 h-4" />
             <span>Register Parent</span>
           </button>
         </div>
@@ -458,7 +470,7 @@ export default function ParentsList() {
             <p className="text-2xl font-bold text-white mt-1">{totalParents}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-sm">
-            👥
+            <FiUsers className="w-5 h-5" />
           </div>
         </div>
 
@@ -468,7 +480,7 @@ export default function ParentsList() {
             <p className="text-2xl font-bold text-emerald-400 mt-1">{activeParents}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-sm">
-            ✓
+            <FiUserCheck className="w-5 h-5" />
           </div>
         </div>
 
@@ -478,7 +490,7 @@ export default function ParentsList() {
             <p className="text-2xl font-bold text-rose-400 mt-1">{suspendedParents}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center font-bold text-sm">
-            ⏸
+            <FiPauseCircle className="w-5 h-5" />
           </div>
         </div>
 
@@ -488,21 +500,14 @@ export default function ParentsList() {
             <p className="text-2xl font-bold text-violet-400 mt-1">{totalLinkedChildren}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-400 flex items-center justify-center font-bold text-sm">
-            🎒
+            <FiBook className="w-5 h-5" />
           </div>
         </div>
       </div>
 
       {/* Search Input */}
       <div className="relative">
-        <svg
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+        <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
         <input
           type="text"
           value={search}
@@ -556,7 +561,7 @@ export default function ParentsList() {
                   <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
                     <div className="max-w-sm mx-auto space-y-3">
                       <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto text-xl">
-                        👨‍👩‍👧‍👦
+                        <FiUsers className="w-6 h-6" />
                       </div>
                       <p className="text-base font-semibold text-white">
                         {search ? `No parents found for "${search}"` : "No parent accounts registered yet."}
@@ -568,7 +573,7 @@ export default function ParentsList() {
                         onClick={handleOpenRegister}
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
                       >
-                        + Register First Parent
+                        <FiPlus className="w-3.5 h-3.5" /> Register First Parent
                       </button>
                     </div>
                   </td>
@@ -618,12 +623,12 @@ export default function ParentsList() {
                       <td className="px-6 py-4">
                         <div className="space-y-0.5">
                           <div className="text-xs text-slate-300 flex items-center gap-1.5">
-                            <span className="text-slate-500">✉</span>
+                            <FiMail className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                             <span>{parent.email}</span>
                           </div>
                           {parent.phone && (
                             <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                              <span className="text-slate-500">📞</span>
+                              <FiPhone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                               <span>{parent.phone}</span>
                             </div>
                           )}
@@ -654,9 +659,9 @@ export default function ParentsList() {
                                     type="button"
                                     onClick={() => handleUnlinkChild(parent._id, cId, cName)}
                                     title="Unlink child from parent"
-                                    className="text-indigo-400/60 hover:text-rose-400 transition-colors ml-0.5"
+                                    className="text-indigo-400/60 hover:text-rose-400 transition-colors ml-0.5 p-0.5 cursor-pointer"
                                   >
-                                    ✕
+                                    <FiX className="w-3 h-3" />
                                   </button>
                                 </span>
                               );
@@ -811,7 +816,7 @@ export default function ParentsList() {
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-indigo-500/20">
-                  👨‍👩‍👧‍👦
+                  <FiUsers className="w-5 h-5" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-white">Register Parent Account</h2>
@@ -825,7 +830,7 @@ export default function ParentsList() {
                 onClick={() => setShowRegisterModal(false)}
                 className="text-slate-400 hover:text-white transition-colors p-1"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -890,9 +895,10 @@ export default function ParentsList() {
                       setRegisterForm({ ...registerForm, password: pwd });
                       setShowPassword(true);
                     }}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1.5 cursor-pointer"
                   >
-                    🎲 Generate Password
+                    <FiKey className="w-3.5 h-3.5" />
+                    <span>Generate Password</span>
                   </button>
                 </div>
                 <div className="relative">
@@ -959,9 +965,9 @@ export default function ParentsList() {
                                 selectedStudentIds: registerForm.selectedStudentIds.filter((id) => id !== sId),
                               })
                             }
-                            className="text-indigo-300 hover:text-white ml-0.5"
+                            className="text-indigo-300 hover:text-white ml-0.5 p-0.5"
                           >
-                            ✕
+                            <FiX className="w-3 h-3" />
                           </button>
                         </span>
                       );
@@ -1079,7 +1085,7 @@ export default function ParentsList() {
           <div className="bg-[#0f1629] border border-emerald-500/30 rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
             <div className="text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mx-auto text-xl font-bold">
-                ✓
+                <FiCheck className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-bold text-white">Parent Account Provisioned!</h3>
               <p className="text-slate-400 text-xs leading-relaxed">
@@ -1129,7 +1135,8 @@ export default function ParentsList() {
                 }}
                 className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-indigo-300 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer"
               >
-                📋 Copy Credentials
+                <FiClipboard className="w-3.5 h-3.5" />
+                <span>Copy Credentials</span>
               </button>
               <button
                 type="button"
@@ -1177,7 +1184,7 @@ export default function ParentsList() {
                 onClick={() => setViewParent(null)}
                 className="text-slate-400 hover:text-white transition-colors p-1"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -1207,7 +1214,7 @@ export default function ParentsList() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>🎒</span>
+                  <FiBook className="w-4 h-4 text-indigo-400" />
                   <span>Linked Children ({Array.isArray(viewParent.children) ? viewParent.children.length : 0})</span>
                 </h3>
                 <button
@@ -1336,7 +1343,7 @@ export default function ParentsList() {
             <div className="flex items-center justify-between pb-4 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold shadow-lg">
-                  ✏️
+                  <FiEdit2 className="w-5 h-5" />
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-white">Edit Parent Details</h2>
@@ -1350,7 +1357,7 @@ export default function ParentsList() {
                 onClick={() => setEditParent(null)}
                 className="text-slate-400 hover:text-white transition-colors p-1"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -1409,9 +1416,10 @@ export default function ParentsList() {
                       setEditForm({ ...editForm, password: pwd });
                       setShowEditPassword(true);
                     }}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium cursor-pointer"
+                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1.5 cursor-pointer"
                   >
-                    🎲 Generate Password
+                    <FiKey className="w-3.5 h-3.5" />
+                    <span>Generate Password</span>
                   </button>
                 </div>
                 <div className="relative">
@@ -1488,9 +1496,9 @@ export default function ParentsList() {
                                 selectedStudentIds: editForm.selectedStudentIds.filter((id) => id !== sId),
                               })
                             }
-                            className="text-indigo-300 hover:text-white ml-0.5"
+                            className="text-indigo-300 hover:text-white ml-0.5 p-0.5"
                           >
-                            ✕
+                            <FiX className="w-3 h-3" />
                           </button>
                         </span>
                       );
@@ -1593,9 +1601,9 @@ export default function ParentsList() {
               </div>
               <button
                 onClick={() => setLinkParent(null)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-white transition-colors p-1"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 

@@ -6,6 +6,27 @@ import { fetchExams } from "../../features/exams/examsSlice";
 import { fetchTeacherQuestions } from "../../features/questions/questionsSlice";
 import { fetchMyAssignments } from "../../features/classTeachers/classTeachersSlice";
 import { Link } from "react-router-dom";
+import {
+  FiSun,
+  FiHome,
+  FiBookOpen,
+  FiAward,
+  FiCalendar,
+  FiUsers,
+  FiFileText,
+  FiHelpCircle,
+  FiSearch,
+  FiArrowRight,
+  FiEdit3,
+  FiClipboard,
+  FiClock,
+  FiCheck,
+  FiCheckCircle,
+  FiUser,
+  FiX,
+  FiShield,
+  FiInfo,
+} from "react-icons/fi";
 
 export default function TeacherDashboard() {
   const dispatch = useAppDispatch();
@@ -203,8 +224,9 @@ export default function TeacherDashboard() {
               )}
             </div>
 
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              Welcome back, {teacher?.name || "Teacher"}! 👋
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
+              <span>Welcome back, {teacher?.name || "Teacher"}!</span>
+              <FiSun className="w-8 h-8 text-amber-400 shrink-0" />
             </h1>
 
             <p className="text-slate-300 text-sm md:text-base leading-relaxed">
@@ -215,7 +237,7 @@ export default function TeacherDashboard() {
           {/* Academic Assignment Badges positioned in a row to the right */}
           <div className="flex flex-wrap items-center lg:justify-end gap-2.5 text-xs">
             <div className="px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10 text-white flex items-center gap-2 shadow-sm backdrop-blur-md">
-              <span className="text-emerald-400 text-sm">🏫</span>
+              <FiHome className="w-4 h-4 text-emerald-400 shrink-0" />
               <span className="text-slate-400">Class Role:</span>
               <strong className="text-emerald-300 font-semibold whitespace-nowrap">
                 {isAssignedClassTeacher
@@ -225,7 +247,7 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10 text-white flex items-center gap-2 shadow-sm backdrop-blur-md">
-              <span className="text-teal-400 text-sm">📖</span>
+              <FiBookOpen className="w-4 h-4 text-teal-400 shrink-0" />
               <span className="text-slate-400">Subject:</span>
               <strong className="text-teal-300 font-semibold whitespace-nowrap">
                 {t?.subject?.name || t?.subject || "Not Assigned"}
@@ -233,7 +255,7 @@ export default function TeacherDashboard() {
             </div>
 
             <div className="px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10 text-white flex items-center gap-2 shadow-sm backdrop-blur-md">
-              <span className="text-indigo-400 text-sm">🎓</span>
+              <FiAward className="w-4 h-4 text-indigo-400 shrink-0" />
               <span className="text-slate-400">Program:</span>
               <strong className="text-indigo-300 font-semibold whitespace-nowrap">
                 {t?.program?.name || t?.program || "General Academics"}
@@ -242,7 +264,7 @@ export default function TeacherDashboard() {
 
             {t?.academicYear && (
               <div className="px-3.5 py-2 rounded-2xl bg-white/10 border border-white/10 text-white flex items-center gap-2 shadow-sm backdrop-blur-md">
-                <span className="text-amber-400 text-sm">📅</span>
+                <FiCalendar className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="text-slate-400">Year:</span>
                 <strong className="text-amber-300 font-semibold whitespace-nowrap">
                   {t?.academicYear?.name || t?.academicYear}
@@ -262,7 +284,7 @@ export default function TeacherDashboard() {
             label: isAssignedClassTeacher
               ? `Enrolled in ${assignedClassLevelName}`
               : (t?.subject ? `Enrolled in ${t?.subject?.name || t?.subject}` : "Taking your course"),
-            icon: "👥",
+            icon: <FiUsers className="w-5 h-5 text-emerald-400 shrink-0" />,
             bg: "from-emerald-500/10 to-teal-500/5",
             border: "border-emerald-500/20",
             text: "text-emerald-400",
@@ -272,7 +294,7 @@ export default function TeacherDashboard() {
             title: "Accessible Exams",
             value: accessibleExams.length,
             label: `${adminExams.length} Admin · ${myExams.length} by you`,
-            icon: "📝",
+            icon: <FiFileText className="w-5 h-5 text-blue-400 shrink-0" />,
             bg: "from-blue-500/10 to-cyan-500/5",
             border: "border-blue-500/20",
             text: "text-blue-400",
@@ -282,7 +304,7 @@ export default function TeacherDashboard() {
             title: "Questions Authored",
             value: myQuestions.length,
             label: "Created by you",
-            icon: "❓",
+            icon: <FiHelpCircle className="w-5 h-5 text-violet-400 shrink-0" />,
             bg: "from-violet-500/10 to-purple-500/5",
             border: "border-violet-500/20",
             text: "text-violet-400",
@@ -292,7 +314,7 @@ export default function TeacherDashboard() {
             title: "Teaching Subject",
             value: t?.subject?.name || t?.subject || "Main",
             label: t?.program?.name || t?.program || "Curriculum",
-            icon: "📖",
+            icon: <FiBookOpen className="w-5 h-5 text-amber-400 shrink-0" />,
             bg: "from-amber-500/10 to-yellow-500/5",
             border: "border-amber-500/20",
             text: "text-amber-400",
@@ -307,7 +329,7 @@ export default function TeacherDashboard() {
               <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider">
                 {stat.title}
               </span>
-              <span className="text-lg">{stat.icon}</span>
+              <span className="p-2 rounded-xl bg-white/5 border border-white/10">{stat.icon}</span>
             </div>
             <div className={`text-2xl sm:text-3xl font-extrabold ${stat.text} truncate`}>
               {stat.value}
@@ -328,7 +350,7 @@ export default function TeacherDashboard() {
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
               <span className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-sm">
-                👥
+                <FiUsers className="w-4 h-4" />
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                 {isAssignedClassTeacher ? "My Class Students" : "My Subject Students"}
@@ -350,19 +372,12 @@ export default function TeacherDashboard() {
               to="/teacher/results?open=true"
               className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-bold text-xs sm:text-sm shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 shrink-0 ring-1 ring-emerald-300"
             >
-              <span>📝</span>
+              <FiFileText className="w-4 h-4 shrink-0" />
               Record Exam & Test
             </Link>
 
             <div className="relative w-full sm:w-64">
-              <svg
-                className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <FiSearch className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search student name or ID..."
@@ -382,7 +397,9 @@ export default function TeacherDashboard() {
           </div>
         ) : filteredStudents.length === 0 ? (
           <div className="p-12 text-center rounded-2xl bg-white/5 border border-white/10 space-y-3">
-            <span className="text-4xl block">🎓</span>
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+              <FiAward className="w-8 h-8" />
+            </div>
             <h3 className="text-lg font-bold text-white">No Students Found</h3>
             <p className="text-sm text-slate-400 max-w-md mx-auto">
               {studentSearch
@@ -452,7 +469,7 @@ export default function TeacherDashboard() {
                       onClick={(e) => e.stopPropagation()}
                       className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                     >
-                      <span>📝</span> Record Exam & Test Score
+                      <FiFileText className="w-3.5 h-3.5 shrink-0" /> Record Exam & Test Score
                     </Link>
                   </div>
                 );
@@ -470,7 +487,7 @@ export default function TeacherDashboard() {
                   className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1.5 transition-colors"
                 >
                   <span>View All Class Students & Results</span>
-                  <span>→</span>
+                  <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Link>
               </div>
             )}
@@ -484,7 +501,7 @@ export default function TeacherDashboard() {
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
               <span className="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-400 flex items-center justify-center font-bold text-sm">
-                📝
+                <FiFileText className="w-4 h-4" />
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                 School & Authored Exams
@@ -509,23 +526,25 @@ export default function TeacherDashboard() {
               </button>
               <button
                 onClick={() => setExamTab("admin")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                   examTab === "admin"
                     ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/20"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                🏛️ Admin ({adminExams.length})
+                <FiShield className="w-3.5 h-3.5 shrink-0" />
+                <span>Admin ({adminExams.length})</span>
               </button>
               <button
                 onClick={() => setExamTab("my")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                   examTab === "my"
                     ? "bg-emerald-500 text-black shadow-md shadow-emerald-500/20"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
-                ✍️ My Authored ({myExams.length})
+                <FiEdit3 className="w-3.5 h-3.5 shrink-0" />
+                <span>My Authored ({myExams.length})</span>
               </button>
             </div>
 
@@ -533,7 +552,7 @@ export default function TeacherDashboard() {
               to="/teacher/exams"
               className="text-xs sm:text-sm text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-colors px-2 py-1"
             >
-              Manage All Exams →
+              Manage All Exams <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
           </div>
         </div>
@@ -542,7 +561,9 @@ export default function TeacherDashboard() {
           <div className="p-8 text-center text-slate-400 text-sm">Loading exams...</div>
         ) : displayedDashboardExams.length === 0 ? (
           <div className="p-10 text-center rounded-2xl bg-white/5 border border-white/10 space-y-3">
-            <span className="text-3xl block">📋</span>
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center mx-auto">
+              <FiClipboard className="w-7 h-7" />
+            </div>
             <h4 className="text-base font-bold text-white">
               {examTab === "admin"
                 ? "No Admin Exams Found"
@@ -577,23 +598,35 @@ export default function TeacherDashboard() {
                           {exam.examType || "Quiz"}
                         </span>
                         {isCreatedByAdmin(exam) ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                            🏛️ Admin Exam
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 inline-flex items-center gap-1">
+                            <FiShield className="w-3 h-3 shrink-0" />
+                            <span>Admin Exam</span>
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                            ✍️ My Exam
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 inline-flex items-center gap-1">
+                            <FiEdit3 className="w-3 h-3 shrink-0" />
+                            <span>My Exam</span>
                           </span>
                         )}
                       </div>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
                           exam.examStatus === "live"
                             ? "bg-emerald-500/20 text-emerald-400"
                             : "bg-amber-500/20 text-amber-400"
                         }`}
                       >
-                        {exam.examStatus === "live" ? "🟢 Live" : "🟡 Pending"}
+                        {exam.examStatus === "live" ? (
+                          <>
+                            <FiCheckCircle className="w-3 h-3 shrink-0" />
+                            <span>Live</span>
+                          </>
+                        ) : (
+                          <>
+                            <FiClock className="w-3 h-3 shrink-0" />
+                            <span>Pending</span>
+                          </>
+                        )}
                       </span>
                     </div>
 
@@ -605,21 +638,30 @@ export default function TeacherDashboard() {
 
                   <div className="pt-3 border-t border-white/5 space-y-2">
                     <div className="flex items-center justify-between text-xs text-slate-400">
-                      <span>⏱️ {exam.duration || "N/A"}</span>
-                      <span className="text-teal-300 font-semibold">
-                        ❓ {Math.max(
-                          exam.questions?.length || 0,
-                          teacherQuestions.filter((q: any) => {
-                            const qExamId = (q.exam?._id || q.exam || (q as any).examId)?.toString();
-                            const eId = (exam._id || exam.id)?.toString();
-                            return qExamId && eId && qExamId === eId;
-                          }).length
-                        )} Questions
+                      <span className="inline-flex items-center gap-1">
+                        <FiClock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>{exam.duration || "N/A"}</span>
+                      </span>
+                      <span className="text-teal-300 font-semibold inline-flex items-center gap-1">
+                        <FiHelpCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          {Math.max(
+                            exam.questions?.length || 0,
+                            teacherQuestions.filter((q: any) => {
+                              const qExamId = (q.exam?._id || q.exam || (q as any).examId)?.toString();
+                              const eId = (exam._id || exam.id)?.toString();
+                              return qExamId && eId && qExamId === eId;
+                            }).length
+                          )} Questions
+                        </span>
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-slate-500">
                       <span>By: <strong className="text-slate-300 font-medium">{isCreatedByAdmin(exam) ? "Administration" : (exam.createdBy?.name || teacher?.name || "Teacher")}</strong></span>
-                      <Link to="/teacher/exams" className="text-blue-400 hover:text-blue-300 font-medium">View →</Link>
+                      <Link to="/teacher/exams" className="text-blue-400 hover:text-blue-300 font-medium inline-flex items-center gap-1">
+                        <span>View</span>
+                        <FiArrowRight className="w-3 h-3 shrink-0" />
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -637,7 +679,7 @@ export default function TeacherDashboard() {
                   className="text-emerald-400 hover:text-emerald-300 font-bold flex items-center gap-1.5 transition-colors"
                 >
                   <span>Manage All Exams</span>
-                  <span>→</span>
+                  <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Link>
               </div>
             )}
@@ -651,7 +693,7 @@ export default function TeacherDashboard() {
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
               <span className="w-8 h-8 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-400 flex items-center justify-center font-bold text-sm">
-                ❓
+                <FiHelpCircle className="w-4 h-4" />
               </span>
               <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
                 My Authored Questions
@@ -668,14 +710,7 @@ export default function TeacherDashboard() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             {/* Question search input */}
             <div className="relative w-full sm:w-64">
-              <svg
-                className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <FiSearch className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search your questions..."
@@ -690,14 +725,16 @@ export default function TeacherDashboard() {
               className="px-4 py-2 rounded-xl bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/40 text-violet-300 font-semibold text-xs transition-all flex items-center justify-center gap-1.5 whitespace-nowrap"
             >
               <span>Question Bank</span>
-              <span>→</span>
+              <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
           </div>
         </div>
 
         {myQuestions.length === 0 ? (
           <div className="p-10 text-center rounded-2xl bg-white/5 border border-white/10 space-y-3">
-            <span className="text-3xl block">💡</span>
+            <div className="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-violet-400 flex items-center justify-center mx-auto">
+              <FiInfo className="w-7 h-7" />
+            </div>
             <h4 className="text-base font-bold text-white">No Questions Authored Yet</h4>
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
               You haven't authored any questions yet. Create test items for your examinations today!
@@ -775,7 +812,7 @@ export default function TeacherDashboard() {
                             {opt.label}
                           </span>
                           <span className="truncate">{opt.val}</span>
-                          {isCorrect && <span className="ml-auto text-emerald-400 text-xs font-bold">✓</span>}
+                          {isCorrect && <FiCheck className="ml-auto w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                         </div>
                       );
                     })}
@@ -795,7 +832,7 @@ export default function TeacherDashboard() {
                   className="text-violet-400 hover:text-violet-300 font-bold flex items-center gap-1.5 transition-colors"
                 >
                   <span>View All in Question Bank</span>
-                  <span>→</span>
+                  <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Link>
               </div>
             )}
@@ -810,7 +847,7 @@ export default function TeacherDashboard() {
           className="p-5 rounded-2xl bg-gradient-to-br hover:bg-gray-900 hover:text-white from-violet-600/10 to-purple-600/5 border border-violet-500/20 hover:border-violet-500/40 p-5 space-y-2 group transition-all"
         >
           <div className="w-10 h-10 rounded-xl bg-violet-500/20 text-violet-300 flex items-center justify-center text-lg font-bold group-hover:scale-110 transition-transform">
-            ❓
+            <FiHelpCircle className="w-5 h-5" />
           </div>
           <h3 className="font-bold text-slate text-base">Question Bank</h3>
           <p className="text-xs text-dark-400">
@@ -823,7 +860,7 @@ export default function TeacherDashboard() {
           className="p-5 rounded-2xl bg-gradient-to-br hover:bg-gray-900 hover:text-white from-emerald-600/10 to-teal-600/5 border border-emerald-500/20 hover:border-emerald-500/40 p-5 space-y-2 group transition-all"
         >
           <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-lg font-bold group-hover:scale-110 transition-transform">
-            📝
+            <FiFileText className="w-5 h-5" />
           </div>
           <h3 className="font-bold text-slate text-base">My Exam Schedules</h3>
           <p className="text-xs text-dark-400">
@@ -836,7 +873,7 @@ export default function TeacherDashboard() {
           className="p-5 rounded-2xl bg-gradient-to-br hover:bg-gray-900 from-blue-600/10 hover:text-white to-cyan-600/5 border border-blue-500/20 hover:border-blue-500/40 p-5 space-y-2 group transition-all"
         >
           <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-300 flex items-center justify-center text-lg font-bold group-hover:scale-110 transition-transform">
-            👤
+            <FiUser className="w-5 h-5" />
           </div>
           <h3 className="font-bold text-slate text-base">Educator Profile</h3>
           <p className="text-xs text-dark-400">
@@ -863,7 +900,7 @@ export default function TeacherDashboard() {
                 onClick={() => setSelectedStudent(null)}
                 className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -917,7 +954,7 @@ export default function TeacherDashboard() {
                 to={`/teacher/results?open=true&studentId=${encodeURIComponent(selectedStudent.StudentId || selectedStudent.studentId || selectedStudent._id)}`}
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 text-xs font-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-1.5"
               >
-                <span>📝</span> Record Exam & Test Score
+                <FiFileText className="w-3.5 h-3.5 shrink-0" /> Record Exam & Test Score
               </Link>
               <button
                 onClick={() => setSelectedStudent(null)}

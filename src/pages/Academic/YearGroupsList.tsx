@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FiAward, FiX } from "react-icons/fi";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import {
   fetchYearGroups,
@@ -70,8 +71,9 @@ export default function YearGroupsList() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-dark flex items-center gap-2">
-            <span>🎓</span> Year Groups
+          <h1 className="text-2xl font-bold text-dark flex items-center gap-2.5">
+            <FiAward className="w-6 h-6 text-amber-400" />
+            <span>Year Groups</span>
           </h1>
           <p className="text-dark-400 text-sm mt-1">
             Manage graduation cohorts and year groups linked to academic sessions
@@ -103,8 +105,10 @@ export default function YearGroupsList() {
             ))}
           </div>
         ) : yearGroups.length === 0 ? (
-          <div className="px-6 py-16 text-center">
-            <span className="text-4xl">🎓</span>
+          <div className="px-6 py-16 text-center space-y-3">
+            <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+              <FiAward className="w-8 h-8" />
+            </div>
             <h3 className="mt-3 text-dark font-semibold text-lg">No Year Groups Found</h3>
             <p className="mt-1 text-dark-400 text-sm">
               Click the button above to create your first year group.
@@ -184,9 +188,9 @@ export default function YearGroupsList() {
               </h3>
               <button
                 onClick={() => setShowModal(false)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-white transition-colors p-1"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 

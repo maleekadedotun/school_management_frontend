@@ -10,6 +10,7 @@ import {
   type Student,
 } from "../../features/students/studentsSlice";
 import { fetchExams } from "../../features/exams/examsSlice";
+import { fetchStudentPublishedReportCards } from "../../features/reportCards/reportCardsSlice";
 import ClassAttendedSubjectsModal from "../../components/modals/ClassAttendedSubjectsModal";
 import {
   HiOutlineAcademicCap,
@@ -42,6 +43,20 @@ import {
   HiOutlineFire,
   HiOutlineArrowTrendingUp,
 } from "react-icons/hi2";
+import {
+  FiSun,
+  FiCloud,
+  FiMoon,
+  FiAward,
+  FiAlertTriangle,
+  FiStar,
+  FiClock,
+  FiFileText,
+  FiLock,
+  FiBook,
+  FiBarChart2,
+  FiCheckCircle,
+} from "react-icons/fi";
 
 export interface StudentDashboardProps {
   initialTab?: "overview" | "exams" | "results" | "profile";
@@ -73,6 +88,10 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
 
   const { items: exams, loading: examsLoading } = useAppSelector(
     (state) => state.exams
+  );
+
+  const { studentPublishedCards } = useAppSelector(
+    (state) => state.reportCards
   );
 
   // Active student data merged from profile and stored student
@@ -136,6 +155,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     dispatch(fetchStudentProfile());
     dispatch(fetchStudentEnrolledSubjects());
     dispatch(fetchExams());
+    dispatch(fetchStudentPublishedReportCards());
   }, [dispatch]);
 
   // Resolve prior attended classes (e.g. JSS 1 attended by student in JSS 2)
@@ -191,9 +211,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
   // Dynamic Greeting based on current hour
   const greeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return { text: "Good Morning", icon: "☀️" };
-    if (hour < 18) return { text: "Good Afternoon", icon: "🌤️" };
-    return { text: "Good Evening", icon: "🌙" };
+    if (hour < 12) return { text: "Good Morning", icon: <FiSun className="w-7 h-7 text-amber-400 shrink-0" /> };
+    if (hour < 18) return { text: "Good Afternoon", icon: <FiCloud className="w-7 h-7 text-sky-400 shrink-0" /> };
+    return { text: "Good Evening", icon: <FiMoon className="w-7 h-7 text-indigo-300 shrink-0" /> };
   }, []);
 
   // Level Progression Logic (JSS 1-3, SSS 1-3, or Level 100-400)
@@ -337,6 +357,160 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
     const sum = verifiedPublishedResults.reduce((acc: number, r: any) => acc + (Number(r.grade) || 0), 0);
     return Math.round(sum / verifiedPublishedResults.length);
   }, [verifiedPublishedResults]);
+
+  // Helper: Letter grade conversion
+  const calculateLetterGrade = (score: number): string => {
+    if (score >= 70) return "A";
+    if (score >= 60) return "B";
+    if (score >= 50) return "C";
+    if (score >= 45) return "D";
+    if (score >= 40) return "E";
+    return "F";
+  };
+
+  // Helper: Remark conversion
+  const calculateRemark = (score: number): string => {
+    if (score >= 70) return "Excellent";
+    if (score >= 60) return "Very Good";
+    if (score >= 50) return "Good";
+    if (score >= 45) return "Pass";
+    if (score >= 40) return "Fair";
+    return "Needs Improvement";
+  };
+
+  // Memoized: Calculate the latest student total average score for the student's current term
+  const latestTermPerformance = useMemo(() => {
+    const cards = studentPublishedCards || [];
+    const currentClassNorm = (activeStudent?.currentClassLevel || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    // 1. Try to find report cards matching student's current class level, fallback to most recent report card
+    const classMatchingCards = cards.filter((c: any) => {
+      const cClass = (c.classLevel?.name || (typeof c.classLevel === "string" ? c.classLevel : "")).toLowerCase().replace(/[^a-z0-9]/g, "");
+      return cClass && currentClassNorm && (cClass.includes(currentClassNorm) || currentClassNorm.includes(cClass));
+    });
+
+    const activeCard = classMatchingCards[0] || cards[0] || null;
+
+    if (activeCard) {
+      const isUnderCorrection = Boolean(activeCard.isUnderCorrection || activeCard.isBlurred);
+      const rawAvg = typeof activeCard.averageScore === "number" ? activeCard.averageScore : null;
+      const termName = activeCard.academicTerm?.name || "Current Term";
+      const classLevelName = activeCard.classLevel?.name || activeStudent?.currentClassLevel || "";
+      const grade = activeCard.overallGrade || (rawAvg !== null ? calculateLetterGrade(rawAvg) : null);
+      const remark = activeCard.overallRemark || (rawAvg !== null ? calculateRemark(rawAvg) : null);
+
+      return {
+        hasData: true,
+        source: "reportCard" as const,
+        isUnderCorrection,
+        correctionReason: activeCard.correctionReason || "Result unpublished by admin for score correction",
+        averageScore: rawAvg,
+        formattedScore: rawAvg !== null ? `${Number(rawAvg.toFixed(1))}%` : "N/A",
+        grade,
+        remark,
+        termName,
+        classLevelName,
+        positionFormatted: activeCard.positionFormatted || (activeCard.position ? `${activeCard.position}th` : null),
+        totalStudents: activeCard.totalStudents || null,
+        reportCardId: activeCard._id,
+      };
+    }
+
+    // 2. If no official report card has been compiled yet, compute live term total average from published exams
+    const publishedExams = (studentExamResults || []).filter(
+      (r: any) => r?.isTeacherPublished === true && r?.isPublished === true
+    );
+
+    if (publishedExams.length > 0) {
+      const latestExam = publishedExams[publishedExams.length - 1];
+      const termName =
+        latestExam?.academicTerm?.name ||
+        latestExam?.exam?.academicTerm?.name ||
+        latestExam?.academicTerm ||
+        latestExam?.exam?.academicTerm ||
+        "Current Term";
+      const termId = (latestExam?.academicTerm?._id || latestExam?.academicTerm || latestExam?.exam?.academicTerm?._id || latestExam?.exam?.academicTerm)?.toString();
+
+      const currentTermExams = publishedExams.filter((r: any) => {
+        const rTermId = (r?.academicTerm?._id || r?.academicTerm || r?.exam?.academicTerm?._id || r?.exam?.academicTerm)?.toString();
+        const rTermName = r?.academicTerm?.name || r?.exam?.academicTerm?.name || r?.academicTerm || r?.exam?.academicTerm;
+        if (termId && rTermId && termId === rTermId) return true;
+        if (rTermName && termName && String(rTermName).trim().toLowerCase() === String(termName).trim().toLowerCase()) return true;
+        return false;
+      });
+
+      const examsToCalc = currentTermExams.length > 0 ? currentTermExams : publishedExams;
+      const isUnderCorrection = Boolean(
+        (currentExamResult as any)?.isUnderCorrection ||
+        examsToCalc.some((r: any) => r.isUnderCorrection)
+      );
+
+      const validScores = examsToCalc
+        .map((r: any) => Number(r.grade !== undefined && r.grade !== null ? r.grade : r.score))
+        .filter((s: number) => !isNaN(s));
+
+      if (validScores.length > 0) {
+        const sum = validScores.reduce((acc, curr) => acc + curr, 0);
+        const avg = Number((sum / validScores.length).toFixed(1));
+        const grade = calculateLetterGrade(avg);
+        const remark = calculateRemark(avg);
+
+        return {
+          hasData: true,
+          source: "termExams" as const,
+          isUnderCorrection,
+          correctionReason: (currentExamResult as any)?.correctionReason || "Result unpublished by admin for score correction",
+          averageScore: avg,
+          formattedScore: `${avg}%`,
+          grade,
+          remark,
+          termName: typeof termName === "string" ? termName : "Current Term",
+          classLevelName: activeStudent?.currentClassLevel || "",
+          positionFormatted: null,
+          totalStudents: null,
+          reportCardId: null,
+        };
+      }
+    }
+
+    // 3. Fallback: student profile computed cumulative average
+    const studentProfileAvg = (activeStudent as any)?.averageScore;
+    if (typeof studentProfileAvg === "number" && studentProfileAvg > 0) {
+      const avg = Number(studentProfileAvg.toFixed(1));
+      return {
+        hasData: true,
+        source: "profile" as const,
+        isUnderCorrection: Boolean((currentExamResult as any)?.isUnderCorrection),
+        correctionReason: (currentExamResult as any)?.correctionReason || "Result unpublished by admin for score correction",
+        averageScore: avg,
+        formattedScore: `${avg}%`,
+        grade: calculateLetterGrade(avg),
+        remark: calculateRemark(avg),
+        termName: "Current Term",
+        classLevelName: activeStudent?.currentClassLevel || "",
+        positionFormatted: null,
+        totalStudents: null,
+        reportCardId: null,
+      };
+    }
+
+    // 4. No assessment recorded yet
+    return {
+      hasData: false,
+      source: "none" as const,
+      isUnderCorrection: false,
+      correctionReason: "",
+      averageScore: null,
+      formattedScore: "N/A",
+      grade: null,
+      remark: null,
+      termName: "Current Term",
+      classLevelName: activeStudent?.currentClassLevel || "",
+      positionFormatted: null,
+      totalStudents: null,
+      reportCardId: null,
+    };
+  }, [studentPublishedCards, studentExamResults, currentExamResult, activeStudent]);
 
   // Check if current student has already taken an exam
   const hasTakenExam = (examId: string) => {
@@ -646,8 +820,8 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
       {activeStudent?.isGraduated && (
         <div className="rounded-2xl border border-yellow-500/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-emerald-500/20 p-6 backdrop-blur-md flex items-center justify-between gap-4 text-yellow-100 shadow-xl">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center text-yellow-300 text-3xl shadow-lg">
-              🎓
+            <div className="w-14 h-14 rounded-2xl bg-yellow-400/20 border border-yellow-400/40 flex items-center justify-center text-yellow-300 text-3xl shadow-lg shrink-0">
+              <FiAward className="w-7 h-7" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -854,7 +1028,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                     {isPast ? (
                       <HiOutlineCheck className="w-5 h-5 stroke-[3]" />
                     ) : isGraduationStep ? (
-                      "🎓"
+                      <FiAward className="w-5 h-5" />
                     ) : (
                       stepItem.step + 1
                     )}
@@ -907,7 +1081,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
           </div>
           <div className="mt-3">
             <div className="flex items-baseline gap-2">
-              {currentExamResult?.isUnderCorrection ? (
+              {latestTermPerformance.isUnderCorrection ? (
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-2">
                     <h3 className="text-2xl font-black text-amber-500 filter blur-sm select-none">
@@ -917,32 +1091,45 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                       Under Correction
                     </span>
                   </div>
-                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
-                    ⚠️ Blurred pending teacher review
+                  <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <FiAlertTriangle className="w-3 h-3 shrink-0" />
+                    <span>Blurred pending teacher review</span>
                   </span>
                 </div>
               ) : (
                 <>
                   <h3 className="text-2xl font-extrabold text-gray-900 dark:text-white">
-                    {currentExamResult?.isTeacherPublished && currentExamResult?.isPublished && currentExamResult?.grade !== undefined
-                      ? `${currentExamResult.grade}%`
-                      : "N/A"}
+                    {latestTermPerformance.hasData ? latestTermPerformance.formattedScore : "N/A"}
                   </h3>
-                  {currentExamResult?.isTeacherPublished && currentExamResult?.isPublished && currentExamResult?.remarks && (
+                  {latestTermPerformance.hasData && (latestTermPerformance.grade || latestTermPerformance.remark) && (
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300">
-                      {currentExamResult.remarks}
+                      {latestTermPerformance.grade ? `Grade ${latestTermPerformance.grade}` : latestTermPerformance.remark}
                     </span>
                   )}
                 </>
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              {currentExamResult?.isUnderCorrection
-                ? "Result unpublished by admin for score correction"
-                : currentExamResult?.isTeacherPublished && currentExamResult?.isPublished && currentExamResult?.exam?.name
-                ? currentExamResult.exam.name
-                : "No exam record yet"}
+              {latestTermPerformance.isUnderCorrection
+                ? latestTermPerformance.correctionReason || "Result unpublished by admin for score correction"
+                : latestTermPerformance.hasData
+                ? `Total Average • ${latestTermPerformance.termName}`
+                : "No term assessment record yet"}
             </p>
+            {latestTermPerformance.hasData && !latestTermPerformance.isUnderCorrection && (
+              <div className="mt-2.5 pt-2 border-t border-gray-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400 font-medium">
+                  {latestTermPerformance.classLevelName || currentLevelStr}
+                </span>
+                <Link
+                  to="/student/report-card"
+                  className="font-semibold text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition inline-flex items-center gap-1"
+                >
+                  <span>View Report Card</span>
+                  <HiOutlineArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1056,8 +1243,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                   </h3>
                 </div>
                 {currentExamResult && (currentExamResult as any).isUnderCorrection ? (
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-300/40 animate-pulse">
-                    ⚠️ Withheld for Correction
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-300/40 animate-pulse inline-flex items-center gap-1.5">
+                    <FiAlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Withheld for Correction</span>
                   </span>
                 ) : currentExamResult && currentExamResult.isTeacherPublished && currentExamResult.isPublished && (
                   <span
@@ -1077,7 +1265,8 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                 <div className="space-y-4">
                   <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-2">
                     <div className="flex items-center gap-2 font-bold text-sm text-amber-400">
-                      <span>⚠️ Assessment Result Withheld by School Administration</span>
+                      <FiAlertTriangle className="w-4 h-4 shrink-0" />
+                      <span>Assessment Result Withheld by School Administration</span>
                     </div>
                     <p className="text-xs text-amber-200/90 leading-relaxed">
                       This assessment result has been unpublished by administration for teacher score correction. Scores and breakdown details are temporarily blurred pending adjustments and administrator re-approval.
@@ -1153,8 +1342,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
                       <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                         Instructor Remarks
                       </p>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white mt-1">
-                        🌟 {currentExamResult.remarks || "Good Effort"}
+                      <p className="text-sm font-bold text-gray-900 dark:text-white mt-1 flex items-center gap-1.5">
+                        <FiStar className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>{currentExamResult.remarks || "Good Effort"}</span>
                       </p>
                     </div>
                     <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-800">
@@ -1231,7 +1421,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
               ) : hasPendingReview ? (
                 <div className="py-10 text-center space-y-3 bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6">
                   <div className="w-14 h-14 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl mx-auto border border-amber-500/30 animate-pulse">
-                    ⏳
+                    <FiClock className="w-7 h-7" />
                   </div>
                   <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 dark:text-amber-300 border border-amber-500/30">
                     Awaiting Teacher & Administrative Review
@@ -1252,7 +1442,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
               ) : (
                 <div className="py-12 text-center space-y-3">
                   <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
-                    📝
+                    <FiFileText className="w-8 h-8" />
                   </div>
                   <h4 className="font-bold text-gray-900 dark:text-white text-base">
                     No Published Exam Results Yet
@@ -1663,8 +1853,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
               </div>
             </div>
 
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 italic">
-              🔒 Showing exams set by your assigned teacher for your class
+            <span className="text-[11px] text-slate-500 dark:text-slate-400 italic flex items-center gap-1.5">
+              <FiLock className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span>Showing exams set by your assigned teacher for your class</span>
             </span>
           </div>
 
@@ -1676,7 +1867,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
           ) : filteredExams.length === 0 ? (
             <div className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 p-12 text-center space-y-3">
               <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
-                📚
+                <FiBook className="w-8 h-8" />
               </div>
               <h4 className="font-bold text-gray-900 dark:text-white text-base">
                 No Active Live Examinations Available
@@ -1795,7 +1986,9 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
           {/* Pending Review Status Banner */}
           {hasPendingReview && (
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3.5 text-amber-200">
-              <span className="text-2xl mt-0.5">⏳</span>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                <FiClock className="w-5 h-5" />
+              </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <h4 className="font-bold text-sm text-amber-300">
@@ -1844,7 +2037,7 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
           {filteredResults.length === 0 ? (
             <div className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 p-12 text-center space-y-3">
               <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
-                📊
+                <FiBarChart2 className="w-8 h-8" />
               </div>
               <h4 className="font-bold text-gray-900 dark:text-white text-base">
                 No Results Found
@@ -2174,14 +2367,14 @@ export default function StudentDashboard({ initialTab }: StudentDashboardProps =
               {examSubmitSuccess ? (
                 <div className="py-12 text-center space-y-4">
                   <div className="w-20 h-20 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 text-4xl mx-auto shadow-xl">
-                    🎉
+                    <FiCheckCircle className="w-10 h-10" />
                   </div>
                   <h3 className="text-2xl font-extrabold text-white">
                     Exam Submitted Successfully!
                   </h3>
                   <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 max-w-lg mx-auto text-left space-y-1.5">
                     <div className="flex items-center gap-2 font-bold text-amber-300">
-                      <span>⏳</span>
+                      <FiClock className="w-4 h-4 shrink-0 text-amber-400" />
                       <span>Result Saved as Unpublished</span>
                     </div>
                     <p className="text-slate-300 leading-relaxed">

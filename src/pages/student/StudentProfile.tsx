@@ -14,6 +14,27 @@ import {
   HiOutlineCheckCircle,
   HiOutlineSparkles,
 } from "react-icons/hi2";
+import {
+  FiCheck,
+  FiCheckCircle,
+  FiMail,
+  FiCalendar,
+  FiUser,
+  FiUserCheck,
+  FiAward,
+  FiFileText,
+  FiSettings,
+  FiBookOpen,
+  FiClipboard,
+  FiShield,
+  FiX,
+  FiLock,
+  FiClock,
+  FiAlertTriangle,
+  FiArrowRight,
+  FiCopy,
+  FiHash,
+} from "react-icons/fi";
 
 const StudentProfile: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -391,9 +412,7 @@ const StudentProfile: React.FC = () => {
                 .join("") || "ST"}
             </div>
             <span className="absolute -bottom-1 -right-1 p-1.5 rounded-xl bg-emerald-500 text-white border-2 border-[#070b14] shadow-md" title="Active">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
+              <FiCheck className="w-3.5 h-3.5 stroke-[3]" />
             </span>
           </div>
 
@@ -422,20 +441,33 @@ const StudentProfile: React.FC = () => {
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 transition-colors cursor-pointer"
                 title="Click to copy Matriculation ID"
               >
-                <span>🆔 ID:</span>
+                <span className="inline-flex items-center gap-1">
+                  <FiHash className="w-3 h-3 text-indigo-400 shrink-0" />
+                  <span>ID:</span>
+                </span>
                 <span className="font-mono text-indigo-300 font-bold">{studentId}</span>
-                <span className="text-[10px] text-slate-400">
-                  {copiedId ? "✓ Copied" : "Copy"}
+                <span className="text-[10px] text-slate-400 inline-flex items-center gap-0.5">
+                  {copiedId ? (
+                    <>
+                      <FiCheck className="w-3 h-3 text-emerald-400" />
+                      <span className="text-emerald-400">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiCopy className="w-2.5 h-2.5" />
+                      <span>Copy</span>
+                    </>
+                  )}
                 </span>
               </button>
 
               <span className="flex items-center gap-1.5 text-slate-400">
-                <span>✉️</span>
+                <FiMail className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>{studentEmail}</span>
               </span>
 
               <span className="flex items-center gap-1.5 text-slate-400">
-                <span>📅</span>
+                <FiCalendar className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>Admitted: {admissionDate}</span>
               </span>
             </div>
@@ -501,7 +533,8 @@ const StudentProfile: React.FC = () => {
             Academic Status
           </span>
           <div className="text-lg sm:text-xl font-bold text-emerald-400 flex items-center gap-1.5 mt-1">
-            <span>✓ Good Standing</span>
+            <FiCheckCircle className="w-5 h-5 shrink-0" />
+            <span>Good Standing</span>
           </div>
           <p className="text-[11px] text-slate-400">Eligible for examinations & promotion</p>
         </div>
@@ -512,61 +545,66 @@ const StudentProfile: React.FC = () => {
         <button
           type="button"
           onClick={() => handleTabChange("overview")}
-          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap inline-flex items-center gap-2 ${
             activeTab === "overview"
               ? "text-indigo-400 border-indigo-500 font-bold"
               : "text-slate-400 border-transparent hover:text-slate-200"
           }`}
         >
-          👤 Profile Overview
+          <FiUser className="w-4 h-4 shrink-0" />
+          <span>Profile Overview</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("academic")}
-          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap inline-flex items-center gap-2 ${
             activeTab === "academic"
               ? "text-indigo-400 border-indigo-500 font-bold"
               : "text-slate-400 border-transparent hover:text-slate-200"
           }`}
         >
-          🎓 Academic Record & Degree
+          <FiAward className="w-4 h-4 shrink-0" />
+          <span>Academic Record & Degree</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("exams")}
-          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap inline-flex items-center gap-2 ${
             activeTab === "exams"
               ? "text-indigo-400 border-indigo-500 font-bold"
               : "text-slate-400 border-transparent hover:text-slate-200"
           }`}
         >
-          📝 Examination Results ({totalExamsTaken})
+          <FiFileText className="w-4 h-4 shrink-0" />
+          <span>Examination Results ({totalExamsTaken})</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("settings")}
-          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap inline-flex items-center gap-2 ${
             activeTab === "settings"
               ? "text-indigo-400 border-indigo-500 font-bold"
               : "text-slate-400 border-transparent hover:text-slate-200"
           }`}
         >
-          ⚙️ Account & Credentials
+          <FiSettings className="w-4 h-4 shrink-0" />
+          <span>Account & Credentials</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleTabChange("subjects")}
-          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap ${
+          className={`pb-3.5 px-4 text-sm font-semibold transition-all border-b-2 cursor-pointer whitespace-nowrap inline-flex items-center gap-2 ${
             activeTab === "subjects"
               ? "text-indigo-400 border-indigo-500 font-bold"
               : "text-slate-400 border-transparent hover:text-slate-200"
           }`}
         >
-          📚 Student Subjects
+          <FiBookOpen className="w-4 h-4 shrink-0" />
+          <span>Student Subjects</span>
         </button>
       </div>
 
@@ -577,7 +615,8 @@ const StudentProfile: React.FC = () => {
           <div className="lg:col-span-2 rounded-3xl bg-slate-900/60 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-xl space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                <span>📋</span> Student Information & Credentials
+                <FiClipboard className="w-5 h-5 text-indigo-400 shrink-0" />
+                <span>Student Information & Credentials</span>
               </h2>
               <span className="text-xs text-indigo-400 font-mono">Official Record</span>
             </div>
@@ -652,11 +691,20 @@ const StudentProfile: React.FC = () => {
                       g.isCurrent
                         ? "text-indigo-300 font-bold"
                         : g.isCompleted
-                        ? "text-emerald-400 font-medium"
+                        ? "text-emerald-400 font-medium inline-flex items-center justify-center gap-1"
                         : "text-slate-500"
                     }
                   >
-                    {g.isCompleted ? `✓ ${g.shortCode}` : g.isCurrent ? `Current (${g.shortCode})` : g.shortCode}
+                    {g.isCompleted ? (
+                      <>
+                        <FiCheck className="w-3 h-3 shrink-0" />
+                        <span>{g.shortCode}</span>
+                      </>
+                    ) : g.isCurrent ? (
+                      `Current (${g.shortCode})`
+                    ) : (
+                      g.shortCode
+                    )}
                   </span>
                 ))}
               </div>
@@ -667,7 +715,8 @@ const StudentProfile: React.FC = () => {
           <div className="space-y-6">
             <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 backdrop-blur-xl shadow-xl space-y-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <span>🛡️</span> Academic Standing
+                <FiShield className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Academic Standing</span>
               </h3>
               <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 space-y-1">
                 <div className="font-bold">Active & Good Academic Standing</div>
@@ -677,15 +726,15 @@ const StudentProfile: React.FC = () => {
               </div>
               <ul className="space-y-2 text-xs text-slate-300">
                 <li className="flex items-center gap-2">
-                  <span className="text-emerald-400 font-bold">✓</span>
+                  <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span>Exam Clearance Status: Approved</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-emerald-400 font-bold">✓</span>
+                  <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span>Course Enrollment: Completed</span>
                 </li>
                 <li className="flex items-center gap-2">
-                  <span className="text-emerald-400 font-bold">✓</span>
+                  <FiCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span>Library & Computing Lab Access: Granted</span>
                 </li>
               </ul>
@@ -693,7 +742,8 @@ const StudentProfile: React.FC = () => {
 
             <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 backdrop-blur-xl shadow-xl space-y-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <span>👨‍🏫</span> Faculty Mentor
+                <FiUserCheck className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>Faculty Mentor</span>
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
                 Your designated academic advisor oversees your course selection, GPA verification, and graduation audit.
@@ -715,7 +765,8 @@ const StudentProfile: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
               <div>
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                  <span>🎓</span> Degree Program & Curriculum Roadmap
+                  <FiAward className="w-5 h-5 text-indigo-400 shrink-0" />
+                  <span>Degree Program & Curriculum Roadmap</span>
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">Official matriculation curriculum track</p>
               </div>
@@ -724,7 +775,7 @@ const StudentProfile: React.FC = () => {
                 className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-all inline-flex items-center gap-1.5 w-fit"
               >
                 <span>Full Program Page</span>
-                <span>→</span>
+                <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
               </Link>
             </div>
 
@@ -744,14 +795,18 @@ const StudentProfile: React.FC = () => {
               <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1">
                 <span className="text-xs text-slate-400 uppercase font-semibold">Curriculum Code</span>
                 <span className="text-sm font-bold text-amber-300 font-mono block">{programCode}</span>
-                <span className="text-xs text-emerald-400">✓ Fully Accredited</span>
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                  <FiCheckCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Fully Accredited</span>
+                </span>
               </div>
             </div>
 
             {/* Class Levels Breakdown */}
             <div className="space-y-4 pt-2">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>📚</span> Enrolled Academic Class Tiers & Course Load
+                <FiBookOpen className="w-4 h-4 text-indigo-400 shrink-0" />
+                <span>Enrolled Academic Class Tiers & Course Load</span>
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -791,9 +846,10 @@ const StudentProfile: React.FC = () => {
 
                       <Link
                         to={`/student/subjects?class=${encodeURIComponent(group.classLevel)}`}
-                        className="inline-block text-xs font-semibold text-indigo-400 hover:text-indigo-300 pt-1"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-400 hover:text-indigo-300 pt-1"
                       >
-                        Explore Level →
+                        <span>Explore Level</span>
+                        <FiArrowRight className="w-3 h-3 shrink-0" />
                       </Link>
                     </div>
                   ))
@@ -814,7 +870,8 @@ const StudentProfile: React.FC = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-white/10">
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span>📝</span> Examination Transcripts & Score Reports
+                <FiFileText className="w-5 h-5 text-indigo-400 shrink-0" />
+                <span>Examination Transcripts & Score Reports</span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
                 Official graded semester tests, midterms, and finals
@@ -826,7 +883,7 @@ const StudentProfile: React.FC = () => {
               className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-semibold transition-all inline-flex items-center gap-1.5 w-fit"
             >
               <span>Take Scheduled Exams</span>
-              <span>→</span>
+              <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
           </div>
 
@@ -834,7 +891,7 @@ const StudentProfile: React.FC = () => {
           <div className="rounded-2xl border border-violet-500/25 bg-gradient-to-r from-violet-950/40 via-purple-950/30 to-indigo-950/40 p-4 sm:p-5 shadow-lg space-y-3">
             <div className="flex items-center gap-3">
               <span className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-300 flex items-center justify-center font-bold text-sm shrink-0 border border-violet-500/30">
-                ⚖️
+                <FiShield className="w-4 h-4" />
               </span>
               <div>
                 <h4 className="text-sm font-bold text-white">Results Evaluation & Release Policy</h4>
@@ -939,22 +996,29 @@ const StudentProfile: React.FC = () => {
                           <span className={`inline-flex items-center gap-1 font-semibold ${
                             status === "Pass" || status === "Passed" ? "text-emerald-400" : "text-rose-400"
                           }`}>
-                            <span>{status === "Pass" || status === "Passed" ? "✓" : "✗"}</span>
+                            {status === "Pass" || status === "Passed" ? (
+                              <FiCheck className="w-3.5 h-3.5 shrink-0" />
+                            ) : (
+                              <FiX className="w-3.5 h-3.5 shrink-0" />
+                            )}
                             <span>{status}</span>
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
                           {isFullyPublished ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                              ✓ Published
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                              <FiCheckCircle className="w-3 h-3 shrink-0" />
+                              <span>Published</span>
                             </span>
                           ) : isAwaitingAdmin ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                              ⏳ Admin Review
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                              <FiClock className="w-3 h-3 shrink-0" />
+                              <span>Admin Review</span>
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                              ⏳ Teacher Review
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                              <FiClock className="w-3 h-3 shrink-0" />
+                              <span>Teacher Review</span>
                             </span>
                           )}
                         </td>
@@ -969,7 +1033,9 @@ const StudentProfile: React.FC = () => {
             </div>
           ) : (
             <div className="py-12 text-center space-y-3">
-              <span className="text-4xl block">📝</span>
+              <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
+                <FiFileText className="w-7 h-7" />
+              </div>
               <h3 className="text-base font-bold text-white">No Exam Transcripts Recorded Yet</h3>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
                 Once you sit for tests or end-of-term examinations, your graded scripts, percentage breakdown, and faculty remarks will automatically populate here.
@@ -992,7 +1058,8 @@ const StudentProfile: React.FC = () => {
           <div className="lg:col-span-2 rounded-3xl bg-slate-900/60 border border-white/10 p-6 sm:p-8 backdrop-blur-xl shadow-xl space-y-6">
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span>🔒</span> Security & Account Credentials
+                <FiLock className="w-5 h-5 text-indigo-400 shrink-0" />
+                <span>Security & Account Credentials</span>
               </h2>
               <p className="text-xs text-slate-400 mt-1">
                 Update your login email address and secure password
@@ -1001,14 +1068,14 @@ const StudentProfile: React.FC = () => {
 
             {updateSuccess && (
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                <span>✓</span>
+                <FiCheckCircle className="w-4 h-4 shrink-0" />
                 <span>{updateSuccess}</span>
               </div>
             )}
 
             {updateError && (
               <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs font-semibold flex items-center gap-2">
-                <span>⚠️</span>
+                <FiAlertTriangle className="w-4 h-4 shrink-0" />
                 <span>{updateError}</span>
               </div>
             )}
@@ -1090,7 +1157,8 @@ const StudentProfile: React.FC = () => {
           {/* Security Guidelines */}
           <div className="rounded-3xl bg-slate-900/60 border border-white/10 p-6 backdrop-blur-xl shadow-xl space-y-4">
             <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <span>🛡️</span> Security Protocols
+              <FiShield className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Security Protocols</span>
             </h3>
             <p className="text-xs text-slate-400 leading-relaxed">
               Your student credentials provide access to examination sessions, coursework submissions, and academic records.

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { FiCheck } from "react-icons/fi";
 import { useAppDispatch } from "../../app/hooks";
 import {
   adminForgotPassword,
@@ -207,7 +208,7 @@ const AdminForgotPassword: React.FC = () => {
                     : "bg-white/10 text-slate-400"
                 }`}
               >
-                ✓
+                <FiCheck className="w-3.5 h-3.5" />
               </span>
               <span className={`text-xs font-medium ${step === 3 ? "text-white" : "text-slate-400"}`}>
                 Done

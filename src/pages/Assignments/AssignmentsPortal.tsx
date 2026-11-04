@@ -38,6 +38,7 @@ import {
   EyeIcon,
   PaperClipIcon,
 } from "../../icons";
+import { FiEdit3, FiPaperclip } from "react-icons/fi";
 
 export default function AssignmentsPortal() {
   const dispatch = useAppDispatch();
@@ -589,7 +590,7 @@ export default function AssignmentsPortal() {
                 to="/teacher/assignments/drafts"
                 className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-white/15 hover:bg-white/25 text-white font-semibold text-sm backdrop-blur-md border border-white/20 transition-all shadow-md shrink-0 active:scale-95"
               >
-                <span>📝</span>
+                <FiEdit3 className="w-4 h-4" />
                 <span>Assignment Drafts ({stats.drafts})</span>
               </Link>
 
@@ -1366,8 +1367,9 @@ export default function AssignmentsPortal() {
               {/* Supplementary attachment if any */}
               {submitModalAssignment.attachment && submitModalAssignment.attachment.url && (
                 <div className="p-2.5 rounded-lg bg-indigo-50/60 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 flex items-center justify-between text-xs">
-                  <span className="truncate text-indigo-900 dark:text-indigo-200 font-medium">
-                    📎 {submitModalAssignment.attachment.filename || "Supplementary Material"}
+                  <span className="truncate text-indigo-900 dark:text-indigo-200 font-medium inline-flex items-center gap-1.5">
+                    <FiPaperclip className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
+                    <span>{submitModalAssignment.attachment.filename || "Supplementary Material"}</span>
                   </span>
                   <a
                     href={submitModalAssignment.attachment.url}

@@ -145,6 +145,7 @@ const adminNavGroups: NavGroup[] = [
         subItems: [
           { name: "Programs", path: "/academic/programs" },
           { name: "Subjects", path: "/academic/subjects" },
+          { name: "Basic Subjects", path: "/academic/basic-subjects" },
           { name: "Timetable Schedule", path: "/academic/timetable" },
           { name: "Lesson Notes Review", path: "/admin/lesson-notes" },
         ],

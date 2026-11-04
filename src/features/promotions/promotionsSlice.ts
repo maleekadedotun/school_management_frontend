@@ -35,6 +35,11 @@ export interface PromotionCandidate {
   reasons: string[];
   warnings: string[];
   alreadyPromoted: boolean;
+  isStageGraduation?: boolean;
+  stageName?: string | null;
+  stageGraduated?: boolean;
+  completedStage?: string | null;
+  enrollmentStatus?: string;
 }
 
 export interface ClassEligibilityGroup {
@@ -79,11 +84,14 @@ export interface PromotionPreviewData {
     totalStudents: number;
     eligibleForPromotion: number;
     eligibleForGraduation: number;
+    eligibleForStageGraduation?: number;
+    awaitingNextStageCount?: number;
     repeatCount: number;
     trialCount: number;
     incompleteCount: number;
     alreadyPromotedCount: number;
     withdrawnCount: number;
+    transferredOutCount?: number;
   };
   classes: ClassEligibilityGroup[];
 }
@@ -231,6 +239,8 @@ export const fetchPromotionPreview = createAsyncThunk(
       academicYearId: string;
       academicTermId: string;
       classLevelId?: string;
+      stage?: string;
+      enrollmentStatus?: string;
       passMark?: number;
       requirePublished?: boolean;
       allowTrial?: boolean;
@@ -380,6 +390,71 @@ export const transitionStudentToSss = createAsyncThunk(
     } catch (err: any) {
       return rejectWithValue(
         err.response?.data?.message || err.message || "Failed to move student to SSS class"
+      );
+    }
+  }
+);
+
+// 9. Enroll stage-graduated student(s) into next educational stage (individual or bulk)
+export const enrollNextStage = createAsyncThunk(
+  "promotions/enrollNextStage",
+  async (
+    payload: {
+      studentId?: string;
+      studentIds?: string[];
+      targetClassLevelId?: string;
+      targetClassName?: string;
+      academicYearId?: string;
+      academicTermId?: string;
+      customRemarks?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await api.post("/promotions/enroll-next-stage", payload);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to enroll student(s) into next stage"
+      );
+    }
+  }
+);
+
+// 10. Mark student(s) as transferred out
+export const markTransferOut = createAsyncThunk(
+  "promotions/markTransferOut",
+  async (
+    payload: {
+      studentId?: string;
+      studentIds?: string[];
+      academicYearId?: string;
+      transferDestination?: string;
+      customRemarks?: string;
+    },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await api.post("/promotions/transfer-out", payload);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to mark student(s) as transferred out"
+      );
+    }
+  }
+);
+
+// 11. Fetch student progression history
+export const fetchStudentProgressionHistory = createAsyncThunk(
+  "promotions/fetchStudentProgressionHistory",
+  async (studentId: string, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/promotions/student-history/${studentId}`);
+      return res.data.data;
+    } catch (err: any) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Failed to fetch student progression history"
       );
     }
   }

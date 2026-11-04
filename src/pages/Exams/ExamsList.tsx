@@ -9,6 +9,23 @@ import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSl
 import { fetchAcademicYears } from "../../features/academicYears/academicYearsSlice";
 import StudentWriteExam from "../student/StudentWriteExam";
 import toast from "react-hot-toast";
+import {
+  FiFileText,
+  FiLayers,
+  FiHelpCircle,
+  FiPlus,
+  FiSearch,
+  FiCheckCircle,
+  FiClock,
+  FiClipboard,
+  FiTarget,
+  FiShield,
+  FiUser,
+  FiBell,
+  FiEdit2,
+  FiTrash2,
+  FiX,
+} from "react-icons/fi";
 
 export default function ExamsList() {
   const userRole = localStorage.getItem("userRole");
@@ -177,7 +194,9 @@ export default function ExamsList() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400 text-lg">📝</span>
+            <span className="p-2 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400">
+              <FiFileText className="w-5 h-5" />
+            </span>
             Manage Exams
           </h1>
           <p className="text-slate-400 text-sm mt-1">
@@ -189,36 +208,28 @@ export default function ExamsList() {
             to="/admin/teacher-exams"
             className="px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-semibold text-sm transition-all flex items-center justify-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
+            <FiLayers className="w-4 h-4 shrink-0" />
             Teacher Exams
           </Link>
           <Link
             to="/admin/questions"
             className="px-4 py-2.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/40 border border-violet-500/30 text-violet-300 font-semibold text-sm transition-all flex items-center justify-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <FiHelpCircle className="w-4 h-4 shrink-0" />
             Question Bank
           </Link>
           <Link
             to="/admin/results"
             className="px-4 py-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 text-indigo-300 font-semibold text-sm transition-all flex items-center justify-center gap-2"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FiFileText className="w-4 h-4 shrink-0" />
             Student Results
           </Link>
           <button
             onClick={openCreateExamModal}
             className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-semibold text-sm transition-all shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2 cursor-pointer"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
+            <FiPlus className="w-4 h-4 shrink-0" />
             Create Exam
           </button>
         </div>
@@ -227,9 +238,7 @@ export default function ExamsList() {
       {/* Filters Bar: Search, Class Level Filter, Status Filter */}
       <div className="flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
             id="exam-search"
             type="text"
@@ -246,7 +255,7 @@ export default function ExamsList() {
           onChange={(e) => setClassLevelFilter(e.target.value)}
           className="px-3.5 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-sm focus:outline-none focus:border-amber-500 transition-all"
         >
-          <option value="all">🎓 All Class Levels</option>
+          <option value="all">All Class Levels</option>
           {classLevels.map((c: any) => (
             <option key={c._id} value={c._id}>{c.name}</option>
           ))}
@@ -254,12 +263,17 @@ export default function ExamsList() {
 
         {/* Status Pills */}
         <div className="flex gap-2">
-          {[{ key: "all" as const, label: "All Status" }, { key: "live" as const, label: "🟢 Live" }, { key: "pending" as const, label: "🟡 Pending" }].map((f) => (
+          {[
+            { key: "all" as const, label: "All Status", icon: null },
+            { key: "live" as const, label: "Live", icon: <FiCheckCircle className="w-3.5 h-3.5 shrink-0" /> },
+            { key: "pending" as const, label: "Pending", icon: <FiClock className="w-3.5 h-3.5 shrink-0" /> },
+          ].map((f) => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${filter === f.key ? "bg-amber-500 text-black font-bold shadow-md shadow-amber-500/20" : "bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10"}`}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all inline-flex items-center gap-1.5 ${filter === f.key ? "bg-amber-500 text-black font-bold shadow-md shadow-amber-500/20" : "bg-white/5 text-slate-400 hover:bg-white/10 border border-white/10"}`}
             >
+              {f.icon}
               {f.label}
             </button>
           ))}
@@ -274,7 +288,9 @@ export default function ExamsList() {
           Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-64 bg-white/10 rounded-2xl animate-pulse" />)
         ) : filtered.length === 0 ? (
           <div className="col-span-full text-center text-slate-400 text-sm py-16 bg-white/5 border border-white/10 rounded-2xl space-y-2">
-            <span className="text-4xl block">📋</span>
+            <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-slate-400">
+              <FiClipboard className="w-6 h-6" />
+            </div>
             <p className="font-semibold text-white">No exams match your search</p>
             <p className="text-xs text-slate-500">Try adjusting your filters or click "+ Create Exam" to create a new exam.</p>
           </div>
@@ -290,8 +306,12 @@ export default function ExamsList() {
                   {/* Top Badges: Status, Exam Type, Class Level */}
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${exam.examStatus === "live" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}>
-                        {exam.examStatus === "live" ? "🟢 Live" : "🟡 Pending"}
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1 ${exam.examStatus === "live" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}`}>
+                        {exam.examStatus === "live" ? (
+                          <><FiCheckCircle className="w-3 h-3 shrink-0" /> Live</>
+                        ) : (
+                          <><FiClock className="w-3 h-3 shrink-0" /> Pending</>
+                        )}
                       </span>
                       <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-300 text-xs border border-white/10 font-medium">
                         {exam.examType || "Quiz"}
@@ -300,7 +320,7 @@ export default function ExamsList() {
 
                     {/* Class Level Badge */}
                     <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 text-xs font-semibold flex items-center gap-1">
-                      <span>🎯</span>
+                      <FiTarget className="w-3 h-3 shrink-0" />
                       <span>{classLevelName}</span>
                     </span>
                   </div>
@@ -322,10 +342,10 @@ export default function ExamsList() {
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                           isCreatedByAdmin
-                            ? "bg-indigo-500/20  border border-indigo-500/30"
-                            : "bg-amber-500/20  border border-amber-500/30"
+                            ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+                            : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
                         }`}>
-                          {isCreatedByAdmin ? "🏛️" : (teacherName.charAt(0).toUpperCase() || "👨‍🏫")}
+                          {isCreatedByAdmin ? <FiShield className="w-4 h-4" /> : (teacherName.charAt(0).toUpperCase() || <FiUser className="w-4 h-4" />)}
                         </div>
                         <div className="min-w-0">
                           <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-semibold">Teacher / Author</span>
@@ -373,7 +393,7 @@ export default function ExamsList() {
                     onClick={() => handlePublishResult(exam._id)}
                     className="flex-1 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span>📢</span>
+                    <FiBell className="w-3.5 h-3.5 shrink-0" />
                     <span>Publish Results</span>
                   </button> 
                   <button
@@ -382,9 +402,7 @@ export default function ExamsList() {
                     title="Edit Exam"
                     className="px-2.5 py-2 rounded-xl text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 transition-all flex items-center gap-1 text-xs font-medium cursor-pointer"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
+                    <FiEdit2 className="w-4 h-4 shrink-0" />
                     <span className="hidden sm:inline">Edit</span>
                   </button>
                   <button
@@ -393,9 +411,7 @@ export default function ExamsList() {
                     title="Delete Exam"
                     className="px-2.5 py-2 rounded-xl text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center gap-1 text-xs font-medium cursor-pointer"
                   >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    <FiTrash2 className="w-4 h-4 shrink-0" />
                     <span className="hidden sm:inline">Delete</span>
                   </button>
                 </div>
@@ -427,7 +443,7 @@ export default function ExamsList() {
                 }}
                 className="text-slate-400 hover:text-white transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
             <form onSubmit={handleSubmitExam} className="space-y-4">

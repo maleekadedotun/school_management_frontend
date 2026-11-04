@@ -17,6 +17,8 @@ import {
   HiOutlineExclamationTriangle,
   HiOutlineEye,
   HiOutlineXMark,
+  HiOutlineChartBar,
+  HiOutlineClipboardDocumentList,
 } from "react-icons/hi2";
 
 export default function TeacherWeeklyReports() {
@@ -149,8 +151,9 @@ export default function TeacherWeeklyReports() {
               <HiOutlineDocumentText className="w-4 h-4 text-indigo-400" />
               Administrative Weekly Reporting
             </span>
-            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-              Weekly Class Performance Reports 📊
+            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
+              <span>Weekly Class Performance Reports</span>
+              <HiOutlineChartBar className="w-7 h-7 text-indigo-400 shrink-0" />
             </h1>
             <p className="text-xs md:text-sm text-indigo-200/80 max-w-2xl leading-relaxed">
               Submit your weekly class academic summary, attendance rates, challenges, and recommendations directly to school administration. You will be automatically notified as soon as administration reviews your report.
@@ -205,7 +208,7 @@ export default function TeacherWeeklyReports() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 shadow-sm flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center text-xl font-bold">
-            📋
+            <HiOutlineClipboardDocumentList className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-gray-900 dark:text-white">
@@ -292,7 +295,7 @@ export default function TeacherWeeklyReports() {
       ) : currentDisplayReports.length === 0 ? (
         <div className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 p-12 text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
-            📑
+            <HiOutlineDocumentText className="w-8 h-8" />
           </div>
           <h4 className="font-bold text-gray-900 dark:text-white text-base">
             No Reports Found

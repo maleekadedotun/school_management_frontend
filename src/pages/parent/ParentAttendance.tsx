@@ -2,6 +2,18 @@ import { useEffect, useState, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchParentChildAttendanceSummary } from "../../features/attendance/attendanceSlice";
 import { CalenderIcon } from "../../icons";
+import {
+  FiAlertTriangle,
+  FiCheck,
+  FiCheckCircle,
+  FiBarChart2,
+  FiX,
+  FiClock,
+  FiInfo,
+  FiSearch,
+  FiAward,
+  FiCalendar,
+} from "react-icons/fi";
 
 export default function ParentAttendance() {
   const dispatch = useAppDispatch();
@@ -146,8 +158,8 @@ export default function ParentAttendance() {
         </div>
       ) : children.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-3xl p-12 text-center border border-gray-100 dark:border-gray-700 shadow-sm">
-          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center mx-auto mb-3 text-2xl font-bold">
-            ⚠️
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center mx-auto mb-3">
+            <FiAlertTriangle className="w-8 h-8" />
           </div>
           <h3 className="text-base font-bold text-gray-900 dark:text-white">
             No Children Linked Yet
@@ -185,7 +197,7 @@ export default function ParentAttendance() {
                   Attendance Status
                 </span>
                 <span
-                  className={`inline-block text-xs font-extrabold px-3 py-1 rounded-full mt-0.5 ${
+                  className={`inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full mt-0.5 ${
                     summary.attendanceRate >= 85
                       ? "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400"
                       : summary.attendanceRate >= 70
@@ -193,11 +205,22 @@ export default function ParentAttendance() {
                       : "bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400"
                   }`}
                 >
-                  {summary.attendanceRate >= 85
-                    ? "✓ Good Standing"
-                    : summary.attendanceRate >= 70
-                    ? "⚠️ Moderate Standing"
-                    : "⚠️ Warning: Low Attendance"}
+                  {summary.attendanceRate >= 85 ? (
+                    <>
+                      <FiCheckCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Good Standing</span>
+                    </>
+                  ) : summary.attendanceRate >= 70 ? (
+                    <>
+                      <FiAlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Moderate Standing</span>
+                    </>
+                  ) : (
+                    <>
+                      <FiAlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>Warning: Low Attendance</span>
+                    </>
+                  )}
                 </span>
               </div>
             </div>
@@ -209,7 +232,9 @@ export default function ParentAttendance() {
             <div className="col-span-2 sm:col-span-1 bg-white dark:bg-gray-800 rounded-3xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Overall Rate</span>
-                <span className="text-lg">📊</span>
+                <span className="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <FiBarChart2 className="w-3.5 h-3.5" />
+                </span>
               </div>
               <div className="text-3xl font-black text-gray-900 dark:text-white">
                 {summary.attendanceRate}%
@@ -245,7 +270,7 @@ export default function ParentAttendance() {
                   Present Days
                 </span>
                 <span className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 text-xs flex items-center justify-center font-bold">
-                  ✓
+                  <FiCheck className="w-3.5 h-3.5 stroke-[2.5]" />
                 </span>
               </div>
               <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
@@ -270,7 +295,7 @@ export default function ParentAttendance() {
                   Absent Days
                 </span>
                 <span className="w-6 h-6 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 text-xs flex items-center justify-center font-bold">
-                  ✕
+                  <FiX className="w-3.5 h-3.5 stroke-[2.5]" />
                 </span>
               </div>
               <div className="text-3xl font-black text-rose-600 dark:text-rose-400">
@@ -295,7 +320,7 @@ export default function ParentAttendance() {
                   Late Arrivals
                 </span>
                 <span className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 text-xs flex items-center justify-center font-bold">
-                  ⏱
+                  <FiClock className="w-3.5 h-3.5" />
                 </span>
               </div>
               <div className="text-3xl font-black text-amber-600 dark:text-amber-400">
@@ -320,7 +345,7 @@ export default function ParentAttendance() {
                   Excused Leave
                 </span>
                 <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 text-xs flex items-center justify-center font-bold">
-                  ℹ
+                  <FiInfo className="w-3.5 h-3.5" />
                 </span>
               </div>
               <div className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
@@ -410,13 +435,13 @@ export default function ParentAttendance() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full px-3.5 py-2 pl-9 text-xs bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white"
                 />
-                <span className="absolute left-3 top-2.5 text-gray-400 text-xs">🔍</span>
+                <FiSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-2.5 top-2.5 text-xs text-gray-400 hover:text-gray-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
                   >
-                    ✕
+                    <FiX className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -425,8 +450,14 @@ export default function ParentAttendance() {
             {/* Attendance Days List */}
             {filteredRecords.length === 0 ? (
               <div className="py-16 text-center">
-                <div className="w-14 h-14 bg-gray-50 dark:bg-gray-700/40 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl">
-                  {activeFilter === "Absent" ? "🎉" : activeFilter === "Late" ? "⏱" : "📅"}
+                <div className="w-14 h-14 bg-gray-50 dark:bg-gray-700/40 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                  {activeFilter === "Absent" ? (
+                    <FiAward className="w-7 h-7 text-emerald-500" />
+                  ) : activeFilter === "Late" ? (
+                    <FiClock className="w-7 h-7 text-amber-500" />
+                  ) : (
+                    <FiCalendar className="w-7 h-7 text-indigo-500" />
+                  )}
                 </div>
                 <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">
                   {activeFilter === "Absent"

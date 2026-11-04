@@ -6,6 +6,7 @@ import { fetchAcademicYears } from "../../features/academicYears/academicYearsSl
 import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
 import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import PaymentReceiptModal from "./PaymentReceiptModal";
+import { FiDollarSign, FiCheckCircle, FiAlertCircle, FiArrowRight } from "react-icons/fi";
 
 export default function AdminFinanceDashboard() {
   const dispatch = useAppDispatch();
@@ -157,7 +158,7 @@ export default function AdminFinanceDashboard() {
             <span>{summary.totalInvoicesCount} total invoices issued</span>
           </div>
           <div className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-            ₦
+            <FiDollarSign className="w-5 h-5" />
           </div>
         </div>
 
@@ -173,7 +174,7 @@ export default function AdminFinanceDashboard() {
             <span className="font-semibold text-emerald-600">{collectionRate}% collection rate</span>
           </div>
           <div className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
-            ✓
+            <FiCheckCircle className="w-5 h-5" />
           </div>
         </div>
 
@@ -189,7 +190,7 @@ export default function AdminFinanceDashboard() {
             <span>{summary.unpaidCount + summary.partiallyPaidCount} pending accounts</span>
           </div>
           <div className="absolute top-4 right-4 w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/30 flex items-center justify-center text-rose-600">
-            !
+            <FiAlertCircle className="w-5 h-5" />
           </div>
         </div>
 
@@ -290,9 +291,10 @@ export default function AdminFinanceDashboard() {
           </h2>
           <Link
             to="/admin/finance/transactions"
-            className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+            className="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline inline-flex items-center gap-1"
           >
-            View All Transactions →
+            <span>View All Transactions</span>
+            <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
           </Link>
         </div>
 

@@ -32,6 +32,7 @@ import {
   HiOutlineFolderOpen,
   HiOutlineArrowTrendingUp,
 } from "react-icons/hi2";
+import { FiSun, FiArrowRight } from "react-icons/fi";
 
 function useCountUp(target: number, duration = 1000) {
   const [count, setCount] = useState(0);
@@ -272,7 +273,8 @@ export default function Dashboard() {
           <div className="space-y-2">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                Welcome back, <span className="text-indigo-400">{admin?.name || "Administrator"}</span> 👋
+                Welcome back, <span className="text-indigo-400">{admin?.name || "Administrator"}</span>
+                <FiSun className="w-7 h-7 text-amber-400 shrink-0" />
               </h1>
               <span className="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                 School Administrator
@@ -380,8 +382,8 @@ export default function Dashboard() {
               </h2>
               <p className="text-slate-400 text-xs mt-0.5">Distribution by status</p>
             </div>
-            <Link to="/students" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
-              Manage →
+            <Link to="/students" className="text-xs text-indigo-400 hover:text-indigo-300 font-medium inline-flex items-center gap-1">
+              Manage <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
           </div>
           <div className="py-2">
@@ -399,8 +401,8 @@ export default function Dashboard() {
               </h2>
               <p className="text-slate-400 text-xs mt-0.5">System curriculum & assessment breakdown</p>
             </div>
-            <Link to="/exams" className="text-xs text-amber-400 hover:text-amber-300 font-medium">
-              Exams Hub →
+            <Link to="/exams" className="text-xs text-amber-400 hover:text-amber-300 font-medium inline-flex items-center gap-1">
+              Exams Hub <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
             </Link>
           </div>
           <div className="py-2">

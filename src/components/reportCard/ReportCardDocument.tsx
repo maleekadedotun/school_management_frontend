@@ -8,6 +8,7 @@ import {
   HiOutlineCalendar,
   HiOutlineUser,
   HiOutlineIdentification,
+  HiCheck,
 } from "react-icons/hi2";
 
 export interface ReportCardDocumentProps {
@@ -569,7 +570,7 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
                       {teacherSignerName || "Class Teacher"}
                     </span>
                     <div className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
-                      <span>✓</span>
+                      <HiCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                       <span>Digitally Signed {teacherSignDate ? `• ${teacherSignDate}` : ""}</span>
                     </div>
                   </div>
@@ -593,9 +594,9 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
                     <span className="text-[7.5px] font-black uppercase tracking-tight text-indigo-800 dark:text-indigo-300 leading-none">
                       OFFICIAL
                     </span>
-                    <span className="text-base leading-none my-0.5">🎓</span>
+                    <HiOutlineAcademicCap className="w-5 h-5 text-indigo-700 dark:text-indigo-300 my-0.5" />
                     <span className="text-[6.5px] font-black uppercase tracking-tighter text-emerald-700 dark:text-emerald-400 font-mono leading-none">
-                      ★ VERIFIED ★
+                      • VERIFIED •
                     </span>
                   </div>
                 </div>
@@ -623,7 +624,7 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
                       {adminSignerName || "School Principal"}
                     </span>
                     <div className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
-                      <span>✓</span>
+                      <HiCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                       <span>Approved & Endorsed {adminSignDate ? `• ${adminSignDate}` : ""}</span>
                     </div>
                   </div>
@@ -1361,7 +1362,7 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
                     {teacherSignerName || "Class Teacher"}
                   </span>
                   <div className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
-                    <span>✓</span>
+                    <HiCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                     <span>Digitally Signed {teacherSignDate ? `• ${teacherSignDate}` : ""}</span>
                   </div>
                 </div>
@@ -1385,9 +1386,9 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
                   <span className="text-[7.5px] font-black uppercase tracking-tight text-[#0f2942] dark:text-sky-300 leading-none">
                     OFFICIAL
                   </span>
-                  <span className="text-base leading-none my-0.5">🎓</span>
+                  <HiOutlineAcademicCap className="w-5 h-5 text-sky-700 dark:text-sky-300 my-0.5" />
                   <span className="text-[6.5px] font-black uppercase tracking-tighter text-emerald-700 dark:text-emerald-400 font-mono leading-none">
-                    ★ SEALED ★
+                    • SEALED •
                   </span>
                 </div>
               </div>
@@ -1415,7 +1416,7 @@ export const ReportCardDocument: React.FC<ReportCardDocumentProps> = ({
                     {adminSignerName || "School Principal"}
                   </span>
                   <div className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-700">
-                    <span>✓</span>
+                    <HiCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-300" />
                     <span>Approved & Endorsed {adminSignDate ? `• ${adminSignDate}` : ""}</span>
                   </div>
                 </div>

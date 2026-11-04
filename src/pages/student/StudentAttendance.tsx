@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchStudentAttendanceSummary } from "../../features/attendance/attendanceSlice";
 import { CalenderIcon } from "../../icons";
+import { FiSearch } from "react-icons/fi";
 
 export default function StudentAttendance() {
   const dispatch = useAppDispatch();
@@ -267,7 +268,7 @@ export default function StudentAttendance() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full px-3.5 py-2 pl-9 text-xs bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white"
                 />
-                <span className="absolute left-3 top-2.5 text-gray-400 text-xs">🔍</span>
+                <FiSearch className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             </div>
 

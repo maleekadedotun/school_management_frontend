@@ -394,9 +394,9 @@ export default function TeacherAssignmentCreate() {
             </span>
           )}
           {autoSaveStatus === "saved" && (
-            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+            <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
               <CheckCircleIcon className="w-3.5 h-3.5" />
-              Saved ✓
+              <span>Saved</span>
             </span>
           )}
 

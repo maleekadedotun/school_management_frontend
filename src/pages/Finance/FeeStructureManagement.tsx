@@ -12,6 +12,7 @@ import { fetchAcademicYears } from "../../features/academicYears/academicYearsSl
 import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
 import { fetchClassLevels } from "../../features/classLevels/classLevelsSlice";
 import toast from "react-hot-toast";
+import { FiPlus, FiDollarSign, FiZap, FiTrash2, FiX } from "react-icons/fi";
 
 interface FeeItemInput {
   name: string;
@@ -264,7 +265,7 @@ export default function FeeStructureManagement() {
           onClick={handleOpenCreate}
           className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition duration-200 shadow-lg shadow-indigo-500/25 flex items-center gap-2"
         >
-          <span className="text-lg leading-none">+</span>
+          <FiPlus className="w-4 h-4 shrink-0" />
           Create Fee Structure
         </button>
       </div>
@@ -329,8 +330,8 @@ export default function FeeStructureManagement() {
         <div className="py-16 text-center text-gray-400">Loading fee structures...</div>
       ) : filteredStructures.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 p-12 text-center rounded-2xl border border-gray-100 dark:border-gray-700">
-          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-            ₦
+          <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <FiDollarSign className="w-8 h-8" />
           </div>
           <h3 className="text-base font-bold text-gray-900 dark:text-white">No fee structures found</h3>
           <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
@@ -416,7 +417,7 @@ export default function FeeStructureManagement() {
                     disabled={!fs.isActive}
                     className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold rounded-xl text-xs transition duration-150 shadow-sm flex items-center justify-center gap-1.5"
                   >
-                    <span>⚡</span>
+                    <FiZap className="w-3.5 h-3.5 shrink-0" />
                     Generate Invoices for {fs.classLevel}
                   </button>
 
@@ -438,9 +439,7 @@ export default function FeeStructureManagement() {
                       className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg"
                       title="Delete Structure"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <FiTrash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -462,7 +461,7 @@ export default function FeeStructureManagement() {
                 onClick={() => setShowModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -564,7 +563,7 @@ export default function FeeStructureManagement() {
                     onClick={handleAddItem}
                     className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
                   >
-                    + Add Item
+                    <FiPlus className="w-3.5 h-3.5 shrink-0" /> Add Item
                   </button>
                 </div>
 
@@ -621,9 +620,9 @@ export default function FeeStructureManagement() {
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(idx)}
-                          className="text-gray-400 hover:text-rose-500 text-sm font-bold"
+                          className="text-gray-400 hover:text-rose-500 text-sm font-bold inline-flex items-center justify-center"
                         >
-                          ✕
+                          <FiX className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -673,7 +672,7 @@ export default function FeeStructureManagement() {
                 onClick={() => setShowGenerateModal(false)}
                 className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 

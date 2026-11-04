@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { verifyPayment } from "../../features/finance/financeSlice";
 import PaymentReceiptModal from "./PaymentReceiptModal";
+import { FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 export default function PaymentVerifyCallback() {
   const [searchParams] = useSearchParams();
@@ -45,8 +46,8 @@ export default function PaymentVerifyCallback() {
           </div>
         ) : error ? (
           <div className="py-8 space-y-4">
-            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-950/40 text-rose-600 rounded-2xl flex items-center justify-center mx-auto text-3xl font-bold">
-              ✕
+            <div className="w-16 h-16 bg-rose-100 dark:bg-rose-950/40 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+              <FiXCircle className="w-10 h-10" />
             </div>
             <h2 className="text-xl font-extrabold text-gray-900 dark:text-white">
               Payment Verification Failed
@@ -63,8 +64,8 @@ export default function PaymentVerifyCallback() {
           </div>
         ) : verifiedResult ? (
           <div className="py-4 space-y-6">
-            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto text-3xl font-bold shadow-lg shadow-emerald-500/20">
-              ✓
+            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+              <FiCheckCircle className="w-10 h-10" />
             </div>
             <div>
               <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 rounded-full text-xs font-bold uppercase tracking-wider">

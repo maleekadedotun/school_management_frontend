@@ -24,6 +24,7 @@ import financeReducer from "../features/finance/financeSlice";
 import parentAuthReducer from "../features/parentAuth/parentAuthSlice";
 import classTeachersReducer from "../features/classTeachers/classTeachersSlice";
 import promotionsReducer from "../features/promotions/promotionsSlice";
+import basicSubjectsReducer from "../features/basicSubjects/basicSubjectsSlice";
 
 export const store = configureStore({
   reducer: {
@@ -52,6 +53,7 @@ export const store = configureStore({
     finance: financeReducer,
     classTeachers: classTeachersReducer,
     promotions: promotionsReducer,
+    basicSubjects: basicSubjectsReducer,
   },
 });
 

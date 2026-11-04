@@ -16,6 +16,7 @@ import {
   HiOutlineMagnifyingGlass,
   HiOutlineXMark,
 } from "react-icons/hi2";
+import { FiFileText, FiCheckCircle, FiBell } from "react-icons/fi";
 
 export default function AdminClassReports() {
   const dispatch = useAppDispatch();
@@ -108,8 +109,9 @@ export default function AdminClassReports() {
               <HiOutlineAcademicCap className="w-4 h-4 text-indigo-400" />
               Administrative Overview
             </span>
-            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-              Class Performance Reports 📑
+            <h1 className="text-2xl md:text-3xl font-black text-white tracking-tight flex items-center gap-2.5">
+              <span>Class Performance Reports</span>
+              <FiFileText className="w-7 h-7 text-indigo-400 shrink-0" />
             </h1>
             <p className="text-xs md:text-sm text-indigo-200/80 max-w-2xl leading-relaxed">
               Monitor weekly class performance reports submitted by teachers. Review syllabus coverage, student attendance, pass rates, and teacher recommendations. When you mark a report as read, the authoring teacher is instantly notified.
@@ -255,7 +257,7 @@ export default function AdminClassReports() {
       ) : filteredReports.length === 0 ? (
         <div className="rounded-3xl bg-white dark:bg-slate-900 border border-gray-200/80 dark:border-slate-800 p-12 text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-400 flex items-center justify-center text-3xl mx-auto">
-            {activeTab === "unread" ? "🎉" : "📑"}
+            {activeTab === "unread" ? <FiCheckCircle className="w-8 h-8 text-emerald-500" /> : <FiFileText className="w-8 h-8" />}
           </div>
           <h4 className="font-bold text-gray-900 dark:text-white text-base">
             {activeTab === "unread" ? "All Caught Up!" : "No Reports Found"}
@@ -517,8 +519,11 @@ export default function AdminClassReports() {
                   placeholder="Enter notes or recommendations for the teacher (this will be attached to the notification sent to the teacher)..."
                   className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-xs"
                 />
-                <span className="text-[11px] text-slate-500 block">
-                  🔔 Marking this report as read will immediately notify Teacher <strong>{readingReport.teacherName}</strong>.
+                <span className="text-[11px] text-slate-500 flex items-center gap-1.5">
+                  <FiBell className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>
+                    Marking this report as read will immediately notify Teacher <strong>{readingReport.teacherName}</strong>.
+                  </span>
                 </span>
               </div>
             </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { FiX } from "react-icons/fi";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { registerAdmin, clearError, resetRegisterSuccess } from "../../features/auth/authSlice";
 import toast from "react-hot-toast";
@@ -268,9 +269,10 @@ export default function AdminRegister() {
                       setValidationError(null);
                       dispatch(clearError());
                     }}
-                    className="text-red-400 hover:text-red-200 transition text-xs font-semibold"
+                    className="text-red-400 hover:text-red-200 transition text-xs font-semibold p-1 rounded-md hover:bg-red-500/10"
+                    title="Dismiss"
                   >
-                    ✕
+                    <FiX className="w-4 h-4" />
                   </button>
                 </div>
               )}

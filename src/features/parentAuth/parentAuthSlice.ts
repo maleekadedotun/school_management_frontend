@@ -38,6 +38,10 @@ export interface DashboardChildProfile {
   program?: { _id: string; name: string; code?: string; description?: string };
   assignedTeacher?: { _id: string; name: string; email: string; teacherId?: string; subject?: string; phone?: string };
   enrolledSubjects?: Array<{ subject?: { _id: string; name: string }; classLevel?: string }>;
+  stageGraduated?: boolean;
+  completedStage?: string | null;
+  stageGraduationDate?: string | null;
+  enrollmentStatus?: string;
 }
 
 export interface DashboardChildSummary {
@@ -71,7 +75,11 @@ export interface DashboardMilestones {
   currentLevel: string;
   stepIndex: number;
   isGraduated?: boolean;
-  status: "Good Standing" | "Suspended" | "Withdrawn";
+  stageGraduated?: boolean;
+  completedStage?: string | null;
+  stageGraduationDate?: string | null;
+  enrollmentStatus?: string;
+  status: string;
 }
 
 export interface DashboardRecentAssignment {

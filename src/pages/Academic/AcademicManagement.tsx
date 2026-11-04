@@ -4,6 +4,7 @@ import AcademicYearsList from "./AcademicYearsList";
 import AcademicTermsList from "./AcademicTermsList";
 import ClassLevelsList from "./ClassLevelsList";
 import YearGroupsList from "./YearGroupsList";
+import { FiCalendar, FiClock, FiLayers, FiAward } from "react-icons/fi";
 
 type AcademicTab = "years" | "terms" | "classLevels" | "yearGroups";
 
@@ -35,11 +36,11 @@ export default function AcademicManagement() {
     navigate(pathMap[tab]);
   };
 
-  const tabs: { key: AcademicTab; label: string; emoji: string }[] = [
-    { key: "years", label: "Academic Years", emoji: "📅" },
-    { key: "terms", label: "Academic Terms", emoji: "📆" },
-    { key: "classLevels", label: "Class Levels", emoji: "🏫" },
-    { key: "yearGroups", label: "Year Groups", emoji: "🎓" },
+  const tabs: { key: AcademicTab; label: string; icon: React.ReactNode }[] = [
+    { key: "years", label: "Academic Years", icon: <FiCalendar className="w-4 h-4 shrink-0" /> },
+    { key: "terms", label: "Academic Terms", icon: <FiClock className="w-4 h-4 shrink-0" /> },
+    { key: "classLevels", label: "Class Levels", icon: <FiLayers className="w-4 h-4 shrink-0" /> },
+    { key: "yearGroups", label: "Year Groups", icon: <FiAward className="w-4 h-4 shrink-0" /> },
   ];
 
   return (
@@ -56,7 +57,7 @@ export default function AcademicManagement() {
                 : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white border border-white/10"
             }`}
           >
-            <span>{t.emoji}</span>
+            {t.icon}
             <span>{t.label}</span>
           </button>
         ))}

@@ -3,6 +3,17 @@ import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchTeacherExamsAdmin } from "../../features/exams/examsSlice";
 import { fetchAllTeachers } from "../../features/teachers/teachersSlice";
 import { fetchSubjects } from "../../features/subjects/subjectsSlice";
+import {
+  FiLayers,
+  FiDownload,
+  FiRefreshCw,
+  FiCheckCircle,
+  FiClock,
+  FiFilter,
+  FiArrowLeft,
+  FiArrowRight,
+  FiX,
+} from "react-icons/fi";
 
 export default function TeacherExamsList() {
   const dispatch = useAppDispatch();
@@ -235,9 +246,7 @@ export default function TeacherExamsList() {
         <div>
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-amber-500/20 border border-amber-500/30 text-amber-400">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
+              <FiLayers className="w-6 h-6" />
             </div>
             <div>
               <h1 className="text-2xl font-extrabold text-white tracking-tight">Teacher Created Exams</h1>
@@ -253,18 +262,14 @@ export default function TeacherExamsList() {
             disabled={filteredExams.length === 0}
             className="px-4 py-2.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/30 text-amber-300 text-xs sm:text-sm font-medium transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
           >
-            <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <FiDownload className="w-4 h-4 text-amber-400 shrink-0" />
             Export CSV ({filteredExams.length})
           </button>
           <button
             onClick={handleRefresh}
             className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs sm:text-sm font-medium transition-all flex items-center gap-2"
           >
-            <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <FiRefreshCw className="w-4 h-4 text-amber-400 shrink-0" />
             Refresh
           </button>
         </div>
@@ -292,7 +297,9 @@ export default function TeacherExamsList() {
           <p className="text-dark-400 text-xs font-medium uppercase tracking-wider">Live Exams</p>
           <div className="flex items-baseline justify-between mt-2">
             <span className="text-2xl sm:text-3xl font-bold text-emerald-400">{stats.liveCount}</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">🟢 Active</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold inline-flex items-center gap-1">
+              <FiCheckCircle className="w-3 h-3 shrink-0" /> Active
+            </span>
           </div>
         </div>
 
@@ -300,7 +307,9 @@ export default function TeacherExamsList() {
           <p className="text-dark-400 text-xs font-medium uppercase tracking-wider">Pending Exams</p>
           <div className="flex items-baseline justify-between mt-2">
             <span className="text-2xl sm:text-3xl font-bold text-amber-400">{stats.pendingCount}</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">🟡 Pending</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold inline-flex items-center gap-1">
+              <FiClock className="w-3 h-3 shrink-0" /> Pending
+            </span>
           </div>
         </div>
       </div>
@@ -361,9 +370,7 @@ export default function TeacherExamsList() {
       <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
+            <FiFilter className="w-5 h-5 text-amber-400 shrink-0" />
             <h2 className="text-sm font-semibold text-white tracking-wide uppercase">Teacher & Exam Filters</h2>
           </div>
           <button
@@ -465,8 +472,8 @@ export default function TeacherExamsList() {
               className="w-full px-3 py-2 rounded-xl bg-[#0a0f1e] border border-white/10 text-white text-xs sm:text-sm focus:outline-none focus:border-amber-500 transition-all"
             >
               <option value="all">All Statuses</option>
-              <option value="live">🟢 Live</option>
-              <option value="pending">🟡 Pending</option>
+              <option value="live">Live</option>
+              <option value="pending">Pending</option>
             </select>
           </div>
 
@@ -509,9 +516,7 @@ export default function TeacherExamsList() {
           </div>
         ) : filteredExams.length === 0 ? (
           <div className="p-16 text-center text-slate-400 space-y-3">
-            <svg className="w-12 h-12 text-slate-600 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
+            <FiLayers className="w-12 h-12 text-slate-600 mx-auto" />
             <p className="text-base font-semibold text-slate-300">No Teacher Exams Found</p>
             <p className="text-xs text-slate-500 max-w-sm mx-auto">
               No exams match your current teacher ID, teacher name, or date filters.
@@ -600,13 +605,17 @@ export default function TeacherExamsList() {
                         {/* Status */}
                         <td className="px-6 py-4 text-center whitespace-nowrap">
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1 ${
                               isLive
                                 ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                                 : "bg-amber-500/20 text-amber-300 border-amber-500/30"
                             }`}
                           >
-                            {isLive ? "🟢 Live" : "🟡 Pending"}
+                            {isLive ? (
+                              <><FiCheckCircle className="w-3 h-3 shrink-0" /> Live</>
+                            ) : (
+                              <><FiClock className="w-3 h-3 shrink-0" /> Pending</>
+                            )}
                           </span>
                         </td>
 
@@ -695,7 +704,7 @@ export default function TeacherExamsList() {
                   disabled={currentPage === 1}
                   className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-1"
                 >
-                  ← Back
+                  <FiArrowLeft className="w-3.5 h-3.5 shrink-0" /> Back
                 </button>
 
                 <span className="text-xs text-slate-300 font-medium px-2">
@@ -708,7 +717,7 @@ export default function TeacherExamsList() {
                   disabled={currentPage === totalPages || totalPages === 0}
                   className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all flex items-center gap-1"
                 >
-                  Next →
+                  Next <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </button>
               </div>
             </div>
@@ -732,9 +741,7 @@ export default function TeacherExamsList() {
                 onClick={() => setSelectedExam(null)}
                 className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <FiX className="w-6 h-6" />
               </button>
             </div>
 

@@ -31,6 +31,7 @@ import ClassLevelsList from "./pages/Academic/ClassLevelsList";
 import YearGroupsList from "./pages/Academic/YearGroupsList";
 import ProgramsList from "./pages/Academic/ProgramsList";
 import SubjectsList from "./pages/Academic/SubjectsList";
+import BasicSubjectsList from "./pages/Academic/BasicSubjectsList";
 import ExamsList from "./pages/Exams/ExamsList";
 import StudentResultsList from "./pages/Exams/StudentResultsList";
 import TeacherExamsList from "./pages/Exams/TeacherExamsList";
@@ -145,6 +146,7 @@ export default function App() {
             <Route path="/academic/year-groups" element={<YearGroupsList />} />
             <Route path="/academic/programs" element={<ProgramsList />} />
             <Route path="/academic/subjects" element={<SubjectsList />} />
+            <Route path="/academic/basic-subjects" element={<BasicSubjectsList />} />
             <Route path="/admin/results" element={<StudentResultsList />} />
             <Route path="/admin/report-cards" element={<AdminReportCards />} />
             <Route path="/admin/promotions" element={<StudentPromotion />} />

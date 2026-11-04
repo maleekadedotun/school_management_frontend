@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { FiClipboard } from "react-icons/fi";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
 import { fetchPaymentTransactions } from "../../features/finance/financeSlice";
 import PaymentReceiptModal from "./PaymentReceiptModal";
@@ -145,7 +146,9 @@ export default function PaymentHistory() {
           <div className="py-16 text-center text-gray-400 text-sm">Loading transactions...</div>
         ) : filteredTransactions.length === 0 ? (
           <div className="py-16 text-center text-gray-400 text-sm max-w-md mx-auto space-y-2">
-            <div className="text-3xl">📋</div>
+            <div className="flex justify-center mb-1">
+              <FiClipboard className="w-10 h-10 text-gray-400" />
+            </div>
             <div className="font-semibold text-gray-700 dark:text-gray-300">
               {search || statusFilter
                 ? "No transactions match your current search filters."

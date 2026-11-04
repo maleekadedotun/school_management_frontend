@@ -5,6 +5,23 @@ import { fetchAllTeachers } from "../../features/teachers/teachersSlice";
 import { fetchExams } from "../../features/exams/examsSlice";
 import { fetchAcademicYears } from "../../features/academicYears/academicYearsSlice";
 import { fetchAcademicTerms } from "../../features/academicTerms/academicTermsSlice";
+import {
+  FiHelpCircle,
+  FiBarChart2,
+  FiClipboard,
+  FiRefreshCw,
+  FiFilter,
+  FiChevronDown,
+  FiChevronRight,
+  FiChevronUp,
+  FiZap,
+  FiCalendar,
+  FiTag,
+  FiCheck,
+  FiArrowLeft,
+  FiArrowRight,
+  FiX,
+} from "react-icons/fi";
 
 const getObjName = (obj: any): string => {
   if (!obj) return "";
@@ -349,9 +366,7 @@ export default function QuestionsList() {
         <div>
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-400">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <FiHelpCircle className="w-6 h-6" />
             </div>
             <div>
               <h1 className="text-2xl font-extrabold text-dark tracking-tight">Exam & Test Question Bank Table</h1>
@@ -373,7 +388,7 @@ export default function QuestionsList() {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              <span>📊</span>
+              <FiBarChart2 className="w-3.5 h-3.5 shrink-0" />
               <span>Examination Table</span>
             </button>
 
@@ -385,7 +400,7 @@ export default function QuestionsList() {
                   : "text-slate-400 hover:text-white"
               }`}
             >
-              <span>📋</span>
+              <FiClipboard className="w-3.5 h-3.5 shrink-0" />
               <span>All Questions</span>
             </button>
           </div>
@@ -394,9 +409,7 @@ export default function QuestionsList() {
             onClick={handleRefresh}
             className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs sm:text-sm font-medium transition-all flex items-center gap-2"
           >
-            <svg className="w-4 h-4 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
+            <FiRefreshCw className="w-4 h-4 text-violet-400 shrink-0" />
             Refresh
           </button>
         </div>
@@ -433,9 +446,7 @@ export default function QuestionsList() {
       <div className="bg-[#0f1629] border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4 shadow-xl">
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
+            <FiFilter className="w-5 h-5 text-violet-400 shrink-0" />
             <h2 className="text-sm font-semibold text-white tracking-wide uppercase">Filters</h2>
           </div>
 
@@ -551,7 +562,7 @@ export default function QuestionsList() {
           <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
             <div>
               <h3 className="text-base font-bold text-dark flex items-center gap-2">
-                <span>📊</span>
+                <FiBarChart2 className="w-4 h-4 text-violet-400 shrink-0" />
                 <span>Examinations & Tests Table</span>
                 <span className="text-xs px-2.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 font-semibold">
                   {filteredAssessments.length} Records
@@ -608,7 +619,7 @@ export default function QuestionsList() {
                               }}
                               className="w-7 h-7 rounded-lg bg-white/5 group-hover:bg-violet-500/20 text-slate-400 group-hover:text-violet-300 font-bold flex items-center justify-center transition-all"
                             >
-                              <span className="text-xs">{isExpanded ? "▼" : "▶"}</span>
+                              {isExpanded ? <FiChevronDown className="w-4 h-4" /> : <FiChevronRight className="w-4 h-4" />}
                             </button>
                           </td>
 
@@ -623,25 +634,29 @@ export default function QuestionsList() {
 
                           <td className="py-4 px-3 whitespace-nowrap">
                             <span
-                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
+                              className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border inline-flex items-center gap-1 ${
                                 isTest
                                   ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
                                   : "bg-indigo-500/20 text-indigo-300 border-indigo-500/40"
                               }`}
                             >
-                              {isTest ? "⚡ Test" : "📋 Exam"}
+                              {isTest ? (
+                                <><FiZap className="w-3 h-3 shrink-0" /> Test</>
+                              ) : (
+                                <><FiClipboard className="w-3 h-3 shrink-0" /> Exam</>
+                              )}
                             </span>
                           </td>
 
                           <td className="py-4 px-3 whitespace-nowrap">
-                            <span className="font-semibold text-emerald-300 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono">
-                              📅 {assessment.academicYear}
+                            <span className="font-semibold text-emerald-300 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs font-mono inline-flex items-center gap-1.5">
+                              <FiCalendar className="w-3 h-3 shrink-0" /> {assessment.academicYear}
                             </span>
                           </td>
 
                           <td className="py-4 px-3 whitespace-nowrap">
-                            <span className="font-medium text-teal-300 px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs">
-                              🏷️ {assessment.academicTerm}
+                            <span className="font-medium text-teal-300 px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-xs inline-flex items-center gap-1.5">
+                              <FiTag className="w-3 h-3 shrink-0" /> {assessment.academicTerm}
                             </span>
                           </td>
 
@@ -674,7 +689,7 @@ export default function QuestionsList() {
                               }`}
                             >
                               <span>{isExpanded ? "Hide Questions" : "View Questions"}</span>
-                              <span>{isExpanded ? "▲" : "▼"}</span>
+                              {isExpanded ? <FiChevronUp className="w-3.5 h-3.5 shrink-0" /> : <FiChevronDown className="w-3.5 h-3.5 shrink-0" />}
                             </button>
                           </td>
                         </tr>
@@ -746,8 +761,8 @@ export default function QuestionsList() {
                                                     <strong className="mr-1.5 opacity-80">{opt.key}.</strong> {opt.text}
                                                   </span>
                                                   {isCorrect && (
-                                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/30 text-emerald-200 font-bold">
-                                                      ✓ Correct
+                                                    <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/30 text-emerald-200 font-bold inline-flex items-center gap-0.5">
+                                                      <FiCheck className="w-3 h-3 shrink-0" /> Correct
                                                     </span>
                                                   )}
                                                 </div>
@@ -799,9 +814,9 @@ export default function QuestionsList() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
-                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40"
+                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 inline-flex items-center gap-1"
                 >
-                  ← Back
+                  <FiArrowLeft className="w-3.5 h-3.5 shrink-0" /> Back
                 </button>
 
                 <span className="text-xs text-slate-300 font-medium px-2">
@@ -812,9 +827,9 @@ export default function QuestionsList() {
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
-                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40"
+                  className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold disabled:opacity-40 inline-flex items-center gap-1"
                 >
-                  Next →
+                  Next <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </button>
               </div>
             </div>
@@ -905,8 +920,8 @@ export default function QuestionsList() {
                             <strong className="mr-1.5 opacity-80">{opt.key}.</strong> {opt.text}
                           </span>
                           {isCorrect && (
-                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/30 text-emerald-200">
-                              ✓ Correct Answer
+                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/30 text-emerald-200 inline-flex items-center gap-0.5">
+                              <FiCheck className="w-3 h-3 shrink-0" /> Correct Answer
                             </span>
                           )}
                         </div>
@@ -943,9 +958,9 @@ export default function QuestionsList() {
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30"
+                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 inline-flex items-center gap-1"
               >
-                ← Back
+                <FiArrowLeft className="w-3.5 h-3.5 shrink-0" /> Back
               </button>
 
               <span className="text-xs text-slate-300 font-medium px-2">
@@ -956,9 +971,9 @@ export default function QuestionsList() {
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, flatTotalPages))}
                 disabled={currentPage === flatTotalPages || flatTotalPages === 0}
-                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30"
+                className="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white disabled:opacity-30 inline-flex items-center gap-1"
               >
-                Next →
+                Next <FiArrowRight className="w-3.5 h-3.5 shrink-0" />
               </button>
             </div>
           </div>
@@ -971,14 +986,16 @@ export default function QuestionsList() {
           <div className="bg-[#0f1629] border border-white/10 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl relative">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span className="p-1.5 rounded-lg bg-violet-500/20 text-violet-400">❓</span>
+                <span className="p-1.5 rounded-lg bg-violet-500/20 text-violet-400">
+                  <FiHelpCircle className="w-5 h-5" />
+                </span>
                 Question Inspector
               </h3>
               <button
                 onClick={() => setSelectedQuestion(null)}
                 className="text-slate-400 hover:text-white transition-colors"
               >
-                ✕
+                <FiX className="w-5 h-5" />
               </button>
             </div>
 
@@ -1042,7 +1059,11 @@ export default function QuestionsList() {
                         <span>
                           <strong>{o.k}.</strong> {o.val}
                         </span>
-                        {isKey && <span className="text-[10px] text-emerald-400 font-bold">✓ CORRECT KEY</span>}
+                        {isKey && (
+                          <span className="text-[10px] text-emerald-400 font-bold inline-flex items-center gap-0.5">
+                            <FiCheck className="w-3 h-3 shrink-0" /> CORRECT KEY
+                          </span>
+                        )}
                       </div>
                     );
                   })}
